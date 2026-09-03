@@ -7,7 +7,8 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
-        import { getFirestore, collection, onSnapshot, addDoc, deleteDoc, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+        import { getFirestore, collection, onSnapshot, addDoc, deleteDoc, doc, updateDoc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+        import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyB0_ROV4sjigkHj5yachpCuuAmoUtfsJoA",
@@ -20,9 +21,16 @@
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        const secondaryApp = initializeApp(firebaseConfig, 'secondary');
+        const secondaryAuth = getAuth(secondaryApp);
 
         window.firebaseDB = db;
-        window.firebaseFns = { collection, onSnapshot, addDoc, deleteDoc, doc, updateDoc };
+        window.firebaseFns = { collection, onSnapshot, addDoc, deleteDoc, doc, updateDoc, setDoc, getDoc };
+        window.firebaseAuth = auth;
+        window.firebaseAuthFns = { signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword };
+        window.firebaseSecondaryAuth = secondaryAuth;
         window.firebaseReady = true;
         window.dispatchEvent(new Event('firebase-ready'));
     </script>
@@ -459,6 +467,132 @@
             accent-color: #667eea;
         }
 
+        .login-screen {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .login-box {
+            background: white;
+            border-radius: 16px;
+            padding: 40px 30px;
+            max-width: 380px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            text-align: center;
+        }
+
+        .login-box i.fa-tasks {
+            font-size: 40px;
+            color: #667eea;
+            margin-bottom: 12px;
+        }
+
+        .login-box h2 {
+            font-size: 22px;
+            margin-bottom: 24px;
+            color: #333;
+        }
+
+        .login-error {
+            color: #c92a2a;
+            font-size: 13px;
+            margin-top: 10px;
+            display: none;
+        }
+
+        .login-error.active {
+            display: block;
+        }
+
+        .user-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 10px 20px;
+            background: rgba(255,255,255,0.15);
+            font-size: 13px;
+            color: white;
+        }
+
+        .user-bar-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .logout-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        .logout-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .role-card {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 16px 20px;
+            margin-bottom: 12px;
+        }
+
+        .role-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .role-name {
+            font-weight: 600;
+            font-size: 16px;
+            color: #333;
+        }
+
+        .role-name.protected {
+            color: #667eea;
+        }
+
+        .module-checks {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 8px;
+        }
+
+        .module-check {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: #f5f5f5;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        .module-check input {
+            width: 14px;
+            height: 14px;
+            cursor: pointer;
+            accent-color: #667eea;
+        }
+
+        .app-hidden {
+            display: none !important;
+        }
+
         .fab {
             position: fixed;
             bottom: 30px;
@@ -602,7 +736,27 @@
     </style>
 </head>
 <body>
-    <div class="container">
+    <div id="loginScreen" class="login-screen">
+        <div class="login-box">
+            <i class="fas fa-tasks"></i>
+            <h2>Task & Project Manager</h2>
+            <div class="form-group" style="text-align:left;">
+                <label>Email</label>
+                <input type="email" id="loginEmail" placeholder="you@company.com">
+            </div>
+            <div class="form-group" style="text-align:left;">
+                <label>Password</label>
+                <input type="password" id="loginPassword" placeholder="Your password">
+            </div>
+            <button class="btn" style="width:100%; justify-content:center;" onclick="doLogin()">
+                <i class="fas fa-right-to-bracket"></i>
+                Log in
+            </button>
+            <p class="login-error" id="loginError">Invalid email or password.</p>
+        </div>
+    </div>
+
+    <div id="appContainer" class="container app-hidden">
         <div class="header">
             <h1>
                 <i class="fas fa-tasks"></i>
@@ -610,18 +764,33 @@
             </h1>
         </div>
 
-        <div class="tabs">
-            <button class="tab-btn active" onclick="switchTab('tasks')">
+        <div class="user-bar">
+            <div class="user-bar-info">
+                <i class="fas fa-user-circle"></i>
+                <span id="currentUserLabel">-</span>
+            </div>
+            <button class="logout-btn" onclick="doLogout()">
+                <i class="fas fa-right-from-bracket"></i>
+                Log out
+            </button>
+        </div>
+
+        <div class="tabs" id="tabsBar">
+            <button class="tab-btn active" data-module="tasks" onclick="switchTab('tasks')">
                 <i class="fas fa-list-check"></i>
                 Tasks
             </button>
-            <button class="tab-btn" onclick="switchTab('projects')">
+            <button class="tab-btn" data-module="projects" onclick="switchTab('projects')">
                 <i class="fas fa-folder"></i>
                 Projects
             </button>
-            <button class="tab-btn" onclick="switchTab('team')">
+            <button class="tab-btn" data-module="team" onclick="switchTab('team')">
                 <i class="fas fa-users"></i>
                 Team
+            </button>
+            <button class="tab-btn" data-module="roles" onclick="switchTab('roles')">
+                <i class="fas fa-user-shield"></i>
+                Roles
             </button>
         </div>
 
@@ -788,16 +957,16 @@
                     <input type="text" id="memberName" placeholder="Full name">
                 </div>
                 <div class="form-group">
-                    <label>Email (optional)</label>
+                    <label>Email (required to create login)</label>
                     <input type="email" id="memberEmail" placeholder="email@company.com">
                 </div>
                 <div class="form-group">
+                    <label>Temporary Password</label>
+                    <input type="text" id="memberPassword" placeholder="Min 6 characters">
+                </div>
+                <div class="form-group">
                     <label>Role</label>
-                    <select id="memberRole">
-                        <option value="Member">Member</option>
-                        <option value="Lead">Lead</option>
-                        <option value="Admin">Admin</option>
-                    </select>
+                    <select id="memberRole"></select>
                 </div>
                 <button class="btn" onclick="addTeamMember()">
                     <i class="fas fa-user-plus"></i>
@@ -811,24 +980,123 @@
             </div>
             <div id="teamList"></div>
         </div>
+
+        <!-- TAB ROLES -->
+        <div id="roles" class="content">
+            <div class="form-section">
+                <div class="section-title">
+                    <i class="fas fa-plus-circle"></i>
+                    Create New Role
+                </div>
+                <div class="form-group">
+                    <label>Role Name</label>
+                    <input type="text" id="newRoleName" placeholder="Ex: Supervisor">
+                </div>
+                <div class="form-group">
+                    <label>Visible Modules</label>
+                    <div class="module-checks" id="newRoleModules">
+                        <label class="module-check"><input type="checkbox" value="tasks"> Tasks</label>
+                        <label class="module-check"><input type="checkbox" value="projects"> Projects</label>
+                        <label class="module-check"><input type="checkbox" value="team"> Team</label>
+                    </div>
+                </div>
+                <button class="btn" onclick="createRole()">
+                    <i class="fas fa-plus"></i>
+                    Create Role
+                </button>
+            </div>
+
+            <div class="section-title">
+                <i class="fas fa-user-shield"></i>
+                Existing Roles
+            </div>
+            <div id="roleList"></div>
+        </div>
     </div>
 
 
     <script>
+        const ADMIN_UID = 'Lx9yqGaSngS6GpidDgNKQQGdm9o2';
+        const CORE_MODULES = [
+            { key: 'tasks', label: 'Tasks' },
+            { key: 'projects', label: 'Projects' },
+            { key: 'team', label: 'Team' }
+        ];
+
         const state = {
             tasks: [],
             projects: [],
-            team: []
+            team: [],
+            roles: []
         };
 
         const assigneeMap = {};
 
-        let db, fns;
+        let db, fns, auth, authFns;
         let unsubscribers = [];
+        let currentUser = null;
+        let currentMember = null;
 
         function initFirebaseSync() {
             db = window.firebaseDB;
             fns = window.firebaseFns;
+            auth = window.firebaseAuth;
+            authFns = window.firebaseAuthFns;
+
+            authFns.onAuthStateChanged(auth, (user) => {
+                currentUser = user;
+                if (user) {
+                    showApp();
+                } else {
+                    showLogin();
+                }
+            });
+        }
+
+        if (window.firebaseReady) {
+            initFirebaseSync();
+        } else {
+            window.addEventListener('firebase-ready', initFirebaseSync);
+        }
+
+        function showLogin() {
+            document.getElementById('loginScreen').classList.remove('app-hidden');
+            document.getElementById('appContainer').classList.add('app-hidden');
+            unsubscribers.forEach(u => u && u());
+            unsubscribers = [];
+        }
+
+        async function showApp() {
+            document.getElementById('loginScreen').classList.add('app-hidden');
+            document.getElementById('appContainer').classList.remove('app-hidden');
+            startDataSync();
+        }
+
+        function doLogin() {
+            const email = document.getElementById('loginEmail').value.trim();
+            const password = document.getElementById('loginPassword').value;
+            const errorEl = document.getElementById('loginError');
+            errorEl.classList.remove('active');
+
+            if (!email || !password) {
+                errorEl.textContent = 'Enter email and password.';
+                errorEl.classList.add('active');
+                return;
+            }
+
+            authFns.signInWithEmailAndPassword(auth, email, password)
+                .catch(() => {
+                    errorEl.textContent = 'Invalid email or password.';
+                    errorEl.classList.add('active');
+                });
+        }
+
+        function doLogout() {
+            authFns.signOut(auth);
+        }
+
+        function startDataSync() {
+            unsubscribers.forEach(u => u && u());
 
             const tasksCol = fns.collection(db, 'tasks');
             const unsubTasks = fns.onSnapshot(tasksCol, (snapshot) => {
@@ -853,17 +1121,75 @@
                         initials: m.name.split(' ').map(n => n[0]).join('').toUpperCase()
                     };
                 });
+                currentMember = state.team.find(m => m.authUid === currentUser.uid) || null;
                 renderTeam();
                 populateAssigneeSelects();
+                applyRolePermissions();
             });
 
-            unsubscribers = [unsubTasks, unsubProjects, unsubTeam];
+            const rolesCol = fns.collection(db, 'roles');
+            const unsubRoles = fns.onSnapshot(rolesCol, async (snapshot) => {
+                state.roles = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                await ensureDefaultRoles();
+                renderRoles();
+                populateRoleSelect();
+                applyRolePermissions();
+            });
+
+            unsubscribers = [unsubTasks, unsubProjects, unsubTeam, unsubRoles];
         }
 
-        if (window.firebaseReady) {
-            initFirebaseSync();
-        } else {
-            window.addEventListener('firebase-ready', initFirebaseSync);
+        async function ensureDefaultRoles() {
+            const defaults = [
+                { name: 'Admin', modules: ['tasks', 'projects', 'team', 'roles'], protected: true },
+                { name: 'Lead', modules: ['tasks', 'projects', 'team'], protected: false },
+                { name: 'Member', modules: [], protected: false }
+            ];
+            for (const d of defaults) {
+                const exists = state.roles.find(r => r.name === d.name);
+                if (!exists) {
+                    await fns.addDoc(fns.collection(db, 'roles'), { name: d.name, modules: d.modules, protected: d.protected || false });
+                }
+            }
+        }
+
+        function getUserRole() {
+            if (currentUser && currentUser.uid === ADMIN_UID) {
+                return { name: 'Admin', modules: ['tasks', 'projects', 'team', 'roles'], protected: true };
+            }
+            if (!currentMember) return { name: 'Member', modules: [] };
+            return state.roles.find(r => r.name === currentMember.role) || { name: currentMember.role, modules: [] };
+        }
+
+        function applyRolePermissions() {
+            const role = getUserRole();
+            const isAdmin = role.name === 'Admin';
+
+            document.getElementById('currentUserLabel').textContent =
+                (currentMember ? currentMember.name : (currentUser ? currentUser.email : '')) + ' (' + role.name + ')';
+
+            document.querySelectorAll('#tabsBar .tab-btn').forEach(btn => {
+                const mod = btn.getAttribute('data-module');
+                const visible = isAdmin || (role.modules || []).includes(mod);
+                btn.style.display = visible ? '' : 'none';
+            });
+
+            const activeBtn = document.querySelector('#tabsBar .tab-btn.active');
+            if (activeBtn && activeBtn.style.display === 'none') {
+                const firstVisible = document.querySelector('#tabsBar .tab-btn:not([style*="display: none"])');
+                if (firstVisible) {
+                    const mod = firstVisible.getAttribute('data-module');
+                    switchTabProgrammatic(mod);
+                }
+            }
+        }
+
+        function switchTabProgrammatic(tab) {
+            document.querySelectorAll('.content').forEach(c => c.classList.remove('active'));
+            document.querySelectorAll('#tabsBar .tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(tab).classList.add('active');
+            const btn = document.querySelector(`#tabsBar .tab-btn[data-module="${tab}"]`);
+            if (btn) btn.classList.add('active');
         }
 
         function populateAssigneeSelects() {
@@ -879,6 +1205,14 @@
 
             if (taskSelect) taskSelect.innerHTML = allOptions;
             if (projTaskSelect) projTaskSelect.innerHTML = leadAdminOptions;
+        }
+
+        function populateRoleSelect() {
+            const roleSelect = document.getElementById('memberRole');
+            if (!roleSelect) return;
+            const current = roleSelect.value;
+            roleSelect.innerHTML = state.roles.map(r => `<option value="${r.name}">${r.name}</option>`).join('');
+            if (current && state.roles.some(r => r.name === current)) roleSelect.value = current;
         }
 
         function openTaskModal() {
@@ -1049,30 +1383,48 @@
             fns.updateDoc(fns.doc(db, 'projects', projectId), { tasks: updatedTasks });
         }
 
-        function addTeamMember() {
+        async function addTeamMember() {
             const name = document.getElementById('memberName').value.trim();
             const email = document.getElementById('memberEmail').value.trim();
+            const password = document.getElementById('memberPassword').value;
             const role = document.getElementById('memberRole').value;
 
             if (!name) {
                 alert('Please enter a name');
                 return;
             }
+            if (!email || !password) {
+                alert('Email and a temporary password are required to create this member\'s login.');
+                return;
+            }
+            if (password.length < 6) {
+                alert('Password must be at least 6 characters.');
+                return;
+            }
 
-            fns.addDoc(fns.collection(db, 'team'), {
-                name,
-                email: email || '',
-                role,
-                joinDate: new Date().toLocaleDateString('en-US')
-            });
+            try {
+                const cred = await authFns.createUserWithEmailAndPassword(window.firebaseSecondaryAuth, email, password);
+                const newUid = cred.user.uid;
+                await authFns.signOut(window.firebaseSecondaryAuth);
 
-            clearMemberForm();
+                await fns.addDoc(fns.collection(db, 'team'), {
+                    name,
+                    email,
+                    role,
+                    authUid: newUid,
+                    joinDate: new Date().toLocaleDateString('en-US')
+                });
+
+                clearMemberForm();
+            } catch (err) {
+                alert('Could not create login: ' + (err.message || err));
+            }
         }
 
         function clearMemberForm() {
             document.getElementById('memberName').value = '';
             document.getElementById('memberEmail').value = '';
-            document.getElementById('memberRole').value = 'Member';
+            document.getElementById('memberPassword').value = '';
         }
 
         function deleteTeamMember(id) {
@@ -1254,6 +1606,88 @@
                     `;
                 }).join('');
             }
+        }
+
+        function createRole() {
+            const nameInput = document.getElementById('newRoleName');
+            const name = nameInput.value.trim();
+            if (!name) {
+                alert('Please enter a role name');
+                return;
+            }
+            if (state.roles.some(r => r.name.toLowerCase() === name.toLowerCase())) {
+                alert('A role with that name already exists');
+                return;
+            }
+
+            const checks = document.querySelectorAll('#newRoleModules input[type="checkbox"]');
+            const modules = Array.from(checks).filter(c => c.checked).map(c => c.value);
+
+            fns.addDoc(fns.collection(db, 'roles'), { name, modules, protected: false });
+
+            nameInput.value = '';
+            checks.forEach(c => c.checked = false);
+        }
+
+        function toggleRoleModule(roleId, moduleKey, checked) {
+            const role = state.roles.find(r => r.id === roleId);
+            if (!role) return;
+            let modules = role.modules || [];
+            if (checked) {
+                if (!modules.includes(moduleKey)) modules = [...modules, moduleKey];
+            } else {
+                modules = modules.filter(m => m !== moduleKey);
+            }
+            fns.updateDoc(fns.doc(db, 'roles', roleId), { modules });
+        }
+
+        function deleteRole(roleId) {
+            const role = state.roles.find(r => r.id === roleId);
+            if (!role) return;
+            if (role.protected) {
+                alert('The Admin role cannot be deleted.');
+                return;
+            }
+            if (state.team.some(m => m.role === role.name)) {
+                alert('This role is assigned to one or more team members. Reassign them before deleting this role.');
+                return;
+            }
+            if (confirm(`Delete role "${role.name}"?`)) {
+                fns.deleteDoc(fns.doc(db, 'roles', roleId));
+            }
+        }
+
+        function renderRoles() {
+            const roleList = document.getElementById('roleList');
+            if (state.roles.length === 0) {
+                roleList.innerHTML = `<div class="empty-state"><i class="fas fa-user-shield"></i><p>No roles yet.</p></div>`;
+                return;
+            }
+            roleList.innerHTML = state.roles.map(role => {
+                const modules = role.modules || [];
+                const checksHtml = CORE_MODULES.map(m => `
+                    <label class="module-check">
+                        <input type="checkbox" ${modules.includes(m.key) ? 'checked' : ''}
+                            ${role.protected ? 'disabled' : ''}
+                            onchange="toggleRoleModule('${role.id}','${m.key}', this.checked)">
+                        ${m.label}
+                    </label>
+                `).join('');
+
+                return `
+                    <div class="role-card">
+                        <div class="role-card-header">
+                            <span class="role-name ${role.protected ? 'protected' : ''}">${role.name}${role.protected ? ' (protected)' : ''}</span>
+                            ${!role.protected ? `
+                                <button class="btn btn-danger" style="padding:4px 10px;" onclick="deleteRole('${role.id}')">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            ` : ''}
+                        </div>
+                        <div class="module-checks">${checksHtml}</div>
+                    </div>
+                `;
+            }).join('');
         }
 
     </script>
