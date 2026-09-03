@@ -1,0 +1,4060 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task and Project Manager</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
+        import { getFirestore, collection, onSnapshot, addDoc, deleteDoc, doc, updateDoc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+        import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyB0_ROV4sjigkHj5yachpCuuAmoUtfsJoA",
+            authDomain: "task-manager-5f5b3.firebaseapp.com",
+            projectId: "task-manager-5f5b3",
+            storageBucket: "task-manager-5f5b3.firebasestorage.app",
+            messagingSenderId: "912477224199",
+            appId: "1:912477224199:web:ca3071efacbb5994ff19a2"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        const secondaryApp = initializeApp(firebaseConfig, 'secondary');
+        const secondaryAuth = getAuth(secondaryApp);
+
+        window.firebaseDB = db;
+        window.firebaseFns = { collection, onSnapshot, addDoc, deleteDoc, doc, updateDoc, setDoc, getDoc };
+        window.firebaseAuth = auth;
+        window.firebaseAuthFns = { signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword };
+        window.firebaseSecondaryAuth = secondaryAuth;
+        window.firebaseReady = true;
+        window.dispatchEvent(new Event('firebase-ready'));
+    </script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+            color: white;
+            padding: 30px 20px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+        }
+
+        .header i {
+            font-size: 32px;
+        }
+
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid #e0e0e0;
+            background: #f9f9f9;
+            flex-wrap: wrap;
+        }
+
+        .tab-btn {
+            flex: 1;
+            min-width: 100px;
+            padding: 15px 20px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            color: #666;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .tab-btn:hover {
+            background: #f0f0f0;
+        }
+
+        .tab-btn.active {
+            color: #2563eb;
+            border-bottom-color: #2563eb;
+        }
+
+        .tab-btn i {
+            font-size: 16px;
+        }
+
+        .content {
+            padding: 30px 20px;
+            display: none;
+            min-height: 400px;
+        }
+
+        .content.active {
+            display: block;
+        }
+
+        .form-section {
+            background: #f9f9f9;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            border: 1px solid #e0e0e0;
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 6px;
+            color: #555;
+            font-size: 14px;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+            transition: all 0.3s;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #2563eb;
+            background: #f0f4ff;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .btn {
+            padding: 11px 20px;
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(37, 99, 235, 0.3);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn-secondary {
+            background: white;
+            color: #2563eb;
+            border: 1px solid #2563eb;
+        }
+
+        .btn-secondary:hover {
+            background: #f0f4ff;
+        }
+
+        .btn-danger {
+            background: #ff6b6b;
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+
+        .btn-danger:hover {
+            background: #ff5252;
+        }
+
+        .btn-success {
+            background: #51cf66;
+        }
+
+        .btn-success:hover {
+            background: #40c057;
+        }
+
+        .card {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 15px;
+            transition: all 0.3s;
+        }
+
+        .card:hover {
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+            border-color: #2563eb;
+        }
+
+        .card.completed {
+            opacity: 0.6;
+            background: #f5f5f5;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+            gap: 10px;
+        }
+
+        .card-title {
+            font-weight: 600;
+            font-size: 16px;
+            color: #333;
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .card.completed .card-title {
+            text-decoration: line-through;
+            color: #999;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .badge-high {
+            background: #ffe0e0;
+            color: #c92a2a;
+        }
+
+        .badge-medium {
+            background: #fff3bf;
+            color: #b08600;
+        }
+
+        .badge-low {
+            background: #d3f9d8;
+            color: #2f7e1f;
+        }
+
+        .badge-daily {
+            background: #e7f5ff;
+            color: #0066cc;
+        }
+
+        .badge-weekly {
+            background: #f3e5f5;
+            color: #7b1fa2;
+        }
+
+        .badge-monthly {
+            background: #fce4ec;
+            color: #c2185b;
+        }
+
+        .badge-date {
+            background: #f0f0f0;
+            color: #666;
+        }
+
+        .card-meta {
+            font-size: 13px;
+            color: #666;
+            margin: 10px 0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .meta-item i {
+            color: #999;
+        }
+
+        .assignee-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-top: 10px;
+        }
+
+        .assignee-avatar {
+            width: 24px;
+            height: 24px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: 700;
+        }
+
+        .progress-bar {
+            height: 8px;
+            background: #e0e0e0;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 15px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #51cf66 0%, #40c057 100%);
+            transition: width 0.3s;
+        }
+
+        .card-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+
+        .empty-state i {
+            font-size: 48px;
+            opacity: 0.3;
+            margin-bottom: 15px;
+            display: block;
+        }
+
+        .empty-state p {
+            font-size: 16px;
+        }
+
+        .team-member {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 15px;
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 12px;
+            margin-bottom: 12px;
+            transition: all 0.3s;
+        }
+
+        .team-member:hover {
+            border-color: #2563eb;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.1);
+        }
+
+        .team-avatar {
+            width: 44px;
+            height: 44px;
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 16px;
+            flex-shrink: 0;
+        }
+
+        .team-info {
+            flex: 1;
+        }
+
+        .team-name {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 4px;
+        }
+
+        .team-role {
+            font-size: 12px;
+            color: #999;
+        }
+
+        .team-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .checkbox-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: #2563eb;
+        }
+
+        .login-screen {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .login-box {
+            background: white;
+            border-radius: 16px;
+            padding: 40px 30px;
+            max-width: 380px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            text-align: center;
+        }
+
+        .login-box i.fa-tasks {
+            font-size: 40px;
+            color: #2563eb;
+            margin-bottom: 12px;
+        }
+
+        .login-box h2 {
+            font-size: 22px;
+            margin-bottom: 24px;
+            color: #333;
+        }
+
+        .login-error {
+            color: #c92a2a;
+            font-size: 13px;
+            margin-top: 10px;
+            display: none;
+        }
+
+        .login-error.active {
+            display: block;
+        }
+
+        .user-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 10px 20px;
+            background: rgba(255,255,255,0.15);
+            font-size: 13px;
+            color: white;
+        }
+
+        .user-bar-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .logout-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        .logout-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .assign-member-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            max-height: 260px;
+            overflow-y: auto;
+        }
+
+        .assign-member-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+
+        .assign-member-item:hover {
+            background: #f5f7ff;
+        }
+
+        .assign-member-item.selected {
+            border-color: #2563eb;
+            background: #e7f0ff;
+        }
+
+        .assign-member-name {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .assign-member-role {
+            color: #999;
+            font-size: 12px;
+        }
+
+        .assign-member-rotation {
+            font-size: 11px;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-weight: 600;
+        }
+
+        .assign-member-rotation.off {
+            background: #ffe0e0;
+            color: #c92a2a;
+        }
+
+        .assign-member-rotation.working {
+            background: #d3f9d8;
+            color: #2f7e1f;
+        }
+
+        .assign-member-rotation.holidays {
+            background: #ffd8a8;
+            color: #a15c00;
+        }
+
+        .assign-member-item.disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
+        }
+
+        .role-card {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 16px 20px;
+            margin-bottom: 12px;
+        }
+
+        .role-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .role-name {
+            font-weight: 600;
+            font-size: 16px;
+            color: #333;
+        }
+
+        .role-name.protected {
+            color: #2563eb;
+        }
+
+        .module-checks {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 8px;
+        }
+
+        .module-check {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: #f5f5f5;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        .module-check input {
+            width: 14px;
+            height: 14px;
+            cursor: pointer;
+            accent-color: #2563eb;
+        }
+
+        .app-hidden {
+            display: none !important;
+        }
+
+        .schedule-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 18px;
+        }
+
+        .view-switch {
+            display: flex;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            overflow: hidden;
+            width: fit-content;
+        }
+
+        .view-btn {
+            padding: 8px 14px;
+            background: white;
+            border: none;
+            font-size: 13px;
+            font-weight: 600;
+            color: #666;
+            cursor: pointer;
+        }
+
+        .view-btn.active {
+            background: #2563eb;
+            color: white;
+        }
+
+        .date-nav {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .date-nav .btn {
+            padding: 8px 12px;
+        }
+
+        .schedule-range-label {
+            font-weight: 600;
+            font-size: 14px;
+            color: #333;
+        }
+
+        .publish-controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .publish-controls .btn {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+
+        .sg-pub-dot, .sg-draft-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 4px;
+        }
+
+        .sg-pub-dot {
+            background: #40c057;
+        }
+
+        .sg-draft-dot {
+            background: #ffa94d;
+        }
+
+        .sg-shift-item.draft {
+            border-left: 3px solid #ffa94d;
+        }
+
+        .sg-shift-item.published {
+            border-left: 3px solid #40c057;
+        }
+
+        .next-shift-card {
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+            color: white;
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 8px;
+        }
+
+        .next-shift-card .ns-label {
+            font-size: 12px;
+            opacity: 0.85;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+
+        .next-shift-card .ns-time {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+
+        .next-shift-card .ns-meta {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .upcoming-shift-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 10px;
+            padding: 12px 16px;
+            margin-bottom: 10px;
+        }
+
+        .rotas-grid {
+            display: grid;
+            grid-template-columns: repeat(7, minmax(160px, 1fr));
+            min-width: 100%;
+            width: max-content;
+        }
+
+        .rotas-day-col {
+            border-right: 1px solid #eee;
+        }
+
+        .rotas-day-header {
+            background: #f5f7ff;
+            padding: 10px 8px;
+            text-align: center;
+            font-size: 12px;
+            font-weight: 600;
+            color: #333;
+            border-bottom: 1px solid #eee;
+        }
+
+        .rotas-day-header.today {
+            background: #2563eb;
+            color: white;
+        }
+
+        .rotas-loc-block {
+            padding: 8px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .rotas-loc-name {
+            font-size: 11px;
+            font-weight: 700;
+            color: #999;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+
+        .rotas-shift-card {
+            background: #f9f9f9;
+            border-radius: 8px;
+            padding: 6px 8px;
+            margin-bottom: 6px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        .rotas-shift-card:hover {
+            background: #f0f4ff;
+        }
+
+        .rotas-shift-card.is-me {
+            background: #e7f5ff;
+            border: 1px solid #2563eb;
+        }
+
+        .rotas-shift-card.free-day-card {
+            background: #fff9db;
+            border: 1px solid #ffd43b;
+        }
+
+        .inbox-item {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 14px 16px;
+            margin-bottom: 10px;
+        }
+
+        .inbox-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+
+        .inbox-item.unread {
+            border-left: 3px solid #2563eb;
+        }
+
+        .vacation-balance-card {
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+            color: white;
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 20px;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+        }
+
+        .vb-stat {
+            text-align: center;
+        }
+
+        .vb-stat .vb-number {
+            font-size: 22px;
+            font-weight: 600;
+        }
+
+        .vb-stat .vb-label {
+            font-size: 11px;
+            opacity: 0.85;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 2px;
+        }
+
+        .vacation-request-item {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 14px 16px;
+            margin-bottom: 10px;
+        }
+
+        .vr-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+
+        .vr-status {
+            font-size: 11px;
+            font-weight: 700;
+            padding: 3px 10px;
+            border-radius: 12px;
+            text-transform: uppercase;
+        }
+
+        .vr-status.pending {
+            background: #fff3bf;
+            color: #b08600;
+        }
+
+        .vr-status.approved {
+            background: #d3f9d8;
+            color: #2f7e1f;
+        }
+
+        .vr-status.rejected {
+            background: #ffe0e0;
+            color: #c92a2a;
+        }
+
+        .schedule-grid-wrap {
+            overflow-x: auto;
+            border: 1px solid #e0e0e0;
+            border-radius: 12px;
+        }
+
+        .schedule-grid {
+            display: grid;
+            min-width: 100%;
+            width: max-content;
+        }
+
+        .sg-cell {
+            border-right: 1px solid #eee;
+            border-bottom: 1px solid #eee;
+            padding: 8px;
+            font-size: 12px;
+            min-height: 60px;
+        }
+
+        .sg-header {
+            background: #f5f7ff;
+            font-weight: 600;
+            text-align: center;
+            padding: 10px 6px;
+            font-size: 12px;
+            color: #333;
+            position: sticky;
+            top: 0;
+        }
+
+        .sg-loc-label {
+            background: #f9f9f9;
+            font-weight: 600;
+            font-size: 12px;
+            color: #333;
+            display: flex;
+            align-items: center;
+            padding: 8px;
+        }
+
+        .sg-shift-item {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 5px 6px;
+            margin-bottom: 4px;
+            font-size: 11px;
+        }
+
+        .sg-shift-time {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .sg-shift-assignee {
+            color: #2563eb;
+            font-weight: 600;
+        }
+
+        .sg-shift-empty {
+            color: #999;
+            font-style: italic;
+        }
+
+        .sg-assign-btn {
+            background: none;
+            border: none;
+            color: #2563eb;
+            cursor: pointer;
+            font-size: 11px;
+            padding: 2px 4px;
+        }
+
+        .sg-day-summary {
+            cursor: pointer;
+            padding: 10px 6px;
+        }
+
+        .sg-day-summary:hover {
+            background: #f5f7ff;
+        }
+
+        .sg-summary-count {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .sg-summary-unassigned {
+            color: #c92a2a;
+            font-size: 11px;
+        }
+
+        .fab {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+            color: white;
+            border: none;
+            font-size: 22px;
+            cursor: pointer;
+            box-shadow: 0 8px 20px rgba(37, 99, 235, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            transition: transform 0.2s;
+        }
+
+        .fab:hover {
+            transform: scale(1.08);
+        }
+
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 200;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal-box {
+            background: white;
+            border-radius: 16px;
+            padding: 24px 20px;
+            max-width: 480px;
+            width: 100%;
+            max-height: 85vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 18px;
+            color: #999;
+            cursor: pointer;
+            padding: 4px 8px;
+        }
+
+        .modal-close:hover {
+            color: #333;
+        }
+
+        .task-add-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: none;
+            border: 1px dashed #2563eb;
+            color: #2563eb;
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 12px;
+        }
+
+        .task-add-btn:hover {
+            background: #f0f4ff;
+        }
+
+        .project-tasks {
+            margin-top: 12px;
+            border-top: 0.5px solid #eee;
+            padding-top: 12px;
+        }
+
+        .project-task-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            padding: 8px 10px;
+            background: #f9f9f9;
+            border-radius: 8px;
+            margin-bottom: 6px;
+            font-size: 13px;
+        }
+
+        .project-task-item.completed span.pt-name {
+            text-decoration: line-through;
+            color: #999;
+        }
+
+        @media (max-width: 600px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+
+            .header h1 {
+                font-size: 22px;
+            }
+
+            .tab-btn {
+                font-size: 12px;
+                padding: 12px 15px;
+            }
+
+            .card-header {
+                flex-direction: column;
+            }
+
+            .content {
+                padding: 20px 15px;
+            }
+
+            .form-section {
+                padding: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="loginScreen" class="login-screen">
+        <div class="login-box">
+            <i class="fas fa-tasks"></i>
+            <h2>Task & Project Manager</h2>
+            <div class="form-group" style="text-align:left;">
+                <label>Email</label>
+                <input type="email" id="loginEmail" placeholder="you@company.com">
+            </div>
+            <div class="form-group" style="text-align:left;">
+                <label>Password</label>
+                <input type="password" id="loginPassword" placeholder="Your password">
+            </div>
+            <button class="btn" style="width:100%; justify-content:center;" onclick="doLogin()">
+                <i class="fas fa-right-to-bracket"></i>
+                Log in
+            </button>
+            <p class="login-error" id="loginError">Invalid email or password.</p>
+        </div>
+    </div>
+
+    <div id="appContainer" class="container app-hidden">
+        <div class="header">
+            <h1>
+                <i class="fas fa-tasks"></i>
+                Task & Project Manager
+            </h1>
+        </div>
+
+        <div class="user-bar">
+            <div class="user-bar-info">
+                <i class="fas fa-user-circle"></i>
+                <span id="currentUserLabel">-</span>
+            </div>
+            <button class="logout-btn" onclick="doLogout()">
+                <i class="fas fa-right-from-bracket"></i>
+                Log out
+            </button>
+        </div>
+
+        <div class="tabs" id="tabsBar">
+            <button class="tab-btn active" data-module="shifts" onclick="switchTab('shifts')">
+                <i class="fas fa-clock"></i>
+                Shifts
+            </button>
+            <button class="tab-btn" data-module="locations" onclick="switchTab('locations')">
+                <i class="fas fa-map-marker-alt"></i>
+                Locations
+            </button>
+            <button class="tab-btn" data-module="schedule" onclick="switchTab('schedule')">
+                <i class="fas fa-calendar-alt"></i>
+                Schedule
+            </button>
+            <button class="tab-btn" data-module="tasks" onclick="switchTab('tasks')">
+                <i class="fas fa-list-check"></i>
+                Tasks
+            </button>
+            <button class="tab-btn" data-module="projects" onclick="switchTab('projects')">
+                <i class="fas fa-folder"></i>
+                Projects
+            </button>
+            <button class="tab-btn" data-module="team" onclick="switchTab('team')">
+                <i class="fas fa-users"></i>
+                Team
+            </button>
+            <button class="tab-btn" data-module="myrota" onclick="switchTab('myrota')">
+                <i class="fas fa-user-clock"></i>
+                My Rota
+            </button>
+            <button class="tab-btn" data-module="rotas" onclick="switchTab('rotas')">
+                <i class="fas fa-calendar-week"></i>
+                Rotas
+            </button>
+            <button class="tab-btn" data-module="inbox" onclick="switchTab('inbox')">
+                <i class="fas fa-inbox"></i>
+                Inbox
+            </button>
+            <button class="tab-btn" data-module="vacation" onclick="switchTab('vacation')">
+                <i class="fas fa-umbrella-beach"></i>
+                Vacation
+            </button>
+            <button class="tab-btn" data-module="roles" onclick="switchTab('roles')">
+                <i class="fas fa-user-shield"></i>
+                Roles
+            </button>
+
+        </div>
+
+        <!-- TAB TAREAS -->
+        <div id="tasks" class="content">
+            <div class="section-title">
+                <i class="fas fa-tasks"></i>
+                Active Tasks
+            </div>
+            <div id="taskList"></div>
+        </div>
+
+        <button class="fab" onclick="openTaskModal()" title="Add task">
+            <i class="fas fa-plus"></i>
+        </button>
+
+        <div id="taskModalOverlay" class="modal-overlay" onclick="closeTaskModalOutside(event)">
+            <div class="modal-box">
+                <div class="modal-header">
+                    <div class="section-title" style="margin-bottom:0;">
+                        <i class="fas fa-plus-circle"></i>
+                        New Task
+                    </div>
+                    <button class="modal-close" onclick="closeTaskModal()"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="form-group">
+                    <label>Task Name</label>
+                    <input type="text" id="taskName" placeholder="Ex: Review client proposal">
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea id="taskDesc" placeholder="Additional details..." rows="2"></textarea>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Recurrence Type</label>
+                        <select id="taskRecurrence">
+                            <option value="once">Once</option>
+                            <option value="daily">Daily</option>
+                            <option value="weekly">Weekly</option>
+                            <option value="monthly">Monthly</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Due Date</label>
+                        <input type="date" id="taskDate">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Priority</label>
+                        <select id="taskPriority">
+                            <option value="low">Low</option>
+                            <option value="medium" selected>Medium</option>
+                            <option value="high">High</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Assign To</label>
+                        <select id="taskAssignee">
+                            <option value="">Unassigned</option>
+                        </select>
+                    </div>
+                </div>
+                <button class="btn" style="width:100%; justify-content:center;" onclick="addTask()">
+                    <i class="fas fa-check"></i>
+                    Add Task
+                </button>
+            </div>
+        </div>
+
+        <!-- TAB PROYECTOS -->
+        <div id="projects" class="content">
+            <div class="form-section">
+                <div class="section-title">
+                    <i class="fas fa-plus-circle"></i>
+                    New Project
+                </div>
+                <div class="form-group">
+                    <label>Project Name</label>
+                    <input type="text" id="projectName" placeholder="Ex: Website redesign">
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea id="projectDesc" placeholder="Goals and details..." rows="2"></textarea>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Start Date</label>
+                        <input type="date" id="projectStart">
+                    </div>
+                    <div class="form-group">
+                        <label>End Date</label>
+                        <input type="date" id="projectEnd">
+                    </div>
+                </div>
+                <button class="btn" onclick="addProject()">
+                    <i class="fas fa-plus"></i>
+                    Create Project
+                </button>
+            </div>
+
+            <div class="section-title">
+                <i class="fas fa-folder-open"></i>
+                Projects in Progress
+            </div>
+            <div id="projectList"></div>
+        </div>
+
+        <div id="projectTaskModalOverlay" class="modal-overlay" onclick="closeProjectTaskModalOutside(event)">
+            <div class="modal-box">
+                <div class="modal-header">
+                    <div class="section-title" style="margin-bottom:0;">
+                        <i class="fas fa-plus-circle"></i>
+                        New Project Task
+                    </div>
+                    <button class="modal-close" onclick="closeProjectTaskModal()"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="form-group">
+                    <label>Task Name</label>
+                    <input type="text" id="ptaskName" placeholder="Ex: Design homepage mockup">
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea id="ptaskDesc" placeholder="Additional details..." rows="2"></textarea>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Due Date</label>
+                        <input type="date" id="ptaskDate">
+                    </div>
+                    <div class="form-group">
+                        <label>Priority</label>
+                        <select id="ptaskPriority">
+                            <option value="low">Low</option>
+                            <option value="medium" selected>Medium</option>
+                            <option value="high">High</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Assign To (Lead / Admin only)</label>
+                    <select id="ptaskAssignee">
+                        <option value="">Unassigned</option>
+                    </select>
+                </div>
+                <input type="hidden" id="ptaskProjectId">
+                <button class="btn" style="width:100%; justify-content:center;" onclick="addProjectTask()">
+                    <i class="fas fa-check"></i>
+                    Add Task to Project
+                </button>
+            </div>
+        </div>
+
+        <!-- TAB EQUIPO -->
+        <div id="team" class="content">
+            <div class="form-section">
+                <div class="section-title">
+                    <i class="fas fa-plus-circle"></i>
+                    Add Team Member
+                </div>
+                <div class="form-group">
+                    <label>Name</label>
+                    <input type="text" id="memberName" placeholder="Full name">
+                </div>
+                <div class="form-group">
+                    <label>Email (required to create login)</label>
+                    <input type="email" id="memberEmail" placeholder="email@company.com">
+                </div>
+                <div class="form-group">
+                    <label>Temporary Password</label>
+                    <input type="text" id="memberPassword" placeholder="Min 6 characters">
+                </div>
+                <div class="form-group">
+                    <label>Role</label>
+                    <select id="memberRole"></select>
+                </div>
+                <div class="form-group">
+                    <label>Rotation</label>
+                    <select id="memberRotation" onchange="toggleRotationAnchorField()">
+                        <option value="none">None (fixed schedule / Admin)</option>
+                        <option value="hourly">Hourly (no rotation, manual days off)</option>
+                        <option value="A">Rotation A (6 on / 3 off)</option>
+                        <option value="B">Rotation B (6 on / 3 off)</option>
+                        <option value="C">Rotation C (6 on / 3 off)</option>
+                    </select>
+                </div>
+                <div class="form-group" id="newRotationAnchorWrap" style="display:none;">
+                    <label>Rotation start date (first day of the 6-on block)</label>
+                    <input type="date" id="memberRotationAnchor">
+                </div>
+                <div class="form-group">
+                    <label>Vacation days for this year</label>
+                    <input type="number" id="memberVacationDays" value="25" min="0" max="30">
+                </div>
+                <button class="btn" onclick="addTeamMember()">
+                    <i class="fas fa-user-plus"></i>
+                    Add Member
+                </button>
+            </div>
+
+            <div class="section-title">
+                <i class="fas fa-users"></i>
+                Team Members
+            </div>
+            <div id="teamList"></div>
+        </div>
+
+        <div id="editMemberModalOverlay" class="modal-overlay" onclick="closeEditMemberModalOutside(event)">
+            <div class="modal-box">
+                <div class="modal-header">
+                    <div class="section-title" style="margin-bottom:0;">
+                        <i class="fas fa-user-edit"></i>
+                        Edit Team Member
+                    </div>
+                    <button class="modal-close" onclick="closeEditMemberModal()"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="form-group">
+                    <label>Name</label>
+                    <input type="text" id="editMemberName">
+                </div>
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="editMemberEmail">
+                </div>
+                <div class="form-group">
+                    <label>Role</label>
+                    <select id="editMemberRole"></select>
+                </div>
+                <div class="form-group">
+                    <label>Rotation</label>
+                    <select id="editMemberRotation" onchange="toggleEditRotationAnchorField()">
+                        <option value="none">None (fixed schedule / Admin)</option>
+                        <option value="hourly">Hourly (no rotation, manual days off)</option>
+                        <option value="A">Rotation A (6 on / 3 off)</option>
+                        <option value="B">Rotation B (6 on / 3 off)</option>
+                        <option value="C">Rotation C (6 on / 3 off)</option>
+                    </select>
+                </div>
+                <div class="form-group" id="editRotationAnchorWrap" style="display:none;">
+                    <label>Rotation start date (first day of the 6-on block)</label>
+                    <input type="date" id="editMemberRotationAnchor">
+                </div>
+                <div class="form-group">
+                    <label>Vacation days for this year</label>
+                    <input type="number" id="editMemberVacationDays" min="0" max="30">
+                </div>
+                <button class="btn" style="width:100%; justify-content:center;" onclick="saveEditMember()">
+                    <i class="fas fa-check"></i>
+                    Save changes
+                </button>
+            </div>
+        </div>
+
+        <!-- TAB LOCATIONS -->
+        <div id="locations" class="content">
+            <div class="form-section">
+                <div class="section-title">
+                    <i class="fas fa-plus-circle"></i>
+                    New Location
+                </div>
+                <div class="form-group">
+                    <label>Location Name</label>
+                    <input type="text" id="locationName" placeholder="Ex: Main Warehouse">
+                </div>
+                <button class="btn" onclick="addLocation()">
+                    <i class="fas fa-plus"></i>
+                    Add Location
+                </button>
+            </div>
+
+            <div class="section-title">
+                <i class="fas fa-map-marker-alt"></i>
+                Locations
+            </div>
+            <div id="locationList"></div>
+        </div>
+
+        <!-- TAB SHIFTS -->
+        <div id="shifts" class="content active">
+            <div class="form-section">
+                <div class="section-title">
+                    <i class="fas fa-plus-circle"></i>
+                    New Shift
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Start Time</label>
+                        <input type="time" id="shiftStart">
+                    </div>
+                    <div class="form-group">
+                        <label>End Time</label>
+                        <input type="time" id="shiftEnd">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Location</label>
+                    <select id="shiftLocation"></select>
+                </div>
+                <button class="btn" onclick="addShift()">
+                    <i class="fas fa-plus"></i>
+                    Add Shift
+                </button>
+            </div>
+
+            <div class="section-title">
+                <i class="fas fa-clock"></i>
+                Shifts
+            </div>
+            <div id="shiftList"></div>
+        </div>
+
+        <!-- TAB SCHEDULE -->
+        <div id="schedule" class="content">
+            <div class="schedule-controls">
+                <div class="view-switch">
+                    <button class="view-btn active" data-view="daily" onclick="setScheduleView('daily')">Daily</button>
+                    <button class="view-btn" data-view="weekly" onclick="setScheduleView('weekly')">Weekly</button>
+                    <button class="view-btn" data-view="monthly" onclick="setScheduleView('monthly')">Monthly</button>
+                </div>
+                <div class="date-nav">
+                    <button class="btn btn-secondary" onclick="navigateSchedule(-1)"><i class="fas fa-chevron-left"></i></button>
+                    <span id="scheduleRangeLabel" class="schedule-range-label">-</span>
+                    <button class="btn btn-secondary" onclick="navigateSchedule(1)"><i class="fas fa-chevron-right"></i></button>
+                </div>
+                <div class="publish-controls">
+                    <button class="btn btn-success" onclick="publishByRange('week', true)"><i class="fas fa-eye"></i> Publish week</button>
+                    <button class="btn btn-secondary" onclick="publishByRange('week', false)"><i class="fas fa-eye-slash"></i> Unpublish week</button>
+                    <button class="btn btn-success" onclick="publishByRange('month', true)"><i class="fas fa-eye"></i> Publish month</button>
+                    <button class="btn btn-secondary" onclick="publishByRange('month', false)"><i class="fas fa-eye-slash"></i> Unpublish month</button>
+                    <button class="btn btn-secondary" onclick="openPublishByUserModal()"><i class="fas fa-user"></i> Publish by member</button>
+                </div>
+                <p style="font-size:12px; color:#999; margin:0;">
+                    <span class="sg-pub-dot"></span> Published &nbsp;&nbsp;
+                    <span class="sg-draft-dot"></span> Draft (only visible here)
+                </p>
+            </div>
+
+            <div id="scheduleGridWrap" class="schedule-grid-wrap">
+                <div id="scheduleGrid" class="schedule-grid"></div>
+            </div>
+        </div>
+
+        <div id="publishUserModalOverlay" class="modal-overlay" onclick="closePublishByUserModalOutside(event)">
+            <div class="modal-box">
+                <div class="modal-header">
+                    <div class="section-title" style="margin-bottom:0;">
+                        <i class="fas fa-user"></i>
+                        Publish by member
+                    </div>
+                    <button class="modal-close" onclick="closePublishByUserModal()"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="form-group">
+                    <label>Team Member</label>
+                    <select id="publishUserSelect"></select>
+                </div>
+                <button class="btn" style="width:100%; justify-content:center;" onclick="publishByUser(true)">
+                    <i class="fas fa-eye"></i>
+                    Publish this member's shifts
+                </button>
+                <button class="btn btn-secondary" style="width:100%; justify-content:center; margin-top:8px;" onclick="publishByUser(false)">
+                    <i class="fas fa-eye-slash"></i>
+                    Unpublish this member's shifts
+                </button>
+            </div>
+        </div>
+
+        <div id="assignModalOverlay" class="modal-overlay" onclick="closeAssignModalOutside(event)">
+            <div class="modal-box">
+                <div class="modal-header">
+                    <div class="section-title" style="margin-bottom:0;">
+                        <i class="fas fa-user-check"></i>
+                        Assign Member
+                    </div>
+                    <button class="modal-close" onclick="closeAssignModal()"><i class="fas fa-times"></i></button>
+                </div>
+                <p id="assignModalSubtitle" style="color:#666; font-size:13px; margin-bottom:14px;"></p>
+                <div class="form-group">
+                    <label>Team Member</label>
+                    <div id="assignMemberList" class="assign-member-list"></div>
+                </div>
+                <div class="form-group" id="sickLeaveWrap" style="display:none;">
+                    <label class="module-check" style="width:fit-content;">
+                        <input type="checkbox" id="assignSickLeave">
+                        Mark as Sick Leave
+                    </label>
+                </div>
+                <p id="assignWarning" class="login-error" style="display:none;"></p>
+                <button class="btn" style="width:100%; justify-content:center;" onclick="confirmAssign()">
+                    <i class="fas fa-check"></i>
+                    Assign
+                </button>
+                <button class="btn btn-danger" id="unassignBtn" style="width:100%; justify-content:center; margin-top:8px; display:none;" onclick="confirmUnassign()">
+                    <i class="fas fa-user-minus"></i>
+                    Remove assignment
+                </button>
+            </div>
+        </div>
+
+        <div id="dayDetailModalOverlay" class="modal-overlay" onclick="closeDayDetailModalOutside(event)">
+            <div class="modal-box">
+                <div class="modal-header">
+                    <div class="section-title" style="margin-bottom:0;">
+                        <i class="fas fa-calendar-day"></i>
+                        <span id="dayDetailTitle">Day detail</span>
+                    </div>
+                    <button class="modal-close" onclick="closeDayDetailModal()"><i class="fas fa-times"></i></button>
+                </div>
+                <div id="dayDetailBody"></div>
+            </div>
+        </div>
+
+        <!-- TAB MY ROTA -->
+        <div id="myrota" class="content">
+            <div class="section-title">
+                <i class="fas fa-star"></i>
+                My next shift
+            </div>
+            <div id="myNextShift"></div>
+
+            <div class="section-title" style="margin-top:24px;">
+                <i class="fas fa-list"></i>
+                Upcoming shifts
+            </div>
+            <div id="myUpcomingShifts"></div>
+        </div>
+
+        <!-- TAB ROTAS -->
+        <div id="rotas" class="content">
+            <div class="schedule-controls">
+                <div class="form-group" style="max-width:220px; margin-bottom:0;">
+                    <label>Month</label>
+                    <select id="rotasMonthSelect" onchange="onRotasMonthChange()"></select>
+                </div>
+                <div class="date-nav">
+                    <button class="btn btn-secondary" onclick="navigateRotasWeek(-1)"><i class="fas fa-chevron-left"></i></button>
+                    <span id="rotasWeekLabel" class="schedule-range-label">-</span>
+                    <button class="btn btn-secondary" onclick="navigateRotasWeek(1)"><i class="fas fa-chevron-right"></i></button>
+                </div>
+            </div>
+
+            <div id="rotasGridWrap" class="schedule-grid-wrap">
+                <div id="rotasGrid" class="rotas-grid"></div>
+            </div>
+        </div>
+
+        <div id="requestSwapModalOverlay" class="modal-overlay" onclick="closeRequestSwapModalOutside(event)">
+            <div class="modal-box">
+                <div class="modal-header">
+                    <div class="section-title" style="margin-bottom:0;">
+                        <i class="fas fa-right-left"></i>
+                        Request Shift Swap
+                    </div>
+                    <button class="modal-close" onclick="closeRequestSwapModal()"><i class="fas fa-times"></i></button>
+                </div>
+                <p id="requestSwapSubtitle" style="color:#666; font-size:13px; margin-bottom:14px;"></p>
+                <div class="form-group">
+                    <label>Offer one of your own shifts in exchange</label>
+                    <select id="requestSwapMyShift"></select>
+                </div>
+                <div class="form-group">
+                    <label>Message (optional)</label>
+                    <textarea id="requestSwapMessage" rows="2" placeholder="Add a note..."></textarea>
+                </div>
+                <button class="btn" style="width:100%; justify-content:center;" onclick="sendSwapRequest()">
+                    <i class="fas fa-paper-plane"></i>
+                    Send request
+                </button>
+            </div>
+        </div>
+
+        <div id="requestDayOffSwapModalOverlay" class="modal-overlay" onclick="closeDayOffSwapModalOutside(event)">
+            <div class="modal-box">
+                <div class="modal-header">
+                    <div class="section-title" style="margin-bottom:0;">
+                        <i class="fas fa-umbrella-beach"></i>
+                        Take a Day Off Shift
+                    </div>
+                    <button class="modal-close" onclick="closeDayOffSwapModal()"><i class="fas fa-times"></i></button>
+                </div>
+                <p id="dayOffSwapSubtitle" style="color:#666; font-size:13px; margin-bottom:14px;"></p>
+                <div class="form-group">
+                    <label>Give back your day off on</label>
+                    <select id="dayOffSwapReturnDate"></select>
+                    <p style="font-size:12px; color:#999; margin-top:4px;">Choose one of your own upcoming working days to give to them in return.</p>
+                </div>
+                <div class="form-group">
+                    <label>Message (optional)</label>
+                    <textarea id="dayOffSwapMessage" rows="2" placeholder="Add a note..."></textarea>
+                </div>
+                <button class="btn" style="width:100%; justify-content:center;" onclick="sendDayOffSwapRequest()">
+                    <i class="fas fa-paper-plane"></i>
+                    Send request
+                </button>
+            </div>
+        </div>
+
+        <!-- TAB INBOX -->
+        <div id="inbox" class="content">
+            <div class="section-title">
+                <i class="fas fa-right-left"></i>
+                Swap Requests
+            </div>
+            <div id="swapRequestsList"></div>
+
+            <div class="section-title" style="margin-top:24px;">
+                <i class="fas fa-bell"></i>
+                Notifications
+            </div>
+            <div id="notificationsList"></div>
+        </div>
+
+        <!-- TAB VACATION -->
+        <div id="vacation" class="content">
+            <div id="vacationBalanceCard"></div>
+
+            <div class="form-section">
+                <div class="section-title">
+                    <i class="fas fa-plus-circle"></i>
+                    Request time off
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Start date</label>
+                        <input type="date" id="vacationStart">
+                    </div>
+                    <div class="form-group">
+                        <label>End date</label>
+                        <input type="date" id="vacationEnd">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Note (optional)</label>
+                    <textarea id="vacationNote" rows="2" placeholder="Add a note..."></textarea>
+                </div>
+                <button class="btn" onclick="submitVacationRequest()">
+                    <i class="fas fa-paper-plane"></i>
+                    Submit request
+                </button>
+            </div>
+
+            <div class="section-title">
+                <i class="fas fa-list"></i>
+                <span id="vacationListTitle">My requests</span>
+            </div>
+            <div id="vacationRequestsList"></div>
+        </div>
+
+        <!-- TAB ROLES -->
+        <div id="roles" class="content">
+            <div class="form-section">
+                <div class="section-title">
+                    <i class="fas fa-plus-circle"></i>
+                    Create New Role
+                </div>
+                <div class="form-group">
+                    <label>Role Name</label>
+                    <input type="text" id="newRoleName" placeholder="Ex: Supervisor">
+                </div>
+                <div class="form-group">
+                    <label>Visible Modules</label>
+                    <div class="module-checks" id="newRoleModules">
+                        <label class="module-check"><input type="checkbox" value="tasks"> Tasks</label>
+                        <label class="module-check"><input type="checkbox" value="projects"> Projects</label>
+                        <label class="module-check"><input type="checkbox" value="team"> Team</label>
+                        <label class="module-check"><input type="checkbox" value="locations"> Locations</label>
+                        <label class="module-check"><input type="checkbox" value="shifts"> Shifts</label>
+                        <label class="module-check"><input type="checkbox" value="schedule"> Schedule</label>
+                        <label class="module-check"><input type="checkbox" value="myrota"> My Rota</label>
+                        <label class="module-check"><input type="checkbox" value="rotas"> Rotas</label>
+                        <label class="module-check"><input type="checkbox" value="inbox"> Inbox</label>
+                        <label class="module-check"><input type="checkbox" value="vacation"> Vacation</label>
+                    </div>
+                </div>
+                <button class="btn" onclick="createRole()">
+                    <i class="fas fa-plus"></i>
+                    Create Role
+                </button>
+            </div>
+
+            <div class="section-title">
+                <i class="fas fa-user-shield"></i>
+                Existing Roles
+            </div>
+            <div id="roleList"></div>
+        </div>
+    </div>
+
+
+    <script>
+        const ADMIN_UID = 'Lx9yqGaSngS6GpidDgNKQQGdm9o2';
+        const CORE_MODULES = [
+            { key: 'tasks', label: 'Tasks' },
+            { key: 'projects', label: 'Projects' },
+            { key: 'team', label: 'Team' },
+            { key: 'locations', label: 'Locations' },
+            { key: 'shifts', label: 'Shifts' },
+            { key: 'schedule', label: 'Schedule' },
+            { key: 'myrota', label: 'My Rota' },
+            { key: 'rotas', label: 'Rotas' },
+            { key: 'inbox', label: 'Inbox' },
+            { key: 'vacation', label: 'Vacation' }
+        ];
+
+        const state = {
+            tasks: [],
+            projects: [],
+            team: [],
+            roles: [],
+            locations: [],
+            shifts: [],
+            assignments: [],
+            swapRequests: [],
+            notifications: [],
+            vacationRequests: [],
+            dayOffSwapRequests: []
+        };
+
+        let scheduleView = 'daily';
+        let scheduleRefDate = new Date();
+        let pendingAssign = null;
+        let rotasRefDate = new Date();
+        let pendingSwapRequest = null;
+        let pendingDayOffSwap = null;
+
+        const assigneeMap = {};
+
+        let db, fns, auth, authFns;
+        let unsubscribers = [];
+        let currentUser = null;
+        let currentMember = null;
+
+        function initFirebaseSync() {
+            db = window.firebaseDB;
+            fns = window.firebaseFns;
+            auth = window.firebaseAuth;
+            authFns = window.firebaseAuthFns;
+
+            authFns.onAuthStateChanged(auth, (user) => {
+                currentUser = user;
+                if (user) {
+                    showApp();
+                } else {
+                    showLogin();
+                }
+            });
+        }
+
+        if (window.firebaseReady) {
+            initFirebaseSync();
+        } else {
+            window.addEventListener('firebase-ready', initFirebaseSync);
+        }
+
+        function showLogin() {
+            document.getElementById('loginScreen').classList.remove('app-hidden');
+            document.getElementById('appContainer').classList.add('app-hidden');
+            unsubscribers.forEach(u => u && u());
+            unsubscribers = [];
+        }
+
+        async function showApp() {
+            document.getElementById('loginScreen').classList.add('app-hidden');
+            document.getElementById('appContainer').classList.remove('app-hidden');
+            startDataSync();
+        }
+
+        function doLogin() {
+            const email = document.getElementById('loginEmail').value.trim();
+            const password = document.getElementById('loginPassword').value;
+            const errorEl = document.getElementById('loginError');
+            errorEl.classList.remove('active');
+
+            if (!email || !password) {
+                errorEl.textContent = 'Enter email and password.';
+                errorEl.classList.add('active');
+                return;
+            }
+
+            authFns.signInWithEmailAndPassword(auth, email, password)
+                .catch(() => {
+                    errorEl.textContent = 'Invalid email or password.';
+                    errorEl.classList.add('active');
+                });
+        }
+
+        function doLogout() {
+            authFns.signOut(auth);
+        }
+
+        function startDataSync() {
+            unsubscribers.forEach(u => u && u());
+
+            const tasksCol = fns.collection(db, 'tasks');
+            const unsubTasks = fns.onSnapshot(tasksCol, (snapshot) => {
+                state.tasks = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                renderTasks();
+            });
+
+            const projectsCol = fns.collection(db, 'projects');
+            const unsubProjects = fns.onSnapshot(projectsCol, (snapshot) => {
+                state.projects = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                renderProjects();
+            });
+
+            const teamCol = fns.collection(db, 'team');
+            const unsubTeam = fns.onSnapshot(teamCol, (snapshot) => {
+                state.team = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                Object.keys(assigneeMap).forEach(k => delete assigneeMap[k]);
+                state.team.forEach(m => {
+                    assigneeMap[m.id] = {
+                        name: m.name,
+                        role: m.role,
+                        initials: m.name.split(' ').map(n => n[0]).join('').toUpperCase()
+                    };
+                });
+                currentMember = state.team.find(m => m.authUid === currentUser.uid) || null;
+                renderTeam();
+                populateAssigneeSelects();
+                applyRolePermissions();
+                renderSchedule();
+            });
+
+            const rolesCol = fns.collection(db, 'roles');
+            const unsubRoles = fns.onSnapshot(rolesCol, async (snapshot) => {
+                state.roles = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                await ensureDefaultRoles();
+                renderRoles();
+                populateRoleSelect();
+                applyRolePermissions();
+            });
+
+            const locationsCol = fns.collection(db, 'locations');
+            const unsubLocations = fns.onSnapshot(locationsCol, (snapshot) => {
+                state.locations = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                renderLocations();
+                populateLocationSelect();
+                renderSchedule();
+            });
+
+            const shiftsCol = fns.collection(db, 'shifts');
+            const unsubShifts = fns.onSnapshot(shiftsCol, (snapshot) => {
+                state.shifts = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                renderShifts();
+                renderSchedule();
+            });
+
+            const assignmentsCol = fns.collection(db, 'assignments');
+            const unsubAssignments = fns.onSnapshot(assignmentsCol, (snapshot) => {
+                state.assignments = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                renderSchedule();
+                if (document.getElementById('myrota').classList.contains('active')) renderMyRota();
+                if (document.getElementById('rotas').classList.contains('active')) renderRotas();
+            });
+
+            const swapRequestsCol = fns.collection(db, 'swapRequests');
+            const unsubSwapRequests = fns.onSnapshot(swapRequestsCol, (snapshot) => {
+                state.swapRequests = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                if (document.getElementById('inbox').classList.contains('active')) renderInbox();
+            });
+
+            const notificationsCol = fns.collection(db, 'notifications');
+            const unsubNotifications = fns.onSnapshot(notificationsCol, (snapshot) => {
+                state.notifications = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                if (document.getElementById('inbox').classList.contains('active')) renderInbox();
+            });
+
+            const vacationRequestsCol = fns.collection(db, 'vacationRequests');
+            const unsubVacationRequests = fns.onSnapshot(vacationRequestsCol, (snapshot) => {
+                state.vacationRequests = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                if (document.getElementById('vacation').classList.contains('active')) renderVacation();
+            });
+
+            const dayOffSwapRequestsCol = fns.collection(db, 'dayOffSwapRequests');
+            const unsubDayOffSwapRequests = fns.onSnapshot(dayOffSwapRequestsCol, (snapshot) => {
+                state.dayOffSwapRequests = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                if (document.getElementById('inbox').classList.contains('active')) renderInbox();
+                processDueDayOffSwapBacks();
+            });
+
+            unsubscribers = [unsubTasks, unsubProjects, unsubTeam, unsubRoles, unsubLocations, unsubShifts, unsubAssignments, unsubSwapRequests, unsubNotifications, unsubVacationRequests, unsubDayOffSwapRequests];
+        }
+
+        async function ensureDefaultRoles() {
+            const defaults = [
+                { name: 'Admin', modules: ['tasks', 'projects', 'team', 'locations', 'shifts', 'schedule', 'myrota', 'rotas', 'inbox', 'vacation', 'roles'], protected: true },
+                { name: 'Lead', modules: ['tasks', 'projects', 'team', 'locations', 'shifts', 'schedule', 'myrota', 'rotas', 'inbox', 'vacation'], protected: false },
+                { name: 'Member', modules: ['myrota', 'rotas', 'inbox', 'vacation'], protected: false }
+            ];
+            for (const d of defaults) {
+                const exists = state.roles.find(r => r.name === d.name);
+                if (!exists) {
+                    await fns.addDoc(fns.collection(db, 'roles'), { name: d.name, modules: d.modules, protected: d.protected || false });
+                }
+            }
+        }
+
+        function getUserRole() {
+            if (currentUser && currentUser.uid === ADMIN_UID) {
+                return { name: 'Admin', modules: ['tasks', 'projects', 'team', 'locations', 'shifts', 'schedule', 'myrota', 'rotas', 'inbox', 'vacation', 'roles'], protected: true };
+            }
+            if (!currentMember) return { name: 'Member', modules: [] };
+            return state.roles.find(r => r.name === currentMember.role) || { name: currentMember.role, modules: [] };
+        }
+
+        function applyRolePermissions() {
+            const role = getUserRole();
+            const isAdmin = role.name === 'Admin';
+
+            document.getElementById('currentUserLabel').textContent =
+                (currentMember ? currentMember.name : (currentUser ? currentUser.email : '')) + ' (' + role.name + ')';
+
+            document.querySelectorAll('#tabsBar .tab-btn').forEach(btn => {
+                const mod = btn.getAttribute('data-module');
+                const visible = isAdmin || (role.modules || []).includes(mod);
+                btn.style.display = visible ? '' : 'none';
+            });
+
+            const activeBtn = document.querySelector('#tabsBar .tab-btn.active');
+            if (activeBtn && activeBtn.style.display === 'none') {
+                const firstVisible = document.querySelector('#tabsBar .tab-btn:not([style*="display: none"])');
+                if (firstVisible) {
+                    const mod = firstVisible.getAttribute('data-module');
+                    switchTabProgrammatic(mod);
+                }
+            }
+        }
+
+        function switchTabProgrammatic(tab) {
+            document.querySelectorAll('.content').forEach(c => c.classList.remove('active'));
+            document.querySelectorAll('#tabsBar .tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(tab).classList.add('active');
+            const btn = document.querySelector(`#tabsBar .tab-btn[data-module="${tab}"]`);
+            if (btn) btn.classList.add('active');
+
+            if (tab === 'myrota') renderMyRota();
+            if (tab === 'rotas') renderRotas();
+            if (tab === 'inbox') renderInbox();
+            if (tab === 'schedule') renderSchedule();
+            if (tab === 'vacation') renderVacation();
+        }
+
+        function populateAssigneeSelects() {
+            const taskSelect = document.getElementById('taskAssignee');
+            const projTaskSelect = document.getElementById('ptaskAssignee');
+
+            const allOptions = '<option value="">Unassigned</option>' +
+                state.team.map(m => `<option value="${m.id}">${m.name} (${m.role})</option>`).join('');
+
+            const leadAdminOptions = '<option value="">Unassigned</option>' +
+                state.team.filter(m => m.role === 'Lead' || m.role === 'Admin')
+                    .map(m => `<option value="${m.id}">${m.name} (${m.role})</option>`).join('');
+
+            if (taskSelect) taskSelect.innerHTML = allOptions;
+            if (projTaskSelect) projTaskSelect.innerHTML = leadAdminOptions;
+        }
+
+        function populateRoleSelect() {
+            const roleSelect = document.getElementById('memberRole');
+            if (!roleSelect) return;
+            const current = roleSelect.value;
+            roleSelect.innerHTML = state.roles.map(r => `<option value="${r.name}">${r.name}</option>`).join('');
+            if (current && state.roles.some(r => r.name === current)) roleSelect.value = current;
+        }
+
+        function openTaskModal() {
+            document.getElementById('taskModalOverlay').classList.add('active');
+        }
+
+        function closeTaskModal() {
+            document.getElementById('taskModalOverlay').classList.remove('active');
+        }
+
+        function closeTaskModalOutside(e) {
+            if (e.target.id === 'taskModalOverlay') closeTaskModal();
+        }
+
+        function openProjectTaskModal(projectId) {
+            document.getElementById('ptaskProjectId').value = projectId;
+            document.getElementById('projectTaskModalOverlay').classList.add('active');
+        }
+
+        function closeProjectTaskModal() {
+            document.getElementById('projectTaskModalOverlay').classList.remove('active');
+        }
+
+        function closeProjectTaskModalOutside(e) {
+            if (e.target.id === 'projectTaskModalOverlay') closeProjectTaskModal();
+        }
+
+        function switchTab(tab) {
+            document.querySelectorAll('.content').forEach(c => c.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(tab).classList.add('active');
+            event.target.closest('.tab-btn').classList.add('active');
+
+            if (tab === 'myrota') renderMyRota();
+            if (tab === 'rotas') renderRotas();
+            if (tab === 'inbox') renderInbox();
+            if (tab === 'schedule') renderSchedule();
+            if (tab === 'vacation') renderVacation();
+        }
+
+        function addTask() {
+            const name = document.getElementById('taskName').value.trim();
+            const desc = document.getElementById('taskDesc').value.trim();
+            const recurrence = document.getElementById('taskRecurrence').value;
+            const date = document.getElementById('taskDate').value;
+            const priority = document.getElementById('taskPriority').value;
+            const assignee = document.getElementById('taskAssignee').value;
+
+            if (!name) {
+                alert('Please enter a task name');
+                return;
+            }
+
+            fns.addDoc(fns.collection(db, 'tasks'), {
+                name,
+                desc,
+                recurrence,
+                date,
+                priority,
+                assignee,
+                completed: false,
+                createdAt: new Date().toLocaleDateString('en-US')
+            });
+
+            clearTaskForm();
+            closeTaskModal();
+        }
+
+        function clearTaskForm() {
+            document.getElementById('taskName').value = '';
+            document.getElementById('taskDesc').value = '';
+            document.getElementById('taskRecurrence').value = 'once';
+            document.getElementById('taskDate').value = '';
+            document.getElementById('taskPriority').value = 'medium';
+            document.getElementById('taskAssignee').value = '';
+        }
+
+        function toggleTask(id) {
+            const task = state.tasks.find(t => t.id === id);
+            if (task) {
+                fns.updateDoc(fns.doc(db, 'tasks', id), { completed: !task.completed });
+            }
+        }
+
+        function deleteTask(id) {
+            if (confirm('Delete this task?')) {
+                fns.deleteDoc(fns.doc(db, 'tasks', id));
+            }
+        }
+
+        function addProject() {
+            const name = document.getElementById('projectName').value.trim();
+            const desc = document.getElementById('projectDesc').value.trim();
+            const start = document.getElementById('projectStart').value;
+            const end = document.getElementById('projectEnd').value;
+
+            if (!name) {
+                alert('Please enter a project name');
+                return;
+            }
+
+            fns.addDoc(fns.collection(db, 'projects'), {
+                name,
+                desc,
+                start,
+                end,
+                progress: 0,
+                tasks: [],
+                createdAt: new Date().toLocaleDateString('en-US')
+            });
+
+            clearProjectForm();
+        }
+
+        function clearProjectForm() {
+            document.getElementById('projectName').value = '';
+            document.getElementById('projectDesc').value = '';
+            document.getElementById('projectStart').value = '';
+            document.getElementById('projectEnd').value = '';
+        }
+
+        function deleteProject(id) {
+            if (confirm('Delete this project?')) {
+                fns.deleteDoc(fns.doc(db, 'projects', id));
+            }
+        }
+
+        function addProjectTask() {
+            const projectId = document.getElementById('ptaskProjectId').value;
+            const name = document.getElementById('ptaskName').value.trim();
+            const desc = document.getElementById('ptaskDesc').value.trim();
+            const date = document.getElementById('ptaskDate').value;
+            const priority = document.getElementById('ptaskPriority').value;
+            const assignee = document.getElementById('ptaskAssignee').value;
+
+            if (!name) {
+                alert('Please enter a task name');
+                return;
+            }
+
+            const project = state.projects.find(p => p.id === projectId);
+            if (!project) return;
+
+            const newTask = {
+                ptid: 'pt_' + Date.now(),
+                name, desc, date, priority, assignee,
+                completed: false
+            };
+
+            const updatedTasks = [...(project.tasks || []), newTask];
+            fns.updateDoc(fns.doc(db, 'projects', projectId), { tasks: updatedTasks });
+
+            document.getElementById('ptaskName').value = '';
+            document.getElementById('ptaskDesc').value = '';
+            document.getElementById('ptaskDate').value = '';
+            document.getElementById('ptaskPriority').value = 'medium';
+            document.getElementById('ptaskAssignee').value = '';
+            closeProjectTaskModal();
+        }
+
+        function toggleProjectTask(projectId, ptid) {
+            const project = state.projects.find(p => p.id === projectId);
+            if (!project) return;
+            const updatedTasks = (project.tasks || []).map(t =>
+                t.ptid === ptid ? { ...t, completed: !t.completed } : t
+            );
+            fns.updateDoc(fns.doc(db, 'projects', projectId), { tasks: updatedTasks });
+        }
+
+        function deleteProjectTask(projectId, ptid) {
+            const project = state.projects.find(p => p.id === projectId);
+            if (!project) return;
+            const updatedTasks = (project.tasks || []).filter(t => t.ptid !== ptid);
+            fns.updateDoc(fns.doc(db, 'projects', projectId), { tasks: updatedTasks });
+        }
+
+        function toggleRotationAnchorField() {
+            const val = document.getElementById('memberRotation').value;
+            document.getElementById('newRotationAnchorWrap').style.display =
+                (val === 'A' || val === 'B' || val === 'C') ? 'block' : 'none';
+        }
+
+        async function addTeamMember() {
+            const name = document.getElementById('memberName').value.trim();
+            const email = document.getElementById('memberEmail').value.trim();
+            const password = document.getElementById('memberPassword').value;
+            const role = document.getElementById('memberRole').value;
+            const rotation = document.getElementById('memberRotation').value;
+            const rotationAnchor = document.getElementById('memberRotationAnchor').value;
+            const vacationDays = parseInt(document.getElementById('memberVacationDays').value, 10) || 0;
+
+            if (!name) {
+                alert('Please enter a name');
+                return;
+            }
+            if (!email || !password) {
+                alert('Email and a temporary password are required to create this member\'s login.');
+                return;
+            }
+            if (password.length < 6) {
+                alert('Password must be at least 6 characters.');
+                return;
+            }
+            if ((rotation === 'A' || rotation === 'B' || rotation === 'C') && !rotationAnchor) {
+                alert('Please set the rotation start date.');
+                return;
+            }
+
+            try {
+                const cred = await authFns.createUserWithEmailAndPassword(window.firebaseSecondaryAuth, email, password);
+                const newUid = cred.user.uid;
+                await authFns.signOut(window.firebaseSecondaryAuth);
+
+                await fns.addDoc(fns.collection(db, 'team'), {
+                    name,
+                    email,
+                    role,
+                    authUid: newUid,
+                    rotation,
+                    rotationAnchor: rotationAnchor || null,
+                    vacationDaysAllotted: vacationDays,
+                    joinDate: new Date().toLocaleDateString('en-US')
+                });
+
+                clearMemberForm();
+            } catch (err) {
+                alert('Could not create login: ' + (err.message || err));
+            }
+        }
+
+        function clearMemberForm() {
+            document.getElementById('memberName').value = '';
+            document.getElementById('memberEmail').value = '';
+            document.getElementById('memberPassword').value = '';
+            document.getElementById('memberRotation').value = 'none';
+            document.getElementById('memberRotationAnchor').value = '';
+            document.getElementById('memberVacationDays').value = '25';
+            document.getElementById('newRotationAnchorWrap').style.display = 'none';
+        }
+
+        function deleteTeamMember(id) {
+            if (confirm('Delete this member?')) {
+                fns.deleteDoc(fns.doc(db, 'team', id));
+            }
+        }
+
+        function getPriorityBadge(priority) {
+            const map = { high: 'High', medium: 'Medium', low: 'Low' };
+            const className = `badge badge-${priority}`;
+            return `<span class="${className}">${map[priority]}</span>`;
+        }
+
+        function getRecurrenceBadge(recurrence) {
+            const map = { daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly', once: 'Once' };
+            const icon = { daily: 'fa-repeat', weekly: 'fa-calendar-week', monthly: 'fa-calendar-days', once: 'fa-calendar' }[recurrence];
+            const className = `badge badge-${recurrence === 'once' ? 'date' : recurrence}`;
+            return `<span class="${className}"><i class="fas ${icon}"></i> ${map[recurrence]}</span>`;
+        }
+
+        function formatDate(dateStr) {
+            if (!dateStr) return 'No date';
+            const date = new Date(dateStr + 'T00:00:00');
+            return date.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
+        }
+
+        function renderTasks() {
+            const taskList = document.getElementById('taskList');
+            if (state.tasks.length === 0) {
+                taskList.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-inbox"></i>
+                        <p>No tasks yet. Create one to get started!</p>
+                    </div>
+                `;
+            } else {
+                taskList.innerHTML = state.tasks
+                    .sort((a, b) => !a.completed - !b.completed)
+                    .map(task => {
+                        const assigneeInfo = task.assignee ? assigneeMap[task.assignee] : null;
+                        return `
+                            <div class="card ${task.completed ? 'completed' : ''}">
+                                <div class="card-header">
+                                    <div class="card-title">
+                                        <div class="checkbox-wrapper">
+                                            <input type="checkbox" ${task.completed ? 'checked' : ''} onchange="toggleTask('${task.id}')">
+                                            <span>${task.name}</span>
+                                        </div>
+                                    </div>
+                                    ${getPriorityBadge(task.priority)}
+                                </div>
+                                ${task.desc ? `<p style="color: #666; margin-bottom: 10px; font-size: 14px;">${task.desc}</p>` : ''}
+                                <div class="card-meta">
+                                    <div class="meta-item">
+                                        ${getRecurrenceBadge(task.recurrence)}
+                                    </div>
+                                    <div class="meta-item">
+                                        <i class="fas fa-calendar"></i>
+                                        ${formatDate(task.date)}
+                                    </div>
+                                </div>
+                                ${assigneeInfo ? `
+                                    <div class="assignee-badge">
+                                        <div class="assignee-avatar">${assigneeInfo.initials}</div>
+                                        ${assigneeInfo.name}
+                                    </div>
+                                ` : ''}
+                                <div class="card-actions">
+                                    <button class="btn btn-danger" onclick="deleteTask('${task.id}')">
+                                        <i class="fas fa-trash"></i>
+                                        Delete
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                    })
+                    .join('');
+            }
+        }
+
+        function renderProjects() {
+            const projectList = document.getElementById('projectList');
+            if (state.projects.length === 0) {
+                projectList.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-folder"></i>
+                        <p>No projects yet. Create one to get started!</p>
+                    </div>
+                `;
+            } else {
+                projectList.innerHTML = state.projects.map(project => {
+                    const tasks = project.tasks || [];
+                    const total = tasks.length;
+                    const done = tasks.filter(t => t.completed).length;
+                    const progress = total > 0 ? Math.round((done / total) * 100) : 0;
+
+                    const tasksHtml = tasks.length === 0
+                        ? `<p style="color:#999; font-size:13px; margin-top:8px;">No tasks yet for this project.</p>`
+                        : `<div class="project-tasks">` + tasks.map(t => {
+                            const assigneeInfo = t.assignee ? assigneeMap[t.assignee] : null;
+                            return `
+                                <div class="project-task-item ${t.completed ? 'completed' : ''}">
+                                    <div style="display:flex; align-items:center; gap:8px; flex:1;">
+                                        <input type="checkbox" ${t.completed ? 'checked' : ''} onchange="toggleProjectTask('${project.id}','${t.ptid}')">
+                                        <span class="pt-name">${t.name}</span>
+                                        ${assigneeInfo ? `<span style="color:#2563eb; font-size:11px;">(${assigneeInfo.name})</span>` : ''}
+                                    </div>
+                                    <button class="btn btn-danger" style="padding:4px 8px;" onclick="deleteProjectTask('${project.id}','${t.ptid}')">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            `;
+                        }).join('') + `</div>`;
+
+                    return `
+                        <div class="card">
+                            <div class="card-header">
+                                <div>
+                                    <div class="card-title">${project.name}</div>
+                                    ${project.desc ? `<p style="color: #666; margin-top: 6px; font-size: 14px;">${project.desc}</p>` : ''}
+                                </div>
+                            </div>
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: ${progress}%"></div>
+                            </div>
+                            <div class="card-meta">
+                                <div class="meta-item">
+                                    <i class="fas fa-calendar-check"></i>
+                                    ${formatDate(project.start)} → ${formatDate(project.end)}
+                                </div>
+                                <div class="meta-item">
+                                    <i class="fas fa-chart-pie"></i>
+                                    Progress: ${progress}% (${done}/${total})
+                                </div>
+                            </div>
+                            ${tasksHtml}
+                            <button class="task-add-btn" onclick="openProjectTaskModal('${project.id}')">
+                                <i class="fas fa-plus"></i>
+                                Add task to project
+                            </button>
+                            <div class="card-actions">
+                                <button class="btn btn-danger" onclick="deleteProject('${project.id}')">
+                                    <i class="fas fa-trash"></i>
+                                    Delete
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+        }
+
+        function renderTeam() {
+            const teamList = document.getElementById('teamList');
+            if (state.team.length === 0) {
+                teamList.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-users"></i>
+                        <p>No team members yet. Add your team!</p>
+                    </div>
+                `;
+            } else {
+                teamList.innerHTML = state.team.map(member => {
+                    const initials = member.name.split(' ').map(n => n[0]).join('').toUpperCase();
+                    const rotationLabel = { none: 'No rotation', hourly: 'Hourly', A: 'Rotation A', B: 'Rotation B', C: 'Rotation C' }[member.rotation] || 'No rotation';
+                    return `
+                        <div class="team-member">
+                            <div class="team-avatar">${initials}</div>
+                            <div class="team-info">
+                                <div class="team-name">${member.name}</div>
+                                <div class="team-role">${member.email ? member.email + ' • ' : ''}${member.role} • ${rotationLabel}</div>
+                            </div>
+                            <div class="team-actions">
+                                <button class="btn btn-secondary" onclick="openEditMemberModal('${member.id}')" title="Edit">
+                                    <i class="fas fa-pen"></i>
+                                </button>
+                                <button class="btn btn-danger" onclick="deleteTeamMember('${member.id}')" title="Delete">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+        }
+
+        function openEditMemberModal(memberId) {
+            const member = state.team.find(m => m.id === memberId);
+            if (!member) return;
+
+            document.getElementById('editMemberName').value = member.name || '';
+            document.getElementById('editMemberEmail').value = member.email || '';
+
+            const roleSelect = document.getElementById('editMemberRole');
+            roleSelect.innerHTML = state.roles.map(r => `<option value="${r.name}">${r.name}</option>`).join('');
+            roleSelect.value = member.role;
+
+            document.getElementById('editMemberRotation').value = member.rotation || 'none';
+            document.getElementById('editMemberRotationAnchor').value = member.rotationAnchor || '';
+            document.getElementById('editMemberVacationDays').value = member.vacationDaysAllotted ?? 25;
+            toggleEditRotationAnchorField();
+
+            document.getElementById('editMemberModalOverlay').dataset.memberId = memberId;
+            document.getElementById('editMemberModalOverlay').classList.add('active');
+        }
+
+        function toggleEditRotationAnchorField() {
+            const val = document.getElementById('editMemberRotation').value;
+            document.getElementById('editRotationAnchorWrap').style.display =
+                (val === 'A' || val === 'B' || val === 'C') ? 'block' : 'none';
+        }
+
+        function closeEditMemberModal() {
+            document.getElementById('editMemberModalOverlay').classList.remove('active');
+        }
+
+        function closeEditMemberModalOutside(e) {
+            if (e.target.id === 'editMemberModalOverlay') closeEditMemberModal();
+        }
+
+        async function saveEditMember() {
+            const memberId = document.getElementById('editMemberModalOverlay').dataset.memberId;
+            if (!memberId) return;
+
+            const name = document.getElementById('editMemberName').value.trim();
+            const email = document.getElementById('editMemberEmail').value.trim();
+            const role = document.getElementById('editMemberRole').value;
+            const rotation = document.getElementById('editMemberRotation').value;
+            const rotationAnchor = document.getElementById('editMemberRotationAnchor').value;
+            const vacationDays = parseInt(document.getElementById('editMemberVacationDays').value, 10) || 0;
+
+            if (!name) {
+                alert('Please enter a name');
+                return;
+            }
+            if ((rotation === 'A' || rotation === 'B' || rotation === 'C') && !rotationAnchor) {
+                alert('Please set the rotation start date.');
+                return;
+            }
+
+            await fns.updateDoc(fns.doc(db, 'team', memberId), {
+                name,
+                email,
+                role,
+                rotation,
+                rotationAnchor: rotationAnchor || null,
+                vacationDaysAllotted: vacationDays
+            });
+
+            closeEditMemberModal();
+        }
+
+        function createRole() {
+            const nameInput = document.getElementById('newRoleName');
+            const name = nameInput.value.trim();
+            if (!name) {
+                alert('Please enter a role name');
+                return;
+            }
+            if (state.roles.some(r => r.name.toLowerCase() === name.toLowerCase())) {
+                alert('A role with that name already exists');
+                return;
+            }
+
+            const checks = document.querySelectorAll('#newRoleModules input[type="checkbox"]');
+            const modules = Array.from(checks).filter(c => c.checked).map(c => c.value);
+
+            fns.addDoc(fns.collection(db, 'roles'), { name, modules, protected: false });
+
+            nameInput.value = '';
+            checks.forEach(c => c.checked = false);
+        }
+
+        function toggleRoleModule(roleId, moduleKey, checked) {
+            const role = state.roles.find(r => r.id === roleId);
+            if (!role) return;
+            let modules = role.modules || [];
+            if (checked) {
+                if (!modules.includes(moduleKey)) modules = [...modules, moduleKey];
+            } else {
+                modules = modules.filter(m => m !== moduleKey);
+            }
+            fns.updateDoc(fns.doc(db, 'roles', roleId), { modules });
+        }
+
+        function deleteRole(roleId) {
+            const role = state.roles.find(r => r.id === roleId);
+            if (!role) return;
+            if (role.protected) {
+                alert('The Admin role cannot be deleted.');
+                return;
+            }
+            if (state.team.some(m => m.role === role.name)) {
+                alert('This role is assigned to one or more team members. Reassign them before deleting this role.');
+                return;
+            }
+            if (confirm(`Delete role "${role.name}"?`)) {
+                fns.deleteDoc(fns.doc(db, 'roles', roleId));
+            }
+        }
+
+        function renderRoles() {
+            const roleList = document.getElementById('roleList');
+            if (state.roles.length === 0) {
+                roleList.innerHTML = `<div class="empty-state"><i class="fas fa-user-shield"></i><p>No roles yet.</p></div>`;
+                return;
+            }
+            roleList.innerHTML = state.roles.map(role => {
+                const modules = role.modules || [];
+                const checksHtml = CORE_MODULES.map(m => `
+                    <label class="module-check">
+                        <input type="checkbox" ${modules.includes(m.key) ? 'checked' : ''}
+                            ${role.protected ? 'disabled' : ''}
+                            onchange="toggleRoleModule('${role.id}','${m.key}', this.checked)">
+                        ${m.label}
+                    </label>
+                `).join('');
+
+                return `
+                    <div class="role-card">
+                        <div class="role-card-header">
+                            <span class="role-name ${role.protected ? 'protected' : ''}">${role.name}${role.protected ? ' (protected)' : ''}</span>
+                            ${!role.protected ? `
+                                <button class="btn btn-danger" style="padding:4px 10px;" onclick="deleteRole('${role.id}')">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            ` : ''}
+                        </div>
+                        <div class="module-checks">${checksHtml}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function addLocation() {
+            const nameInput = document.getElementById('locationName');
+            const name = nameInput.value.trim();
+            if (!name) {
+                alert('Please enter a location name');
+                return;
+            }
+            if (state.locations.some(l => l.name.toLowerCase() === name.toLowerCase())) {
+                alert('A location with that name already exists');
+                return;
+            }
+            const maxOrder = state.locations.reduce((max, l) => Math.max(max, l.order ?? 0), -1);
+            fns.addDoc(fns.collection(db, 'locations'), { name, order: maxOrder + 1 });
+            nameInput.value = '';
+        }
+
+        function deleteLocation(id) {
+            const inUse = state.shifts.some(s => s.locationId === id);
+            if (inUse) {
+                alert('This location is used by one or more shifts. Delete those shifts first.');
+                return;
+            }
+            if (confirm('Delete this location?')) {
+                fns.deleteDoc(fns.doc(db, 'locations', id));
+            }
+        }
+
+        function getOrderedLocations() {
+            return [...state.locations].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+        }
+
+        async function moveLocation(id, direction) {
+            const ordered = getOrderedLocations();
+            const idx = ordered.findIndex(l => l.id === id);
+            const targetIdx = idx + direction;
+            if (idx === -1 || targetIdx < 0 || targetIdx >= ordered.length) return;
+
+            const current = ordered[idx];
+            const target = ordered[targetIdx];
+            const currentOrder = current.order ?? idx;
+            const targetOrder = target.order ?? targetIdx;
+
+            await fns.updateDoc(fns.doc(db, 'locations', current.id), { order: targetOrder });
+            await fns.updateDoc(fns.doc(db, 'locations', target.id), { order: currentOrder });
+        }
+
+        function renderLocations() {
+            const list = document.getElementById('locationList');
+            if (!list) return;
+            if (state.locations.length === 0) {
+                list.innerHTML = `<div class="empty-state"><i class="fas fa-map-marker-alt"></i><p>No locations yet.</p></div>`;
+                return;
+            }
+            const ordered = getOrderedLocations();
+            list.innerHTML = ordered.map((loc, idx) => `
+                <div class="team-member">
+                    <div style="display:flex; flex-direction:column; gap:2px;">
+                        <button class="sg-assign-btn" style="padding:2px 6px;" onclick="moveLocation('${loc.id}', -1)" ${idx === 0 ? 'disabled' : ''} title="Move up">
+                            <i class="fas fa-chevron-up"></i>
+                        </button>
+                        <button class="sg-assign-btn" style="padding:2px 6px;" onclick="moveLocation('${loc.id}', 1)" ${idx === ordered.length - 1 ? 'disabled' : ''} title="Move down">
+                            <i class="fas fa-chevron-down"></i>
+                        </button>
+                    </div>
+                    <div class="team-avatar"><i class="fas fa-map-marker-alt"></i></div>
+                    <div class="team-info">
+                        <div class="team-name">${loc.name}</div>
+                    </div>
+                    <div class="team-actions">
+                        <button class="btn btn-danger" onclick="deleteLocation('${loc.id}')" title="Delete">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function populateLocationSelect() {
+            const select = document.getElementById('shiftLocation');
+            if (!select) return;
+            const current = select.value;
+            if (state.locations.length === 0) {
+                select.innerHTML = '<option value="">No locations yet — create one first</option>';
+                return;
+            }
+            select.innerHTML = state.locations.map(l => `<option value="${l.id}">${l.name}</option>`).join('');
+            if (current && state.locations.some(l => l.id === current)) select.value = current;
+        }
+
+        function calcGrossMinutes(start, end) {
+            const [sh, sm] = start.split(':').map(Number);
+            const [eh, em] = end.split(':').map(Number);
+            let mins = (eh * 60 + em) - (sh * 60 + sm);
+            if (mins < 0) mins += 24 * 60;
+            return mins;
+        }
+
+        function addShift() {
+            const start = document.getElementById('shiftStart').value;
+            const end = document.getElementById('shiftEnd').value;
+            const locationId = document.getElementById('shiftLocation').value;
+
+            if (!start || !end || !locationId) {
+                alert('Please fill in start time, end time and location');
+                return;
+            }
+
+            const grossMinutes = calcGrossMinutes(start, end);
+            if (grossMinutes <= 0) {
+                alert('End time must be after start time.');
+                return;
+            }
+
+            fns.addDoc(fns.collection(db, 'shifts'), {
+                start, end, locationId, grossMinutes
+            });
+
+            document.getElementById('shiftStart').value = '';
+            document.getElementById('shiftEnd').value = '';
+        }
+
+        function deleteShift(id) {
+            if (confirm('Delete this shift?')) {
+                fns.deleteDoc(fns.doc(db, 'shifts', id));
+            }
+        }
+
+        function formatMinutes(mins) {
+            const h = Math.floor(mins / 60);
+            const m = mins % 60;
+            return `${h}h ${m.toString().padStart(2, '0')}m`;
+        }
+
+        function renderShifts() {
+            const list = document.getElementById('shiftList');
+            if (!list) return;
+            if (state.shifts.length === 0) {
+                list.innerHTML = `<div class="empty-state"><i class="fas fa-clock"></i><p>No shifts yet.</p></div>`;
+                return;
+            }
+            list.innerHTML = state.shifts.map(shift => {
+                const loc = state.locations.find(l => l.id === shift.locationId);
+                return `
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">${shift.start} → ${shift.end}</div>
+                        </div>
+                        <div class="card-meta">
+                            <div class="meta-item">
+                                <i class="fas fa-map-marker-alt"></i>
+                                ${loc ? loc.name : 'Unknown location'}
+                            </div>
+                            <div class="meta-item">
+                                <i class="fas fa-briefcase"></i>
+                                Duration: ${formatMinutes(shift.grossMinutes)}
+                            </div>
+                        </div>
+                        <div class="card-actions">
+                            <button class="btn btn-danger" onclick="deleteShift('${shift.id}')">
+                                <i class="fas fa-trash"></i>
+                                Delete
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // ===== SCHEDULE (Fase C) =====
+
+        function toDateKey(date) {
+            const y = date.getFullYear();
+            const m = (date.getMonth() + 1).toString().padStart(2, '0');
+            const d = date.getDate().toString().padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        }
+
+        function dateKeyToDate(dateKey) {
+            const [y, m, d] = dateKey.split('-').map(Number);
+            return new Date(y, m - 1, d);
+        }
+
+        // ===== ROTATIONS (Fase D) =====
+
+        function isWorkingDayForMember(member, date) {
+            if (!member) return null;
+
+            if (!member.rotation || member.rotation === 'none') {
+                const day = date.getDay();
+                return day >= 1 && day <= 5;
+            }
+
+            if (member.rotation === 'hourly') {
+                return null;
+            }
+
+            if (!member.rotationAnchor) return null;
+
+            const anchor = dateKeyToDate(member.rotationAnchor);
+            anchor.setHours(0, 0, 0, 0);
+
+            const target = new Date(date);
+            target.setHours(0, 0, 0, 0);
+
+            let diffDays = Math.round((target - anchor) / (1000 * 60 * 60 * 24));
+            diffDays = ((diffDays % 9) + 9) % 9;
+
+            return diffDays < 6;
+        }
+
+        function isOnApprovedVacation(memberId, dateKey) {
+            return state.vacationRequests.some(r =>
+                r.memberId === memberId &&
+                r.status === 'approved' &&
+                r.requestType === 'vacation' &&
+                dateKey >= r.startKey &&
+                dateKey <= r.endKey
+            );
+        }
+
+        function getRotationStatusLabel(member, date) {
+            const dateKey = toDateKey(date);
+            if (isOnApprovedVacation(member.id, dateKey)) return 'Holidays';
+
+            const working = isWorkingDayForMember(member, date);
+            if (working === null) return null;
+            return working ? 'On rotation' : 'Day off (rotation)';
+        }
+
+        function formatDayLabel(date) {
+            return date.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short' });
+        }
+
+        function startOfWeek(date) {
+            const d = new Date(date);
+            const day = d.getDay();
+            const diff = (day === 0 ? -6 : 1) - day;
+            d.setDate(d.getDate() + diff);
+            d.setHours(0, 0, 0, 0);
+            return d;
+        }
+
+        function getScheduleDates() {
+            const dates = [];
+            if (scheduleView === 'daily') {
+                dates.push(new Date(scheduleRefDate));
+            } else if (scheduleView === 'weekly') {
+                const start = startOfWeek(scheduleRefDate);
+                for (let i = 0; i < 7; i++) {
+                    const d = new Date(start);
+                    d.setDate(start.getDate() + i);
+                    dates.push(d);
+                }
+            } else {
+                const year = scheduleRefDate.getFullYear();
+                const month = scheduleRefDate.getMonth();
+                const daysInMonth = new Date(year, month + 1, 0).getDate();
+                for (let i = 1; i <= daysInMonth; i++) {
+                    dates.push(new Date(year, month, i));
+                }
+            }
+            return dates;
+        }
+
+        function setScheduleView(view) {
+            scheduleView = view;
+            document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+            document.querySelector(`.view-btn[data-view="${view}"]`).classList.add('active');
+            renderSchedule();
+        }
+
+        function navigateSchedule(dir) {
+            const d = new Date(scheduleRefDate);
+            if (scheduleView === 'daily') d.setDate(d.getDate() + dir);
+            else if (scheduleView === 'weekly') d.setDate(d.getDate() + dir * 7);
+            else d.setMonth(d.getMonth() + dir);
+            scheduleRefDate = d;
+            renderSchedule();
+        }
+
+        function updateScheduleRangeLabel(dates) {
+            const label = document.getElementById('scheduleRangeLabel');
+            if (dates.length === 1) {
+                label.textContent = dates[0].toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+            } else if (scheduleView === 'weekly') {
+                label.textContent = `${dates[0].toLocaleDateString('en-US', { day: 'numeric', month: 'short' })} - ${dates[6].toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}`;
+            } else {
+                label.textContent = scheduleRefDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+            }
+        }
+
+        function getAssignmentsForShiftDate(shiftId, dateKey) {
+            return state.assignments.filter(a => a.shiftId === shiftId && a.dateKey === dateKey);
+        }
+
+        function getMemberDayMinutes(memberId, dateKey, excludeAssignmentId) {
+            const dayAssignments = state.assignments.filter(a =>
+                a.memberId === memberId && a.dateKey === dateKey && a.id !== excludeAssignmentId
+            );
+            let total = 0;
+            dayAssignments.forEach(a => {
+                const shift = state.shifts.find(s => s.id === a.shiftId);
+                if (shift) total += shift.grossMinutes;
+            });
+            return total;
+        }
+
+        function dateKeyInCurrentRange(dateKey, rangeType) {
+            const [y, m, d] = dateKey.split('-').map(Number);
+            const date = new Date(y, m - 1, d);
+            if (rangeType === 'month') {
+                return date.getFullYear() === scheduleRefDate.getFullYear() &&
+                    date.getMonth() === scheduleRefDate.getMonth();
+            }
+            const weekStart = startOfWeek(scheduleRefDate);
+            const weekEnd = new Date(weekStart);
+            weekEnd.setDate(weekStart.getDate() + 6);
+            weekEnd.setHours(23, 59, 59, 999);
+            return date >= weekStart && date <= weekEnd;
+        }
+
+        async function publishByRange(rangeType, publish) {
+            const targets = state.assignments.filter(a => dateKeyInCurrentRange(a.dateKey, rangeType));
+            if (targets.length === 0) {
+                alert(`No assignments found in the current ${rangeType}.`);
+                return;
+            }
+            const label = rangeType === 'month' ? 'this month' : 'this week';
+            if (!confirm(`${publish ? 'Publish' : 'Unpublish'} ${targets.length} assignment(s) for ${label}?`)) return;
+
+            for (const a of targets) {
+                await fns.updateDoc(fns.doc(db, 'assignments', a.id), { published: publish });
+            }
+        }
+
+        function openPublishByUserModal() {
+            const select = document.getElementById('publishUserSelect');
+            select.innerHTML = state.team.map(m => `<option value="${m.id}">${m.name} (${m.role})</option>`).join('');
+            document.getElementById('publishUserModalOverlay').classList.add('active');
+        }
+
+        function closePublishByUserModal() {
+            document.getElementById('publishUserModalOverlay').classList.remove('active');
+        }
+
+        function closePublishByUserModalOutside(e) {
+            if (e.target.id === 'publishUserModalOverlay') closePublishByUserModal();
+        }
+
+        async function publishByUser(publish) {
+            const memberId = document.getElementById('publishUserSelect').value;
+            if (!memberId) return;
+            const targets = state.assignments.filter(a => a.memberId === memberId);
+            if (targets.length === 0) {
+                alert('This member has no assignments.');
+                return;
+            }
+            const m = assigneeMap[memberId];
+            if (!confirm(`${publish ? 'Publish' : 'Unpublish'} all ${targets.length} assignment(s) for ${m ? m.name : 'this member'}?`)) return;
+
+            for (const a of targets) {
+                await fns.updateDoc(fns.doc(db, 'assignments', a.id), { published: publish });
+            }
+            closePublishByUserModal();
+        }
+
+        function renderSchedule() {
+            const grid = document.getElementById('scheduleGrid');
+            if (!grid) return;
+
+            const dates = getScheduleDates();
+            updateScheduleRangeLabel(dates);
+
+            if (state.locations.length === 0) {
+                grid.innerHTML = `<div class="empty-state" style="grid-column: 1 / -1;"><i class="fas fa-map-marker-alt"></i><p>Create at least one location first.</p></div>`;
+                grid.style.display = 'block';
+                return;
+            }
+
+            const isMonthly = scheduleView === 'monthly';
+            grid.style.display = 'grid';
+            grid.style.gridTemplateColumns = `140px repeat(${dates.length}, minmax(${isMonthly ? '130px' : '150px'}, 1fr))`;
+
+            let html = '<div class="sg-cell sg-header">Location</div>';
+            dates.forEach(d => {
+                html += `<div class="sg-cell sg-header">${isMonthly ? d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' }) : formatDayLabel(d)}</div>`;
+            });
+
+            getOrderedLocations().forEach(loc => {
+                html += `<div class="sg-cell sg-loc-label">${loc.name}</div>`;
+                const locShifts = state.shifts.filter(s => s.locationId === loc.id);
+
+                dates.forEach(d => {
+                    const dateKey = toDateKey(d);
+                    if (locShifts.length === 0) {
+                        html += `<div class="sg-cell"><span class="sg-shift-empty">No shifts</span></div>`;
+                    } else {
+                        let cellHtml = '<div class="sg-cell">';
+                        locShifts.forEach(shift => {
+                            const assigns = getAssignmentsForShiftDate(shift.id, dateKey);
+                            if (assigns.length === 0) {
+                                cellHtml += `
+                                    <div class="sg-shift-item">
+                                        <div class="sg-shift-time">${shift.start}-${shift.end}</div>
+                                        <button class="sg-assign-btn" onclick="openAssignModal('${shift.id}','${dateKey}')">
+                                            <i class="fas fa-plus"></i> Assign
+                                        </button>
+                                    </div>
+                                `;
+                            } else {
+                                assigns.forEach(a => {
+                                    const m = assigneeMap[a.memberId];
+                                    cellHtml += `
+                                        <div class="sg-shift-item ${a.published ? 'published' : 'draft'}">
+                                            <div class="sg-shift-time">${shift.start}-${shift.end}</div>
+                                            <div class="sg-shift-assignee" onclick="openAssignModal('${shift.id}','${dateKey}','${a.id}')" style="cursor:pointer;">
+                                                ${m ? m.name : 'Unknown'} ${a.sickLeave ? '(Sick)' : ''}
+                                            </div>
+                                        </div>
+                                    `;
+                                });
+                            }
+                        });
+                        cellHtml += '</div>';
+                        html += cellHtml;
+                    }
+                });
+            });
+
+            grid.innerHTML = html;
+        }
+
+        let selectedAssignMemberId = null;
+
+        function openAssignModal(shiftId, dateKey, assignmentId) {
+            const shift = state.shifts.find(s => s.id === shiftId);
+            if (!shift) return;
+            const loc = state.locations.find(l => l.id === shift.locationId);
+
+            pendingAssign = { shiftId, dateKey, assignmentId: assignmentId || null };
+            selectedAssignMemberId = null;
+
+            document.getElementById('assignModalSubtitle').textContent =
+                `${loc ? loc.name : ''} — ${shift.start} to ${shift.end} on ${dateKey}`;
+
+            const dateObj = dateKeyToDate(dateKey);
+            const existing = assignmentId ? state.assignments.find(a => a.id === assignmentId) : null;
+            if (existing) selectedAssignMemberId = existing.memberId;
+
+            const listEl = document.getElementById('assignMemberList');
+            listEl.innerHTML = state.team.map(m => {
+                const statusLabel = getRotationStatusLabel(m, dateObj);
+                const isOff = statusLabel === 'Day off (rotation)';
+                const isHolidays = statusLabel === 'Holidays';
+                const isSelected = m.id === selectedAssignMemberId;
+                const statusClass = isHolidays ? 'holidays' : (isOff ? 'off' : 'working');
+                return `
+                    <div class="assign-member-item ${isSelected ? 'selected' : ''} ${isHolidays ? 'disabled' : ''}" onclick="${isHolidays ? '' : `selectAssignMember('${m.id}')`}" data-member-id="${m.id}">
+                        <div>
+                            <div class="assign-member-name">${m.name}</div>
+                            <div class="assign-member-role">${m.role}</div>
+                        </div>
+                        ${statusLabel ? `<span class="assign-member-rotation ${statusClass}">${statusLabel}</span>` : ''}
+                    </div>
+                `;
+            }).join('') || '<p style="color:#999; font-size:13px;">No team members available.</p>';
+
+            const unassignBtn = document.getElementById('unassignBtn');
+            unassignBtn.style.display = assignmentId ? 'block' : 'none';
+
+            const sickWrap = document.getElementById('sickLeaveWrap');
+            const sickCheckbox = document.getElementById('assignSickLeave');
+            if (assignmentId) {
+                sickWrap.style.display = 'block';
+                sickCheckbox.checked = !!(existing && existing.sickLeave);
+            } else {
+                sickWrap.style.display = 'none';
+                sickCheckbox.checked = false;
+            }
+
+            document.getElementById('assignWarning').style.display = 'none';
+            document.getElementById('assignModalOverlay').classList.add('active');
+        }
+
+        function selectAssignMember(memberId) {
+            selectedAssignMemberId = memberId;
+            document.querySelectorAll('.assign-member-item').forEach(el => {
+                el.classList.toggle('selected', el.dataset.memberId === memberId);
+            });
+        }
+
+        function closeAssignModal() {
+            document.getElementById('assignModalOverlay').classList.remove('active');
+            pendingAssign = null;
+        }
+
+        function closeAssignModalOutside(e) {
+            if (e.target.id === 'assignModalOverlay') closeAssignModal();
+        }
+
+        async function confirmAssign() {
+            if (!pendingAssign) return;
+            const memberId = selectedAssignMemberId;
+            const warningEl = document.getElementById('assignWarning');
+
+            if (!memberId) {
+                warningEl.textContent = 'Select a team member.';
+                warningEl.style.display = 'block';
+                return;
+            }
+
+            if (isOnApprovedVacation(memberId, pendingAssign.dateKey)) {
+                const m = assigneeMap[memberId];
+                warningEl.textContent = `${m ? m.name : 'This member'} is on approved holidays on ${pendingAssign.dateKey} and cannot be assigned a shift.`;
+                warningEl.style.display = 'block';
+                return;
+            }
+
+            const shift = state.shifts.find(s => s.id === pendingAssign.shiftId);
+            if (!shift) return;
+
+            const existingMinutes = getMemberDayMinutes(memberId, pendingAssign.dateKey, pendingAssign.assignmentId);
+            const totalMinutes = existingMinutes + shift.grossMinutes;
+            const netMinutes = totalMinutes - 30;
+
+            if (netMinutes > 475) {
+                const m = assigneeMap[memberId];
+                warningEl.textContent = `${m ? m.name : 'This member'} would have ${formatMinutes(netMinutes)} net on ${pendingAssign.dateKey}, exceeding the 7h55 daily limit.`;
+                warningEl.style.display = 'block';
+                return;
+            }
+
+            const sickLeave = document.getElementById('assignSickLeave').checked;
+
+            if (pendingAssign.assignmentId) {
+                await fns.updateDoc(fns.doc(db, 'assignments', pendingAssign.assignmentId), { memberId, sickLeave });
+            } else {
+                await fns.addDoc(fns.collection(db, 'assignments'), {
+                    shiftId: pendingAssign.shiftId,
+                    dateKey: pendingAssign.dateKey,
+                    memberId,
+                    sickLeave: false,
+                    published: false
+                });
+            }
+
+            closeAssignModal();
+        }
+
+        async function confirmUnassign() {
+            if (!pendingAssign || !pendingAssign.assignmentId) return;
+            if (confirm('Remove this assignment?')) {
+                await fns.deleteDoc(fns.doc(db, 'assignments', pendingAssign.assignmentId));
+                closeAssignModal();
+            }
+        }
+
+        function openDayDetail(locationId, dateKey) {
+            const loc = state.locations.find(l => l.id === locationId);
+            document.getElementById('dayDetailTitle').textContent = `${loc ? loc.name : ''} — ${dateKey}`;
+
+            const locShifts = state.shifts.filter(s => s.locationId === locationId);
+            const body = document.getElementById('dayDetailBody');
+
+            if (locShifts.length === 0) {
+                body.innerHTML = `<p style="color:#999; font-size:13px;">No shifts for this location.</p>`;
+            } else {
+                body.innerHTML = locShifts.map(shift => {
+                    const assigns = getAssignmentsForShiftDate(shift.id, dateKey);
+                    const assignedHtml = assigns.length === 0
+                        ? `<button class="task-add-btn" onclick="closeDayDetailModal(); openAssignModal('${shift.id}','${dateKey}')"><i class="fas fa-plus"></i> Assign</button>`
+                        : assigns.map(a => {
+                            const m = assigneeMap[a.memberId];
+                            return `<div class="sg-shift-assignee" style="cursor:pointer; margin-top:4px;" onclick="closeDayDetailModal(); openAssignModal('${shift.id}','${dateKey}','${a.id}')">${m ? m.name : 'Unknown'} ${a.sickLeave ? '(Sick)' : ''}</div>`;
+                        }).join('');
+
+                    return `
+                        <div class="project-task-item" style="flex-direction:column; align-items:flex-start;">
+                            <div class="sg-shift-time">${shift.start} - ${shift.end}</div>
+                            ${assignedHtml}
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            document.getElementById('dayDetailModalOverlay').classList.add('active');
+        }
+
+        function closeDayDetailModal() {
+            document.getElementById('dayDetailModalOverlay').classList.remove('active');
+        }
+
+        function closeDayDetailModalOutside(e) {
+            if (e.target.id === 'dayDetailModalOverlay') closeDayDetailModal();
+        }
+
+        // ===== MY ROTA =====
+
+        function getMyPublishedAssignments() {
+            if (!currentMember) return [];
+            const todayKey = toDateKey(new Date());
+            return state.assignments
+                .filter(a => a.memberId === currentMember.id && a.published && a.dateKey >= todayKey)
+                .map(a => {
+                    const shift = state.shifts.find(s => s.id === a.shiftId);
+                    const loc = shift ? state.locations.find(l => l.id === shift.locationId) : null;
+                    return { ...a, shift, loc };
+                })
+                .filter(a => a.shift)
+                .sort((a, b) => (a.dateKey + a.shift.start).localeCompare(b.dateKey + b.shift.start));
+        }
+
+        function renderMyRota() {
+            const nextEl = document.getElementById('myNextShift');
+            const listEl = document.getElementById('myUpcomingShifts');
+            if (!nextEl || !listEl) return;
+
+            if (!currentMember) {
+                nextEl.innerHTML = `<div class="empty-state"><i class="fas fa-user"></i><p>Your account isn't linked to a team member yet.</p></div>`;
+                listEl.innerHTML = '';
+                return;
+            }
+
+            const upcoming = getMyPublishedAssignments();
+
+            if (upcoming.length === 0) {
+                nextEl.innerHTML = `<div class="empty-state"><i class="fas fa-calendar-times"></i><p>No upcoming shifts scheduled.</p></div>`;
+                listEl.innerHTML = '';
+                return;
+            }
+
+            const next = upcoming[0];
+            nextEl.innerHTML = `
+                <div class="next-shift-card">
+                    <div class="ns-label">My next shift</div>
+                    <div class="ns-time">${next.shift.start} - ${next.shift.end}</div>
+                    <div class="ns-meta"><i class="fas fa-map-marker-alt"></i> ${next.loc ? next.loc.name : ''} &nbsp; • &nbsp; ${next.dateKey}</div>
+                </div>
+            `;
+
+            const rest = upcoming.slice(1);
+            listEl.innerHTML = rest.length === 0
+                ? `<p style="color:#999; font-size:13px;">No other upcoming shifts.</p>`
+                : rest.map(a => `
+                    <div class="upcoming-shift-item">
+                        <div>
+                            <div class="sg-shift-time">${a.shift.start} - ${a.shift.end}</div>
+                            <div style="color:#666; font-size:12px;">${a.loc ? a.loc.name : ''}</div>
+                        </div>
+                        <div style="color:#333; font-weight:600; font-size:13px;">${a.dateKey}</div>
+                    </div>
+                `).join('');
+        }
+
+        // ===== ROTAS (read-only, published only) =====
+
+        function getRotasMonthsWithData() {
+            const keys = new Set();
+            state.assignments.filter(a => a.published).forEach(a => {
+                keys.add(a.dateKey.slice(0, 7));
+            });
+            return Array.from(keys).sort();
+        }
+
+        function onRotasMonthChange() {
+            const val = document.getElementById('rotasMonthSelect').value;
+            if (!val) return;
+            const [y, m] = val.split('-').map(Number);
+            rotasRefDate = new Date(y, m - 1, 1);
+            renderRotas();
+        }
+
+        function navigateRotasWeek(dir) {
+            const d = new Date(rotasRefDate);
+            d.setDate(d.getDate() + dir * 7);
+            rotasRefDate = d;
+            renderRotas();
+        }
+
+        function renderRotas() {
+            const grid = document.getElementById('rotasGrid');
+            const monthSelect = document.getElementById('rotasMonthSelect');
+            const weekLabel = document.getElementById('rotasWeekLabel');
+            if (!grid || !monthSelect) return;
+
+            const months = getRotasMonthsWithData();
+            if (months.length === 0) {
+                monthSelect.innerHTML = '<option value="">No published rotas yet</option>';
+                grid.innerHTML = `<div class="empty-state" style="grid-column: 1 / -1;"><i class="fas fa-calendar"></i><p>No published rotas yet.</p></div>`;
+                grid.style.display = 'block';
+                weekLabel.textContent = '-';
+                return;
+            }
+
+            const currentMonthKey = toDateKey(rotasRefDate).slice(0, 7);
+            monthSelect.innerHTML = months.map(mk => {
+                const [y, m] = mk.split('-').map(Number);
+                const label = new Date(y, m - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+                return `<option value="${mk}" ${mk === currentMonthKey ? 'selected' : ''}>${label}</option>`;
+            }).join('');
+
+            const weekStart = startOfWeek(rotasRefDate);
+            const weekDates = [];
+            for (let i = 0; i < 7; i++) {
+                const d = new Date(weekStart);
+                d.setDate(weekStart.getDate() + i);
+                weekDates.push(d);
+            }
+            weekLabel.textContent = `${weekDates[0].toLocaleDateString('en-US', { day: 'numeric', month: 'short' })} - ${weekDates[6].toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}`;
+
+            const todayKey = toDateKey(new Date());
+            grid.style.display = 'grid';
+            grid.innerHTML = weekDates.map(d => {
+                const dateKey = toDateKey(d);
+                const isToday = dateKey === todayKey;
+                const dayAssignments = state.assignments.filter(a => a.published && a.dateKey === dateKey);
+
+                let locBlocks = '';
+                getOrderedLocations().forEach(loc => {
+                    const locAssignments = dayAssignments.filter(a => {
+                        const shift = state.shifts.find(s => s.id === a.shiftId);
+                        return shift && shift.locationId === loc.id;
+                    });
+                    if (locAssignments.length === 0) return;
+
+                    const cards = locAssignments.map(a => {
+                        const shift = state.shifts.find(s => s.id === a.shiftId);
+                        const m = assigneeMap[a.memberId];
+                        const isMe = currentMember && a.memberId === currentMember.id;
+                        return `
+                            <div class="rotas-shift-card ${isMe ? 'is-me' : ''}" onclick="onRotaShiftClick('${a.id}')">
+                                <div class="sg-shift-time">${shift.start}-${shift.end}</div>
+                                <div>${m ? m.name : 'Unknown'} ${a.sickLeave ? '(Sick)' : ''}</div>
+                            </div>
+                        `;
+                    }).join('');
+
+                    locBlocks += `
+                        <div class="rotas-loc-block">
+                            <div class="rotas-loc-name">${loc.name}</div>
+                            ${cards}
+                        </div>
+                    `;
+                });
+
+                if (!locBlocks) {
+                    locBlocks = `<div class="rotas-loc-block"><span class="sg-shift-empty">No shifts</span></div>`;
+                }
+
+                const assignedMemberIds = new Set(dayAssignments.map(a => a.memberId));
+                const freeMembers = state.team.filter(m => {
+                    if (assignedMemberIds.has(m.id)) return false;
+                    if (currentMember && m.id === currentMember.id) return false;
+                    if (isOnApprovedVacation(m.id, dateKey)) return false;
+                    return isWorkingDayForMember(m, d) === false;
+                });
+
+                let freeBlock = '';
+                if (freeMembers.length > 0) {
+                    const freeCards = freeMembers.map(m => `
+                        <div class="rotas-shift-card free-day-card" onclick="onFreeDayClick('${m.id}','${dateKey}')">
+                            <div>${m.name}</div>
+                            <div style="color:#999; font-size:11px;">${m.role}</div>
+                        </div>
+                    `).join('');
+                    freeBlock = `
+                        <div class="rotas-loc-block">
+                            <div class="rotas-loc-name">Available (day off)</div>
+                            ${freeCards}
+                        </div>
+                    `;
+                }
+
+                return `
+                    <div class="rotas-day-col">
+                        <div class="rotas-day-header ${isToday ? 'today' : ''}">${formatDayLabel(d)}</div>
+                        ${locBlocks}
+                        ${freeBlock}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function onRotaShiftClick(assignmentId) {
+            const a = state.assignments.find(x => x.id === assignmentId);
+            if (!a) return;
+
+            if (currentMember && a.memberId === currentMember.id) {
+                alert('This is your own shift. Result entry coming soon.');
+                return;
+            }
+
+            openRequestSwapModal(assignmentId);
+        }
+
+        function openRequestSwapModal(targetAssignmentId) {
+            if (!currentMember) {
+                alert('Your account is not linked to a team member.');
+                return;
+            }
+            const targetAssignment = state.assignments.find(a => a.id === targetAssignmentId);
+            if (!targetAssignment) return;
+            const targetMember = assigneeMap[targetAssignment.memberId];
+
+            const targetDayAssignments = state.assignments.filter(a =>
+                a.memberId === targetAssignment.memberId && a.dateKey === targetAssignment.dateKey && a.published
+            );
+            const targetDayShiftsText = targetDayAssignments.map(a => {
+                const shift = state.shifts.find(s => s.id === a.shiftId);
+                const loc = shift ? state.locations.find(l => l.id === shift.locationId) : null;
+                return shift ? `${shift.start}-${shift.end} (${loc ? loc.name : ''})` : '';
+            }).join(', ');
+
+            pendingSwapRequest = { targetAssignmentId };
+
+            document.getElementById('requestSwapSubtitle').textContent =
+                `Request to take all of ${targetMember ? targetMember.name : 'this member'}'s shifts on ${targetAssignment.dateKey}: ${targetDayShiftsText}. This will exchange their entire day for your offered day.`;
+
+            const myDateKeys = [...new Set(
+                state.assignments
+                    .filter(a => currentMember && a.memberId === currentMember.id && a.published)
+                    .map(a => a.dateKey)
+            )].sort();
+
+            const select = document.getElementById('requestSwapMyShift');
+            select.innerHTML = myDateKeys.length === 0
+                ? '<option value="">You have no published shifts to offer</option>'
+                : myDateKeys.map(dateKey => {
+                    const dayAssignments = state.assignments.filter(a =>
+                        currentMember && a.memberId === currentMember.id && a.dateKey === dateKey && a.published
+                    );
+                    const shiftsText = dayAssignments.map(a => {
+                        const shift = state.shifts.find(s => s.id === a.shiftId);
+                        return shift ? `${shift.start}-${shift.end}` : '';
+                    }).join(', ');
+                    const anAssignment = dayAssignments[0];
+                    return `<option value="${anAssignment.id}">${dateKey} — ${shiftsText}</option>`;
+                }).join('');
+
+            document.getElementById('requestSwapMessage').value = '';
+            document.getElementById('requestSwapModalOverlay').classList.add('active');
+        }
+
+        function closeRequestSwapModal() {
+            document.getElementById('requestSwapModalOverlay').classList.remove('active');
+            pendingSwapRequest = null;
+        }
+
+        function closeRequestSwapModalOutside(e) {
+            if (e.target.id === 'requestSwapModalOverlay') closeRequestSwapModal();
+        }
+
+        async function sendSwapRequest() {
+            if (!pendingSwapRequest || !currentMember) return;
+            const myAssignmentId = document.getElementById('requestSwapMyShift').value;
+            const message = document.getElementById('requestSwapMessage').value.trim();
+
+            if (!myAssignmentId) {
+                alert('Select one of your own shifts to offer.');
+                return;
+            }
+
+            const targetAssignment = state.assignments.find(a => a.id === pendingSwapRequest.targetAssignmentId);
+            if (!targetAssignment) return;
+
+            const requiresAdminOnly = currentMember.role === 'Lead' || targetAssignment.memberId &&
+                (assigneeMap[targetAssignment.memberId] && assigneeMap[targetAssignment.memberId].role === 'Lead');
+
+            await fns.addDoc(fns.collection(db, 'swapRequests'), {
+                requesterId: currentMember.id,
+                requesterAssignmentId: myAssignmentId,
+                targetAssignmentId: pendingSwapRequest.targetAssignmentId,
+                targetMemberId: targetAssignment.memberId,
+                message,
+                status: 'pending',
+                needsAdminOnly: !!requiresAdminOnly,
+                createdAt: new Date().toISOString()
+            });
+
+            closeRequestSwapModal();
+            alert('Swap request sent. You will be notified once it is reviewed.');
+        }
+
+        // ===== INBOX =====
+
+        function canApproveSwap(req) {
+            const role = getUserRole();
+            if (role.name === 'Admin') return true;
+            if (req.needsAdminOnly) return false;
+            return role.name === 'Lead';
+        }
+
+        function renderInbox() {
+            const swapList = document.getElementById('swapRequestsList');
+            const notifList = document.getElementById('notificationsList');
+            if (!swapList || !notifList) return;
+
+            const relevantRequests = state.swapRequests.filter(r => {
+                if (r.status !== 'pending') return false;
+                const role = getUserRole();
+                if (role.name === 'Admin' || role.name === 'Lead') return canApproveSwap(r);
+                return currentMember && (r.requesterId === currentMember.id || r.targetMemberId === currentMember.id);
+            });
+
+            const relevantDayOffRequests = state.dayOffSwapRequests.filter(r => {
+                if (r.status !== 'pending') return false;
+                const role = getUserRole();
+                if (role.name === 'Admin' || role.name === 'Lead') return canApproveDayOffSwap(r);
+                return currentMember && (r.requesterId === currentMember.id || r.targetMemberId === currentMember.id);
+            });
+
+            let swapHtml = '';
+
+            if (relevantRequests.length > 0) {
+                swapHtml += relevantRequests.map(req => {
+                    const requester = assigneeMap[req.requesterId];
+                    const targetMember = assigneeMap[req.targetMemberId];
+                    const targetAssignment = state.assignments.find(a => a.id === req.targetAssignmentId);
+                    const targetShift = targetAssignment ? state.shifts.find(s => s.id === targetAssignment.shiftId) : null;
+                    const canAct = canApproveSwap(req);
+
+                    return `
+                        <div class="inbox-item unread">
+                            <div class="inbox-item-header">
+                                <strong style="font-size:14px;">${requester ? requester.name : 'Someone'} wants ${targetMember ? targetMember.name : 'a member'}'s shift</strong>
+                            </div>
+                            <p style="font-size:13px; color:#666; margin-bottom:8px;">
+                                ${targetShift ? targetShift.start + '-' + targetShift.end : ''} on ${targetAssignment ? targetAssignment.dateKey : ''}
+                                ${req.message ? `<br>"${req.message}"` : ''}
+                            </p>
+                            ${canAct ? `
+                                <div class="card-actions">
+                                    <button class="btn btn-success" onclick="respondSwapRequest('${req.id}', true)"><i class="fas fa-check"></i> Approve</button>
+                                    <button class="btn btn-danger" onclick="respondSwapRequest('${req.id}', false)"><i class="fas fa-times"></i> Decline</button>
+                                </div>
+                            ` : `<p style="font-size:12px; color:#999;">Waiting for approval.</p>`}
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            if (relevantDayOffRequests.length > 0) {
+                swapHtml += relevantDayOffRequests.map(req => {
+                    const requester = assigneeMap[req.requesterId];
+                    const targetMember = assigneeMap[req.targetMemberId];
+                    const canAct = canApproveDayOffSwap(req);
+
+                    return `
+                        <div class="inbox-item unread">
+                            <div class="inbox-item-header">
+                                <strong style="font-size:14px;">${requester ? requester.name : 'Someone'} wants to take ${targetMember ? targetMember.name : 'a member'}'s day off</strong>
+                            </div>
+                            <p style="font-size:13px; color:#666; margin-bottom:8px;">
+                                Take shifts on ${req.takeDateKey} • Gives back on ${req.returnDateKey}
+                                ${req.message ? `<br>"${req.message}"` : ''}
+                            </p>
+                            ${canAct ? `
+                                <div class="card-actions">
+                                    <button class="btn btn-success" onclick="respondDayOffSwapRequest('${req.id}', true)"><i class="fas fa-check"></i> Approve</button>
+                                    <button class="btn btn-danger" onclick="respondDayOffSwapRequest('${req.id}', false)"><i class="fas fa-times"></i> Decline</button>
+                                </div>
+                            ` : `<p style="font-size:12px; color:#999;">Waiting for approval.</p>`}
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            swapList.innerHTML = swapHtml || `<div class="empty-state"><i class="fas fa-right-left"></i><p>No pending swap requests.</p></div>`;
+
+            const myNotifications = state.notifications
+                .filter(n => !n.memberId || (currentMember && n.memberId === currentMember.id))
+                .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+
+            notifList.innerHTML = myNotifications.length === 0
+                ? `<div class="empty-state"><i class="fas fa-bell"></i><p>No notifications.</p></div>`
+                : myNotifications.map(n => `
+                    <div class="inbox-item">
+                        <p style="font-size:13px; color:#333; margin:0;">${n.message}</p>
+                    </div>
+                `).join('');
+        }
+
+        async function respondSwapRequest(requestId, approve) {
+            const req = state.swapRequests.find(r => r.id === requestId);
+            if (!req) return;
+
+            if (approve) {
+                const targetAssignment = state.assignments.find(a => a.id === req.targetAssignmentId);
+                const requesterAssignment = state.assignments.find(a => a.id === req.requesterAssignmentId);
+
+                if (targetAssignment && requesterAssignment) {
+                    const targetDateKey = targetAssignment.dateKey;
+                    const requesterDateKey = requesterAssignment.dateKey;
+
+                    const allTargetDayAssignments = state.assignments.filter(a =>
+                        a.memberId === req.targetMemberId && a.dateKey === targetDateKey
+                    );
+                    const allRequesterDayAssignments = state.assignments.filter(a =>
+                        a.memberId === req.requesterId && a.dateKey === requesterDateKey
+                    );
+
+                    for (const a of allTargetDayAssignments) {
+                        await fns.updateDoc(fns.doc(db, 'assignments', a.id), { memberId: req.requesterId });
+                    }
+                    for (const a of allRequesterDayAssignments) {
+                        await fns.updateDoc(fns.doc(db, 'assignments', a.id), { memberId: req.targetMemberId });
+                    }
+                }
+                await fns.addDoc(fns.collection(db, 'notifications'), {
+                    message: `Your shift swap request was approved. All shifts for that day were exchanged.`,
+                    memberId: req.requesterId,
+                    createdAt: new Date().toISOString()
+                });
+            } else {
+                await fns.addDoc(fns.collection(db, 'notifications'), {
+                    message: `Your shift swap request was declined.`,
+                    memberId: req.requesterId,
+                    createdAt: new Date().toISOString()
+                });
+            }
+
+            await fns.updateDoc(fns.doc(db, 'swapRequests', requestId), { status: approve ? 'approved' : 'declined' });
+        }
+
+        // ===== VACATION (Fase E) =====
+
+        function countRotationWorkingDays(member, startKey, endKey) {
+            const start = dateKeyToDate(startKey);
+            const end = dateKeyToDate(endKey);
+            let count = 0;
+            const cursor = new Date(start);
+            while (cursor <= end) {
+                const working = isWorkingDayForMember(member, cursor);
+                if (working === true) count++;
+                cursor.setDate(cursor.getDate() + 1);
+            }
+            return count;
+        }
+
+        function isEligibleForVacation(member) {
+            if (!member) return false;
+            return member.rotation === 'A' || member.rotation === 'B' || member.rotation === 'C' ||
+                member.rotation === 'none' || !member.rotation;
+        }
+
+        function isEligibleForTimeOff(member) {
+            return member && member.rotation === 'hourly';
+        }
+
+        function getApprovedVacationDaysUsed(memberId, year) {
+            return state.vacationRequests
+                .filter(r => r.memberId === memberId && r.status === 'approved' && r.startKey.slice(0, 4) === String(year))
+                .reduce((sum, r) => sum + (r.workingDaysCounted || 0), 0);
+        }
+
+        function renderVacationBalanceCard() {
+            const card = document.getElementById('vacationBalanceCard');
+            if (!card) return;
+
+            const role = getUserRole();
+            const isManager = role.name === 'Admin' || role.name === 'Lead';
+
+            if (!currentMember || (!isEligibleForVacation(currentMember) && !isEligibleForTimeOff(currentMember))) {
+                card.innerHTML = '';
+                return;
+            }
+
+            const year = new Date().getFullYear();
+
+            if (isEligibleForVacation(currentMember)) {
+                const allotted = currentMember.vacationDaysAllotted ?? 25;
+                const used = getApprovedVacationDaysUsed(currentMember.id, year);
+                const remaining = allotted - used;
+                card.innerHTML = `
+                    <div class="vacation-balance-card">
+                        <div class="vb-stat"><div class="vb-number">${allotted}</div><div class="vb-label">Allotted</div></div>
+                        <div class="vb-stat"><div class="vb-number">${used}</div><div class="vb-label">Used</div></div>
+                        <div class="vb-stat"><div class="vb-number">${remaining}</div><div class="vb-label">Remaining</div></div>
+                    </div>
+                `;
+            } else {
+                card.innerHTML = `
+                    <div class="vacation-balance-card">
+                        <div class="vb-stat" style="grid-column: 1 / -1;">
+                            <div class="vb-number"><i class="fas fa-clock"></i></div>
+                            <div class="vb-label">Hourly employee — unpaid time off (no legal balance)</div>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        async function submitVacationRequest() {
+            if (!currentMember) {
+                alert('Your account is not linked to a team member.');
+                return;
+            }
+
+            const startKey = document.getElementById('vacationStart').value;
+            const endKey = document.getElementById('vacationEnd').value;
+            const note = document.getElementById('vacationNote').value.trim();
+
+            if (!startKey || !endKey) {
+                alert('Please select start and end dates.');
+                return;
+            }
+            if (endKey < startKey) {
+                alert('End date must be on or after the start date.');
+                return;
+            }
+
+            const isVacationEligible = isEligibleForVacation(currentMember);
+            const isTimeOffEligible = isEligibleForTimeOff(currentMember);
+
+            if (!isVacationEligible && !isTimeOffEligible) {
+                alert('Your rotation type does not allow requesting vacation or time off here. Contact an Admin.');
+                return;
+            }
+
+            const requestType = isVacationEligible ? 'vacation' : 'timeoff';
+            const workingDaysCounted = isVacationEligible
+                ? countRotationWorkingDays(currentMember, startKey, endKey)
+                : 0;
+
+            const currentYear = new Date().getFullYear();
+            if (startKey.slice(0, 4) !== String(currentYear) || endKey.slice(0, 4) !== String(currentYear)) {
+                alert('Requests can only be made within the current year.');
+                return;
+            }
+
+            if (isVacationEligible) {
+                const allotted = currentMember.vacationDaysAllotted ?? 25;
+                const alreadyUsedOrPending = state.vacationRequests
+                    .filter(r => r.memberId === currentMember.id && r.status !== 'rejected' && r.startKey.slice(0, 4) === String(currentYear))
+                    .reduce((sum, r) => sum + (r.workingDaysCounted || 0), 0);
+                if (alreadyUsedOrPending + workingDaysCounted > allotted) {
+                    alert(`This request would use ${workingDaysCounted} day(s), but only ${allotted - alreadyUsedOrPending} day(s) remain in your balance.`);
+                    return;
+                }
+            }
+
+            await fns.addDoc(fns.collection(db, 'vacationRequests'), {
+                memberId: currentMember.id,
+                requestType,
+                startKey,
+                endKey,
+                note,
+                workingDaysCounted,
+                status: 'pending',
+                createdAt: new Date().toISOString()
+            });
+
+            document.getElementById('vacationStart').value = '';
+            document.getElementById('vacationEnd').value = '';
+            document.getElementById('vacationNote').value = '';
+
+            alert('Request submitted.');
+        }
+
+        function canApproveVacation(req) {
+            const role = getUserRole();
+            if (role.name === 'Admin') return true;
+            if (role.name !== 'Lead') return false;
+            const requester = state.team.find(m => m.id === req.memberId);
+            return !requester || requester.role !== 'Lead';
+        }
+
+        async function respondVacationRequest(requestId, approve) {
+            const req = state.vacationRequests.find(r => r.id === requestId);
+            if (!req) return;
+
+            await fns.updateDoc(fns.doc(db, 'vacationRequests', requestId), { status: approve ? 'approved' : 'rejected' });
+
+            await fns.addDoc(fns.collection(db, 'notifications'), {
+                message: `Your ${req.requestType === 'vacation' ? 'vacation' : 'time off'} request (${req.startKey} to ${req.endKey}) was ${approve ? 'approved' : 'rejected'}.`,
+                memberId: req.memberId,
+                createdAt: new Date().toISOString()
+            });
+        }
+
+        function renderVacation() {
+            renderVacationBalanceCard();
+
+            const role = getUserRole();
+            const isManager = role.name === 'Admin' || role.name === 'Lead';
+            const listTitle = document.getElementById('vacationListTitle');
+            const listEl = document.getElementById('vacationRequestsList');
+            if (!listEl) return;
+
+            listTitle.textContent = isManager ? 'All requests' : 'My requests';
+
+            const relevant = isManager
+                ? state.vacationRequests
+                : state.vacationRequests.filter(r => currentMember && r.memberId === currentMember.id);
+
+            const sorted = [...relevant].sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+
+            if (sorted.length === 0) {
+                listEl.innerHTML = `<div class="empty-state"><i class="fas fa-umbrella-beach"></i><p>No requests yet.</p></div>`;
+                return;
+            }
+
+            listEl.innerHTML = sorted.map(req => {
+                const m = assigneeMap[req.memberId];
+                const canAct = req.status === 'pending' && isManager && canApproveVacation(req);
+                return `
+                    <div class="vacation-request-item">
+                        <div class="vr-header">
+                            <strong style="font-size:14px;">${isManager ? (m ? m.name : 'Unknown') : (req.requestType === 'vacation' ? 'Vacation' : 'Time off')}</strong>
+                            <span class="vr-status ${req.status}">${req.status}</span>
+                        </div>
+                        <p style="font-size:13px; color:#666; margin:0 0 4px;">
+                            ${req.startKey} → ${req.endKey}
+                            ${req.requestType === 'vacation' ? ` • ${req.workingDaysCounted} day(s)` : ' • Time off'}
+                        </p>
+                        ${req.note ? `<p style="font-size:12px; color:#999; margin:0 0 8px;">"${req.note}"</p>` : ''}
+                        ${canAct ? `
+                            <div class="card-actions">
+                                <button class="btn btn-success" onclick="respondVacationRequest('${req.id}', true)"><i class="fas fa-check"></i> Approve</button>
+                                <button class="btn btn-danger" onclick="respondVacationRequest('${req.id}', false)"><i class="fas fa-times"></i> Reject</button>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // ===== DAY OFF SWAP (take a colleague's day off, with a scheduled swap back) =====
+
+        function onFreeDayClick(targetMemberId, dateKey) {
+            if (!currentMember) {
+                alert('Your account is not linked to a team member.');
+                return;
+            }
+            if (targetMemberId === currentMember.id) return;
+
+            const targetMember = state.team.find(m => m.id === targetMemberId);
+            if (!targetMember) return;
+
+            pendingDayOffSwap = { targetMemberId, targetDateKey: dateKey };
+
+            document.getElementById('dayOffSwapSubtitle').textContent =
+                `You will take ${targetMember.name}'s shifts on ${dateKey} (their day off). ${targetMember.name} will rest that day. Choose one of your own upcoming working days to give back to them.`;
+
+            const todayKey = toDateKey(new Date());
+            const myWorkingDates = [];
+            const cursor = new Date();
+            for (let i = 0; i < 60; i++) {
+                const d = new Date(cursor);
+                d.setDate(cursor.getDate() + i);
+                const dk = toDateKey(d);
+                if (dk <= dateKey) continue;
+                if (isWorkingDayForMember(currentMember, d) === true && !isOnApprovedVacation(currentMember.id, dk)) {
+                    myWorkingDates.push(dk);
+                }
+            }
+
+            const select = document.getElementById('dayOffSwapReturnDate');
+            select.innerHTML = myWorkingDates.length === 0
+                ? '<option value="">No upcoming working days found</option>'
+                : myWorkingDates.map(dk => `<option value="${dk}">${dk}</option>`).join('');
+
+            document.getElementById('dayOffSwapMessage').value = '';
+            document.getElementById('requestDayOffSwapModalOverlay').classList.add('active');
+        }
+
+        function closeDayOffSwapModal() {
+            document.getElementById('requestDayOffSwapModalOverlay').classList.remove('active');
+            pendingDayOffSwap = null;
+        }
+
+        function closeDayOffSwapModalOutside(e) {
+            if (e.target.id === 'requestDayOffSwapModalOverlay') closeDayOffSwapModal();
+        }
+
+        async function sendDayOffSwapRequest() {
+            if (!pendingDayOffSwap || !currentMember) return;
+            const returnDateKey = document.getElementById('dayOffSwapReturnDate').value;
+            const message = document.getElementById('dayOffSwapMessage').value.trim();
+
+            if (!returnDateKey) {
+                alert('Select a date to give back.');
+                return;
+            }
+
+            const targetMember = state.team.find(m => m.id === pendingDayOffSwap.targetMemberId);
+            const needsAdminOnly = currentMember.role === 'Lead' || (targetMember && targetMember.role === 'Lead');
+
+            await fns.addDoc(fns.collection(db, 'dayOffSwapRequests'), {
+                requesterId: currentMember.id,
+                targetMemberId: pendingDayOffSwap.targetMemberId,
+                takeDateKey: pendingDayOffSwap.targetDateKey,
+                returnDateKey,
+                message,
+                status: 'pending',
+                swapBackDone: false,
+                needsAdminOnly: !!needsAdminOnly,
+                createdAt: new Date().toISOString()
+            });
+
+            closeDayOffSwapModal();
+            alert('Request sent. You will be notified once it is reviewed.');
+        }
+
+        function canApproveDayOffSwap(req) {
+            const role = getUserRole();
+            if (role.name === 'Admin') return true;
+            if (req.needsAdminOnly) return false;
+            return role.name === 'Lead';
+        }
+
+        async function swapDayAssignments(memberAId, memberBId, dateKey) {
+            const aAssignments = state.assignments.filter(a => a.memberId === memberAId && a.dateKey === dateKey);
+            const bAssignments = state.assignments.filter(a => a.memberId === memberBId && a.dateKey === dateKey);
+
+            for (const a of aAssignments) {
+                await fns.updateDoc(fns.doc(db, 'assignments', a.id), { memberId: memberBId });
+            }
+            for (const a of bAssignments) {
+                await fns.updateDoc(fns.doc(db, 'assignments', a.id), { memberId: memberAId });
+            }
+        }
+
+        async function respondDayOffSwapRequest(requestId, approve) {
+            const req = state.dayOffSwapRequests.find(r => r.id === requestId);
+            if (!req) return;
+
+            if (approve) {
+                await swapDayAssignments(req.requesterId, req.targetMemberId, req.takeDateKey);
+
+                await fns.addDoc(fns.collection(db, 'notifications'), {
+                    message: `Your request to take a colleague's day off on ${req.takeDateKey} was approved. You'll return the favor on ${req.returnDateKey}.`,
+                    memberId: req.requesterId,
+                    createdAt: new Date().toISOString()
+                });
+                await fns.addDoc(fns.collection(db, 'notifications'), {
+                    message: `Your day off on ${req.takeDateKey} was covered by a colleague. They will cover for you again on ${req.returnDateKey}.`,
+                    memberId: req.targetMemberId,
+                    createdAt: new Date().toISOString()
+                });
+            } else {
+                await fns.addDoc(fns.collection(db, 'notifications'), {
+                    message: `Your request to take a colleague's day off was declined.`,
+                    memberId: req.requesterId,
+                    createdAt: new Date().toISOString()
+                });
+            }
+
+            await fns.updateDoc(fns.doc(db, 'dayOffSwapRequests', requestId), { status: approve ? 'approved' : 'declined' });
+        }
+
+        async function processDueDayOffSwapBacks() {
+            const todayKey = toDateKey(new Date());
+            const due = state.dayOffSwapRequests.filter(r =>
+                r.status === 'approved' && !r.swapBackDone && r.returnDateKey <= todayKey
+            );
+
+            for (const req of due) {
+                await swapDayAssignments(req.requesterId, req.targetMemberId, req.returnDateKey);
+                await fns.updateDoc(fns.doc(db, 'dayOffSwapRequests', req.id), { swapBackDone: true });
+
+                await fns.addDoc(fns.collection(db, 'notifications'), {
+                    message: `The day off swap for ${req.returnDateKey} has been applied automatically as agreed.`,
+                    memberId: req.requesterId,
+                    createdAt: new Date().toISOString()
+                });
+                await fns.addDoc(fns.collection(db, 'notifications'), {
+                    message: `The day off swap for ${req.returnDateKey} has been applied automatically as agreed.`,
+                    memberId: req.targetMemberId,
+                    createdAt: new Date().toISOString()
+                });
+            }
+        }
+
+    </script>
+</body>
+</html>
