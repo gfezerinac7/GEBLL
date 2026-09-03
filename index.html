@@ -1,0 +1,1920 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task and Project Manager</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
+        import { getFirestore, collection, onSnapshot, addDoc, deleteDoc, doc, updateDoc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+        import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyB0_ROV4sjigkHj5yachpCuuAmoUtfsJoA",
+            authDomain: "task-manager-5f5b3.firebaseapp.com",
+            projectId: "task-manager-5f5b3",
+            storageBucket: "task-manager-5f5b3.firebasestorage.app",
+            messagingSenderId: "912477224199",
+            appId: "1:912477224199:web:ca3071efacbb5994ff19a2"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        const secondaryApp = initializeApp(firebaseConfig, 'secondary');
+        const secondaryAuth = getAuth(secondaryApp);
+
+        window.firebaseDB = db;
+        window.firebaseFns = { collection, onSnapshot, addDoc, deleteDoc, doc, updateDoc, setDoc, getDoc };
+        window.firebaseAuth = auth;
+        window.firebaseAuthFns = { signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword };
+        window.firebaseSecondaryAuth = secondaryAuth;
+        window.firebaseReady = true;
+        window.dispatchEvent(new Event('firebase-ready'));
+    </script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+            color: white;
+            padding: 30px 20px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+        }
+
+        .header i {
+            font-size: 32px;
+        }
+
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid #e0e0e0;
+            background: #f9f9f9;
+            flex-wrap: wrap;
+        }
+
+        .tab-btn {
+            flex: 1;
+            min-width: 100px;
+            padding: 15px 20px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            color: #666;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .tab-btn:hover {
+            background: #f0f0f0;
+        }
+
+        .tab-btn.active {
+            color: #2563eb;
+            border-bottom-color: #2563eb;
+        }
+
+        .tab-btn i {
+            font-size: 16px;
+        }
+
+        .content {
+            padding: 30px 20px;
+            display: none;
+            min-height: 400px;
+        }
+
+        .content.active {
+            display: block;
+        }
+
+        .form-section {
+            background: #f9f9f9;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            border: 1px solid #e0e0e0;
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 6px;
+            color: #555;
+            font-size: 14px;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+            transition: all 0.3s;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #2563eb;
+            background: #f0f4ff;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .btn {
+            padding: 11px 20px;
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(37, 99, 235, 0.3);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn-secondary {
+            background: white;
+            color: #2563eb;
+            border: 1px solid #2563eb;
+        }
+
+        .btn-secondary:hover {
+            background: #f0f4ff;
+        }
+
+        .btn-danger {
+            background: #ff6b6b;
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+
+        .btn-danger:hover {
+            background: #ff5252;
+        }
+
+        .btn-success {
+            background: #51cf66;
+        }
+
+        .btn-success:hover {
+            background: #40c057;
+        }
+
+        .card {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 15px;
+            transition: all 0.3s;
+        }
+
+        .card:hover {
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+            border-color: #2563eb;
+        }
+
+        .card.completed {
+            opacity: 0.6;
+            background: #f5f5f5;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+            gap: 10px;
+        }
+
+        .card-title {
+            font-weight: 600;
+            font-size: 16px;
+            color: #333;
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .card.completed .card-title {
+            text-decoration: line-through;
+            color: #999;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .badge-high {
+            background: #ffe0e0;
+            color: #c92a2a;
+        }
+
+        .badge-medium {
+            background: #fff3bf;
+            color: #b08600;
+        }
+
+        .badge-low {
+            background: #d3f9d8;
+            color: #2f7e1f;
+        }
+
+        .badge-daily {
+            background: #e7f5ff;
+            color: #0066cc;
+        }
+
+        .badge-weekly {
+            background: #f3e5f5;
+            color: #7b1fa2;
+        }
+
+        .badge-monthly {
+            background: #fce4ec;
+            color: #c2185b;
+        }
+
+        .badge-date {
+            background: #f0f0f0;
+            color: #666;
+        }
+
+        .card-meta {
+            font-size: 13px;
+            color: #666;
+            margin: 10px 0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .meta-item i {
+            color: #999;
+        }
+
+        .assignee-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-top: 10px;
+        }
+
+        .assignee-avatar {
+            width: 24px;
+            height: 24px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: 700;
+        }
+
+        .progress-bar {
+            height: 8px;
+            background: #e0e0e0;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 15px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #51cf66 0%, #40c057 100%);
+            transition: width 0.3s;
+        }
+
+        .card-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+
+        .empty-state i {
+            font-size: 48px;
+            opacity: 0.3;
+            margin-bottom: 15px;
+            display: block;
+        }
+
+        .empty-state p {
+            font-size: 16px;
+        }
+
+        .team-member {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 15px;
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 12px;
+            margin-bottom: 12px;
+            transition: all 0.3s;
+        }
+
+        .team-member:hover {
+            border-color: #2563eb;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.1);
+        }
+
+        .team-avatar {
+            width: 44px;
+            height: 44px;
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 16px;
+            flex-shrink: 0;
+        }
+
+        .team-info {
+            flex: 1;
+        }
+
+        .team-name {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 4px;
+        }
+
+        .team-role {
+            font-size: 12px;
+            color: #999;
+        }
+
+        .team-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .checkbox-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: #2563eb;
+        }
+
+        .login-screen {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .login-box {
+            background: white;
+            border-radius: 16px;
+            padding: 40px 30px;
+            max-width: 380px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            text-align: center;
+        }
+
+        .login-box i.fa-tasks {
+            font-size: 40px;
+            color: #2563eb;
+            margin-bottom: 12px;
+        }
+
+        .login-box h2 {
+            font-size: 22px;
+            margin-bottom: 24px;
+            color: #333;
+        }
+
+        .login-error {
+            color: #c92a2a;
+            font-size: 13px;
+            margin-top: 10px;
+            display: none;
+        }
+
+        .login-error.active {
+            display: block;
+        }
+
+        .user-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 10px 20px;
+            background: rgba(255,255,255,0.15);
+            font-size: 13px;
+            color: white;
+        }
+
+        .user-bar-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .logout-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        .logout-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .role-card {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 16px 20px;
+            margin-bottom: 12px;
+        }
+
+        .role-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .role-name {
+            font-weight: 600;
+            font-size: 16px;
+            color: #333;
+        }
+
+        .role-name.protected {
+            color: #2563eb;
+        }
+
+        .module-checks {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 8px;
+        }
+
+        .module-check {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: #f5f5f5;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        .module-check input {
+            width: 14px;
+            height: 14px;
+            cursor: pointer;
+            accent-color: #2563eb;
+        }
+
+        .app-hidden {
+            display: none !important;
+        }
+
+        .fab {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+            color: white;
+            border: none;
+            font-size: 22px;
+            cursor: pointer;
+            box-shadow: 0 8px 20px rgba(37, 99, 235, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            transition: transform 0.2s;
+        }
+
+        .fab:hover {
+            transform: scale(1.08);
+        }
+
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 200;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal-box {
+            background: white;
+            border-radius: 16px;
+            padding: 24px 20px;
+            max-width: 480px;
+            width: 100%;
+            max-height: 85vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 18px;
+            color: #999;
+            cursor: pointer;
+            padding: 4px 8px;
+        }
+
+        .modal-close:hover {
+            color: #333;
+        }
+
+        .task-add-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: none;
+            border: 1px dashed #2563eb;
+            color: #2563eb;
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 12px;
+        }
+
+        .task-add-btn:hover {
+            background: #f0f4ff;
+        }
+
+        .project-tasks {
+            margin-top: 12px;
+            border-top: 0.5px solid #eee;
+            padding-top: 12px;
+        }
+
+        .project-task-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            padding: 8px 10px;
+            background: #f9f9f9;
+            border-radius: 8px;
+            margin-bottom: 6px;
+            font-size: 13px;
+        }
+
+        .project-task-item.completed span.pt-name {
+            text-decoration: line-through;
+            color: #999;
+        }
+
+        @media (max-width: 600px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+
+            .header h1 {
+                font-size: 22px;
+            }
+
+            .tab-btn {
+                font-size: 12px;
+                padding: 12px 15px;
+            }
+
+            .card-header {
+                flex-direction: column;
+            }
+
+            .content {
+                padding: 20px 15px;
+            }
+
+            .form-section {
+                padding: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="loginScreen" class="login-screen">
+        <div class="login-box">
+            <i class="fas fa-tasks"></i>
+            <h2>Task & Project Manager</h2>
+            <div class="form-group" style="text-align:left;">
+                <label>Email</label>
+                <input type="email" id="loginEmail" placeholder="you@company.com">
+            </div>
+            <div class="form-group" style="text-align:left;">
+                <label>Password</label>
+                <input type="password" id="loginPassword" placeholder="Your password">
+            </div>
+            <button class="btn" style="width:100%; justify-content:center;" onclick="doLogin()">
+                <i class="fas fa-right-to-bracket"></i>
+                Log in
+            </button>
+            <p class="login-error" id="loginError">Invalid email or password.</p>
+        </div>
+    </div>
+
+    <div id="appContainer" class="container app-hidden">
+        <div class="header">
+            <h1>
+                <i class="fas fa-tasks"></i>
+                Task & Project Manager
+            </h1>
+        </div>
+
+        <div class="user-bar">
+            <div class="user-bar-info">
+                <i class="fas fa-user-circle"></i>
+                <span id="currentUserLabel">-</span>
+            </div>
+            <button class="logout-btn" onclick="doLogout()">
+                <i class="fas fa-right-from-bracket"></i>
+                Log out
+            </button>
+        </div>
+
+        <div class="tabs" id="tabsBar">
+            <button class="tab-btn active" data-module="shifts" onclick="switchTab('shifts')">
+                <i class="fas fa-clock"></i>
+                Shifts
+            </button>
+            <button class="tab-btn" data-module="locations" onclick="switchTab('locations')">
+                <i class="fas fa-map-marker-alt"></i>
+                Locations
+            </button>
+            <button class="tab-btn" data-module="tasks" onclick="switchTab('tasks')">
+                <i class="fas fa-list-check"></i>
+                Tasks
+            </button>
+            <button class="tab-btn" data-module="projects" onclick="switchTab('projects')">
+                <i class="fas fa-folder"></i>
+                Projects
+            </button>
+            <button class="tab-btn" data-module="team" onclick="switchTab('team')">
+                <i class="fas fa-users"></i>
+                Team
+            </button>
+            <button class="tab-btn" data-module="roles" onclick="switchTab('roles')">
+                <i class="fas fa-user-shield"></i>
+                Roles
+            </button>
+
+        </div>
+
+        <!-- TAB TAREAS -->
+        <div id="tasks" class="content">
+            <div class="section-title">
+                <i class="fas fa-tasks"></i>
+                Active Tasks
+            </div>
+            <div id="taskList"></div>
+        </div>
+
+        <button class="fab" onclick="openTaskModal()" title="Add task">
+            <i class="fas fa-plus"></i>
+        </button>
+
+        <div id="taskModalOverlay" class="modal-overlay" onclick="closeTaskModalOutside(event)">
+            <div class="modal-box">
+                <div class="modal-header">
+                    <div class="section-title" style="margin-bottom:0;">
+                        <i class="fas fa-plus-circle"></i>
+                        New Task
+                    </div>
+                    <button class="modal-close" onclick="closeTaskModal()"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="form-group">
+                    <label>Task Name</label>
+                    <input type="text" id="taskName" placeholder="Ex: Review client proposal">
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea id="taskDesc" placeholder="Additional details..." rows="2"></textarea>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Recurrence Type</label>
+                        <select id="taskRecurrence">
+                            <option value="once">Once</option>
+                            <option value="daily">Daily</option>
+                            <option value="weekly">Weekly</option>
+                            <option value="monthly">Monthly</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Due Date</label>
+                        <input type="date" id="taskDate">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Priority</label>
+                        <select id="taskPriority">
+                            <option value="low">Low</option>
+                            <option value="medium" selected>Medium</option>
+                            <option value="high">High</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Assign To</label>
+                        <select id="taskAssignee">
+                            <option value="">Unassigned</option>
+                        </select>
+                    </div>
+                </div>
+                <button class="btn" style="width:100%; justify-content:center;" onclick="addTask()">
+                    <i class="fas fa-check"></i>
+                    Add Task
+                </button>
+            </div>
+        </div>
+
+        <!-- TAB PROYECTOS -->
+        <div id="projects" class="content">
+            <div class="form-section">
+                <div class="section-title">
+                    <i class="fas fa-plus-circle"></i>
+                    New Project
+                </div>
+                <div class="form-group">
+                    <label>Project Name</label>
+                    <input type="text" id="projectName" placeholder="Ex: Website redesign">
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea id="projectDesc" placeholder="Goals and details..." rows="2"></textarea>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Start Date</label>
+                        <input type="date" id="projectStart">
+                    </div>
+                    <div class="form-group">
+                        <label>End Date</label>
+                        <input type="date" id="projectEnd">
+                    </div>
+                </div>
+                <button class="btn" onclick="addProject()">
+                    <i class="fas fa-plus"></i>
+                    Create Project
+                </button>
+            </div>
+
+            <div class="section-title">
+                <i class="fas fa-folder-open"></i>
+                Projects in Progress
+            </div>
+            <div id="projectList"></div>
+        </div>
+
+        <div id="projectTaskModalOverlay" class="modal-overlay" onclick="closeProjectTaskModalOutside(event)">
+            <div class="modal-box">
+                <div class="modal-header">
+                    <div class="section-title" style="margin-bottom:0;">
+                        <i class="fas fa-plus-circle"></i>
+                        New Project Task
+                    </div>
+                    <button class="modal-close" onclick="closeProjectTaskModal()"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="form-group">
+                    <label>Task Name</label>
+                    <input type="text" id="ptaskName" placeholder="Ex: Design homepage mockup">
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea id="ptaskDesc" placeholder="Additional details..." rows="2"></textarea>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Due Date</label>
+                        <input type="date" id="ptaskDate">
+                    </div>
+                    <div class="form-group">
+                        <label>Priority</label>
+                        <select id="ptaskPriority">
+                            <option value="low">Low</option>
+                            <option value="medium" selected>Medium</option>
+                            <option value="high">High</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Assign To (Lead / Admin only)</label>
+                    <select id="ptaskAssignee">
+                        <option value="">Unassigned</option>
+                    </select>
+                </div>
+                <input type="hidden" id="ptaskProjectId">
+                <button class="btn" style="width:100%; justify-content:center;" onclick="addProjectTask()">
+                    <i class="fas fa-check"></i>
+                    Add Task to Project
+                </button>
+            </div>
+        </div>
+
+        <!-- TAB EQUIPO -->
+        <div id="team" class="content">
+            <div class="form-section">
+                <div class="section-title">
+                    <i class="fas fa-plus-circle"></i>
+                    Add Team Member
+                </div>
+                <div class="form-group">
+                    <label>Name</label>
+                    <input type="text" id="memberName" placeholder="Full name">
+                </div>
+                <div class="form-group">
+                    <label>Email (required to create login)</label>
+                    <input type="email" id="memberEmail" placeholder="email@company.com">
+                </div>
+                <div class="form-group">
+                    <label>Temporary Password</label>
+                    <input type="text" id="memberPassword" placeholder="Min 6 characters">
+                </div>
+                <div class="form-group">
+                    <label>Role</label>
+                    <select id="memberRole"></select>
+                </div>
+                <button class="btn" onclick="addTeamMember()">
+                    <i class="fas fa-user-plus"></i>
+                    Add Member
+                </button>
+            </div>
+
+            <div class="section-title">
+                <i class="fas fa-users"></i>
+                Team Members
+            </div>
+            <div id="teamList"></div>
+        </div>
+
+        <!-- TAB LOCATIONS -->
+        <div id="locations" class="content">
+            <div class="form-section">
+                <div class="section-title">
+                    <i class="fas fa-plus-circle"></i>
+                    New Location
+                </div>
+                <div class="form-group">
+                    <label>Location Name</label>
+                    <input type="text" id="locationName" placeholder="Ex: Main Warehouse">
+                </div>
+                <button class="btn" onclick="addLocation()">
+                    <i class="fas fa-plus"></i>
+                    Add Location
+                </button>
+            </div>
+
+            <div class="section-title">
+                <i class="fas fa-map-marker-alt"></i>
+                Locations
+            </div>
+            <div id="locationList"></div>
+        </div>
+
+        <!-- TAB SHIFTS -->
+        <div id="shifts" class="content active">
+            <div class="form-section">
+                <div class="section-title">
+                    <i class="fas fa-plus-circle"></i>
+                    New Shift
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Start Time</label>
+                        <input type="time" id="shiftStart">
+                    </div>
+                    <div class="form-group">
+                        <label>End Time</label>
+                        <input type="time" id="shiftEnd">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Location</label>
+                    <select id="shiftLocation"></select>
+                </div>
+                <button class="btn" onclick="addShift()">
+                    <i class="fas fa-plus"></i>
+                    Add Shift
+                </button>
+            </div>
+
+            <div class="section-title">
+                <i class="fas fa-clock"></i>
+                Shifts
+            </div>
+            <div id="shiftList"></div>
+        </div>
+
+        <!-- TAB ROLES -->
+        <div id="roles" class="content">
+            <div class="form-section">
+                <div class="section-title">
+                    <i class="fas fa-plus-circle"></i>
+                    Create New Role
+                </div>
+                <div class="form-group">
+                    <label>Role Name</label>
+                    <input type="text" id="newRoleName" placeholder="Ex: Supervisor">
+                </div>
+                <div class="form-group">
+                    <label>Visible Modules</label>
+                    <div class="module-checks" id="newRoleModules">
+                        <label class="module-check"><input type="checkbox" value="tasks"> Tasks</label>
+                        <label class="module-check"><input type="checkbox" value="projects"> Projects</label>
+                        <label class="module-check"><input type="checkbox" value="team"> Team</label>
+                        <label class="module-check"><input type="checkbox" value="locations"> Locations</label>
+                        <label class="module-check"><input type="checkbox" value="shifts"> Shifts</label>
+                    </div>
+                </div>
+                <button class="btn" onclick="createRole()">
+                    <i class="fas fa-plus"></i>
+                    Create Role
+                </button>
+            </div>
+
+            <div class="section-title">
+                <i class="fas fa-user-shield"></i>
+                Existing Roles
+            </div>
+            <div id="roleList"></div>
+        </div>
+    </div>
+
+
+    <script>
+        const ADMIN_UID = 'Lx9yqGaSngS6GpidDgNKQQGdm9o2';
+        const CORE_MODULES = [
+            { key: 'tasks', label: 'Tasks' },
+            { key: 'projects', label: 'Projects' },
+            { key: 'team', label: 'Team' },
+            { key: 'locations', label: 'Locations' },
+            { key: 'shifts', label: 'Shifts' }
+        ];
+
+        const state = {
+            tasks: [],
+            projects: [],
+            team: [],
+            roles: [],
+            locations: [],
+            shifts: []
+        };
+
+        const assigneeMap = {};
+
+        let db, fns, auth, authFns;
+        let unsubscribers = [];
+        let currentUser = null;
+        let currentMember = null;
+
+        function initFirebaseSync() {
+            db = window.firebaseDB;
+            fns = window.firebaseFns;
+            auth = window.firebaseAuth;
+            authFns = window.firebaseAuthFns;
+
+            authFns.onAuthStateChanged(auth, (user) => {
+                currentUser = user;
+                if (user) {
+                    showApp();
+                } else {
+                    showLogin();
+                }
+            });
+        }
+
+        if (window.firebaseReady) {
+            initFirebaseSync();
+        } else {
+            window.addEventListener('firebase-ready', initFirebaseSync);
+        }
+
+        function showLogin() {
+            document.getElementById('loginScreen').classList.remove('app-hidden');
+            document.getElementById('appContainer').classList.add('app-hidden');
+            unsubscribers.forEach(u => u && u());
+            unsubscribers = [];
+        }
+
+        async function showApp() {
+            document.getElementById('loginScreen').classList.add('app-hidden');
+            document.getElementById('appContainer').classList.remove('app-hidden');
+            startDataSync();
+        }
+
+        function doLogin() {
+            const email = document.getElementById('loginEmail').value.trim();
+            const password = document.getElementById('loginPassword').value;
+            const errorEl = document.getElementById('loginError');
+            errorEl.classList.remove('active');
+
+            if (!email || !password) {
+                errorEl.textContent = 'Enter email and password.';
+                errorEl.classList.add('active');
+                return;
+            }
+
+            authFns.signInWithEmailAndPassword(auth, email, password)
+                .catch(() => {
+                    errorEl.textContent = 'Invalid email or password.';
+                    errorEl.classList.add('active');
+                });
+        }
+
+        function doLogout() {
+            authFns.signOut(auth);
+        }
+
+        function startDataSync() {
+            unsubscribers.forEach(u => u && u());
+
+            const tasksCol = fns.collection(db, 'tasks');
+            const unsubTasks = fns.onSnapshot(tasksCol, (snapshot) => {
+                state.tasks = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                renderTasks();
+            });
+
+            const projectsCol = fns.collection(db, 'projects');
+            const unsubProjects = fns.onSnapshot(projectsCol, (snapshot) => {
+                state.projects = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                renderProjects();
+            });
+
+            const teamCol = fns.collection(db, 'team');
+            const unsubTeam = fns.onSnapshot(teamCol, (snapshot) => {
+                state.team = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                Object.keys(assigneeMap).forEach(k => delete assigneeMap[k]);
+                state.team.forEach(m => {
+                    assigneeMap[m.id] = {
+                        name: m.name,
+                        role: m.role,
+                        initials: m.name.split(' ').map(n => n[0]).join('').toUpperCase()
+                    };
+                });
+                currentMember = state.team.find(m => m.authUid === currentUser.uid) || null;
+                renderTeam();
+                populateAssigneeSelects();
+                applyRolePermissions();
+            });
+
+            const rolesCol = fns.collection(db, 'roles');
+            const unsubRoles = fns.onSnapshot(rolesCol, async (snapshot) => {
+                state.roles = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                await ensureDefaultRoles();
+                renderRoles();
+                populateRoleSelect();
+                applyRolePermissions();
+            });
+
+            const locationsCol = fns.collection(db, 'locations');
+            const unsubLocations = fns.onSnapshot(locationsCol, (snapshot) => {
+                state.locations = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                renderLocations();
+                populateLocationSelect();
+            });
+
+            const shiftsCol = fns.collection(db, 'shifts');
+            const unsubShifts = fns.onSnapshot(shiftsCol, (snapshot) => {
+                state.shifts = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                renderShifts();
+            });
+
+            unsubscribers = [unsubTasks, unsubProjects, unsubTeam, unsubRoles, unsubLocations, unsubShifts];
+        }
+
+        async function ensureDefaultRoles() {
+            const defaults = [
+                { name: 'Admin', modules: ['tasks', 'projects', 'team', 'locations', 'shifts', 'roles'], protected: true },
+                { name: 'Lead', modules: ['tasks', 'projects', 'team', 'locations', 'shifts'], protected: false },
+                { name: 'Member', modules: [], protected: false }
+            ];
+            for (const d of defaults) {
+                const exists = state.roles.find(r => r.name === d.name);
+                if (!exists) {
+                    await fns.addDoc(fns.collection(db, 'roles'), { name: d.name, modules: d.modules, protected: d.protected || false });
+                }
+            }
+        }
+
+        function getUserRole() {
+            if (currentUser && currentUser.uid === ADMIN_UID) {
+                return { name: 'Admin', modules: ['tasks', 'projects', 'team', 'roles'], protected: true };
+            }
+            if (!currentMember) return { name: 'Member', modules: [] };
+            return state.roles.find(r => r.name === currentMember.role) || { name: currentMember.role, modules: [] };
+        }
+
+        function applyRolePermissions() {
+            const role = getUserRole();
+            const isAdmin = role.name === 'Admin';
+
+            document.getElementById('currentUserLabel').textContent =
+                (currentMember ? currentMember.name : (currentUser ? currentUser.email : '')) + ' (' + role.name + ')';
+
+            document.querySelectorAll('#tabsBar .tab-btn').forEach(btn => {
+                const mod = btn.getAttribute('data-module');
+                const visible = isAdmin || (role.modules || []).includes(mod);
+                btn.style.display = visible ? '' : 'none';
+            });
+
+            const activeBtn = document.querySelector('#tabsBar .tab-btn.active');
+            if (activeBtn && activeBtn.style.display === 'none') {
+                const firstVisible = document.querySelector('#tabsBar .tab-btn:not([style*="display: none"])');
+                if (firstVisible) {
+                    const mod = firstVisible.getAttribute('data-module');
+                    switchTabProgrammatic(mod);
+                }
+            }
+        }
+
+        function switchTabProgrammatic(tab) {
+            document.querySelectorAll('.content').forEach(c => c.classList.remove('active'));
+            document.querySelectorAll('#tabsBar .tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(tab).classList.add('active');
+            const btn = document.querySelector(`#tabsBar .tab-btn[data-module="${tab}"]`);
+            if (btn) btn.classList.add('active');
+        }
+
+        function populateAssigneeSelects() {
+            const taskSelect = document.getElementById('taskAssignee');
+            const projTaskSelect = document.getElementById('ptaskAssignee');
+
+            const allOptions = '<option value="">Unassigned</option>' +
+                state.team.map(m => `<option value="${m.id}">${m.name} (${m.role})</option>`).join('');
+
+            const leadAdminOptions = '<option value="">Unassigned</option>' +
+                state.team.filter(m => m.role === 'Lead' || m.role === 'Admin')
+                    .map(m => `<option value="${m.id}">${m.name} (${m.role})</option>`).join('');
+
+            if (taskSelect) taskSelect.innerHTML = allOptions;
+            if (projTaskSelect) projTaskSelect.innerHTML = leadAdminOptions;
+        }
+
+        function populateRoleSelect() {
+            const roleSelect = document.getElementById('memberRole');
+            if (!roleSelect) return;
+            const current = roleSelect.value;
+            roleSelect.innerHTML = state.roles.map(r => `<option value="${r.name}">${r.name}</option>`).join('');
+            if (current && state.roles.some(r => r.name === current)) roleSelect.value = current;
+        }
+
+        function openTaskModal() {
+            document.getElementById('taskModalOverlay').classList.add('active');
+        }
+
+        function closeTaskModal() {
+            document.getElementById('taskModalOverlay').classList.remove('active');
+        }
+
+        function closeTaskModalOutside(e) {
+            if (e.target.id === 'taskModalOverlay') closeTaskModal();
+        }
+
+        function openProjectTaskModal(projectId) {
+            document.getElementById('ptaskProjectId').value = projectId;
+            document.getElementById('projectTaskModalOverlay').classList.add('active');
+        }
+
+        function closeProjectTaskModal() {
+            document.getElementById('projectTaskModalOverlay').classList.remove('active');
+        }
+
+        function closeProjectTaskModalOutside(e) {
+            if (e.target.id === 'projectTaskModalOverlay') closeProjectTaskModal();
+        }
+
+        function switchTab(tab) {
+            document.querySelectorAll('.content').forEach(c => c.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(tab).classList.add('active');
+            event.target.closest('.tab-btn').classList.add('active');
+        }
+
+        function addTask() {
+            const name = document.getElementById('taskName').value.trim();
+            const desc = document.getElementById('taskDesc').value.trim();
+            const recurrence = document.getElementById('taskRecurrence').value;
+            const date = document.getElementById('taskDate').value;
+            const priority = document.getElementById('taskPriority').value;
+            const assignee = document.getElementById('taskAssignee').value;
+
+            if (!name) {
+                alert('Please enter a task name');
+                return;
+            }
+
+            fns.addDoc(fns.collection(db, 'tasks'), {
+                name,
+                desc,
+                recurrence,
+                date,
+                priority,
+                assignee,
+                completed: false,
+                createdAt: new Date().toLocaleDateString('en-US')
+            });
+
+            clearTaskForm();
+            closeTaskModal();
+        }
+
+        function clearTaskForm() {
+            document.getElementById('taskName').value = '';
+            document.getElementById('taskDesc').value = '';
+            document.getElementById('taskRecurrence').value = 'once';
+            document.getElementById('taskDate').value = '';
+            document.getElementById('taskPriority').value = 'medium';
+            document.getElementById('taskAssignee').value = '';
+        }
+
+        function toggleTask(id) {
+            const task = state.tasks.find(t => t.id === id);
+            if (task) {
+                fns.updateDoc(fns.doc(db, 'tasks', id), { completed: !task.completed });
+            }
+        }
+
+        function deleteTask(id) {
+            if (confirm('Delete this task?')) {
+                fns.deleteDoc(fns.doc(db, 'tasks', id));
+            }
+        }
+
+        function addProject() {
+            const name = document.getElementById('projectName').value.trim();
+            const desc = document.getElementById('projectDesc').value.trim();
+            const start = document.getElementById('projectStart').value;
+            const end = document.getElementById('projectEnd').value;
+
+            if (!name) {
+                alert('Please enter a project name');
+                return;
+            }
+
+            fns.addDoc(fns.collection(db, 'projects'), {
+                name,
+                desc,
+                start,
+                end,
+                progress: 0,
+                tasks: [],
+                createdAt: new Date().toLocaleDateString('en-US')
+            });
+
+            clearProjectForm();
+        }
+
+        function clearProjectForm() {
+            document.getElementById('projectName').value = '';
+            document.getElementById('projectDesc').value = '';
+            document.getElementById('projectStart').value = '';
+            document.getElementById('projectEnd').value = '';
+        }
+
+        function deleteProject(id) {
+            if (confirm('Delete this project?')) {
+                fns.deleteDoc(fns.doc(db, 'projects', id));
+            }
+        }
+
+        function addProjectTask() {
+            const projectId = document.getElementById('ptaskProjectId').value;
+            const name = document.getElementById('ptaskName').value.trim();
+            const desc = document.getElementById('ptaskDesc').value.trim();
+            const date = document.getElementById('ptaskDate').value;
+            const priority = document.getElementById('ptaskPriority').value;
+            const assignee = document.getElementById('ptaskAssignee').value;
+
+            if (!name) {
+                alert('Please enter a task name');
+                return;
+            }
+
+            const project = state.projects.find(p => p.id === projectId);
+            if (!project) return;
+
+            const newTask = {
+                ptid: 'pt_' + Date.now(),
+                name, desc, date, priority, assignee,
+                completed: false
+            };
+
+            const updatedTasks = [...(project.tasks || []), newTask];
+            fns.updateDoc(fns.doc(db, 'projects', projectId), { tasks: updatedTasks });
+
+            document.getElementById('ptaskName').value = '';
+            document.getElementById('ptaskDesc').value = '';
+            document.getElementById('ptaskDate').value = '';
+            document.getElementById('ptaskPriority').value = 'medium';
+            document.getElementById('ptaskAssignee').value = '';
+            closeProjectTaskModal();
+        }
+
+        function toggleProjectTask(projectId, ptid) {
+            const project = state.projects.find(p => p.id === projectId);
+            if (!project) return;
+            const updatedTasks = (project.tasks || []).map(t =>
+                t.ptid === ptid ? { ...t, completed: !t.completed } : t
+            );
+            fns.updateDoc(fns.doc(db, 'projects', projectId), { tasks: updatedTasks });
+        }
+
+        function deleteProjectTask(projectId, ptid) {
+            const project = state.projects.find(p => p.id === projectId);
+            if (!project) return;
+            const updatedTasks = (project.tasks || []).filter(t => t.ptid !== ptid);
+            fns.updateDoc(fns.doc(db, 'projects', projectId), { tasks: updatedTasks });
+        }
+
+        async function addTeamMember() {
+            const name = document.getElementById('memberName').value.trim();
+            const email = document.getElementById('memberEmail').value.trim();
+            const password = document.getElementById('memberPassword').value;
+            const role = document.getElementById('memberRole').value;
+
+            if (!name) {
+                alert('Please enter a name');
+                return;
+            }
+            if (!email || !password) {
+                alert('Email and a temporary password are required to create this member\'s login.');
+                return;
+            }
+            if (password.length < 6) {
+                alert('Password must be at least 6 characters.');
+                return;
+            }
+
+            try {
+                const cred = await authFns.createUserWithEmailAndPassword(window.firebaseSecondaryAuth, email, password);
+                const newUid = cred.user.uid;
+                await authFns.signOut(window.firebaseSecondaryAuth);
+
+                await fns.addDoc(fns.collection(db, 'team'), {
+                    name,
+                    email,
+                    role,
+                    authUid: newUid,
+                    joinDate: new Date().toLocaleDateString('en-US')
+                });
+
+                clearMemberForm();
+            } catch (err) {
+                alert('Could not create login: ' + (err.message || err));
+            }
+        }
+
+        function clearMemberForm() {
+            document.getElementById('memberName').value = '';
+            document.getElementById('memberEmail').value = '';
+            document.getElementById('memberPassword').value = '';
+        }
+
+        function deleteTeamMember(id) {
+            if (confirm('Delete this member?')) {
+                fns.deleteDoc(fns.doc(db, 'team', id));
+            }
+        }
+
+        function getPriorityBadge(priority) {
+            const map = { high: 'High', medium: 'Medium', low: 'Low' };
+            const className = `badge badge-${priority}`;
+            return `<span class="${className}">${map[priority]}</span>`;
+        }
+
+        function getRecurrenceBadge(recurrence) {
+            const map = { daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly', once: 'Once' };
+            const icon = { daily: 'fa-repeat', weekly: 'fa-calendar-week', monthly: 'fa-calendar-days', once: 'fa-calendar' }[recurrence];
+            const className = `badge badge-${recurrence === 'once' ? 'date' : recurrence}`;
+            return `<span class="${className}"><i class="fas ${icon}"></i> ${map[recurrence]}</span>`;
+        }
+
+        function formatDate(dateStr) {
+            if (!dateStr) return 'No date';
+            const date = new Date(dateStr + 'T00:00:00');
+            return date.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
+        }
+
+        function renderTasks() {
+            const taskList = document.getElementById('taskList');
+            if (state.tasks.length === 0) {
+                taskList.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-inbox"></i>
+                        <p>No tasks yet. Create one to get started!</p>
+                    </div>
+                `;
+            } else {
+                taskList.innerHTML = state.tasks
+                    .sort((a, b) => !a.completed - !b.completed)
+                    .map(task => {
+                        const assigneeInfo = task.assignee ? assigneeMap[task.assignee] : null;
+                        return `
+                            <div class="card ${task.completed ? 'completed' : ''}">
+                                <div class="card-header">
+                                    <div class="card-title">
+                                        <div class="checkbox-wrapper">
+                                            <input type="checkbox" ${task.completed ? 'checked' : ''} onchange="toggleTask('${task.id}')">
+                                            <span>${task.name}</span>
+                                        </div>
+                                    </div>
+                                    ${getPriorityBadge(task.priority)}
+                                </div>
+                                ${task.desc ? `<p style="color: #666; margin-bottom: 10px; font-size: 14px;">${task.desc}</p>` : ''}
+                                <div class="card-meta">
+                                    <div class="meta-item">
+                                        ${getRecurrenceBadge(task.recurrence)}
+                                    </div>
+                                    <div class="meta-item">
+                                        <i class="fas fa-calendar"></i>
+                                        ${formatDate(task.date)}
+                                    </div>
+                                </div>
+                                ${assigneeInfo ? `
+                                    <div class="assignee-badge">
+                                        <div class="assignee-avatar">${assigneeInfo.initials}</div>
+                                        ${assigneeInfo.name}
+                                    </div>
+                                ` : ''}
+                                <div class="card-actions">
+                                    <button class="btn btn-danger" onclick="deleteTask('${task.id}')">
+                                        <i class="fas fa-trash"></i>
+                                        Delete
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                    })
+                    .join('');
+            }
+        }
+
+        function renderProjects() {
+            const projectList = document.getElementById('projectList');
+            if (state.projects.length === 0) {
+                projectList.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-folder"></i>
+                        <p>No projects yet. Create one to get started!</p>
+                    </div>
+                `;
+            } else {
+                projectList.innerHTML = state.projects.map(project => {
+                    const tasks = project.tasks || [];
+                    const total = tasks.length;
+                    const done = tasks.filter(t => t.completed).length;
+                    const progress = total > 0 ? Math.round((done / total) * 100) : 0;
+
+                    const tasksHtml = tasks.length === 0
+                        ? `<p style="color:#999; font-size:13px; margin-top:8px;">No tasks yet for this project.</p>`
+                        : `<div class="project-tasks">` + tasks.map(t => {
+                            const assigneeInfo = t.assignee ? assigneeMap[t.assignee] : null;
+                            return `
+                                <div class="project-task-item ${t.completed ? 'completed' : ''}">
+                                    <div style="display:flex; align-items:center; gap:8px; flex:1;">
+                                        <input type="checkbox" ${t.completed ? 'checked' : ''} onchange="toggleProjectTask('${project.id}','${t.ptid}')">
+                                        <span class="pt-name">${t.name}</span>
+                                        ${assigneeInfo ? `<span style="color:#2563eb; font-size:11px;">(${assigneeInfo.name})</span>` : ''}
+                                    </div>
+                                    <button class="btn btn-danger" style="padding:4px 8px;" onclick="deleteProjectTask('${project.id}','${t.ptid}')">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            `;
+                        }).join('') + `</div>`;
+
+                    return `
+                        <div class="card">
+                            <div class="card-header">
+                                <div>
+                                    <div class="card-title">${project.name}</div>
+                                    ${project.desc ? `<p style="color: #666; margin-top: 6px; font-size: 14px;">${project.desc}</p>` : ''}
+                                </div>
+                            </div>
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: ${progress}%"></div>
+                            </div>
+                            <div class="card-meta">
+                                <div class="meta-item">
+                                    <i class="fas fa-calendar-check"></i>
+                                    ${formatDate(project.start)} → ${formatDate(project.end)}
+                                </div>
+                                <div class="meta-item">
+                                    <i class="fas fa-chart-pie"></i>
+                                    Progress: ${progress}% (${done}/${total})
+                                </div>
+                            </div>
+                            ${tasksHtml}
+                            <button class="task-add-btn" onclick="openProjectTaskModal('${project.id}')">
+                                <i class="fas fa-plus"></i>
+                                Add task to project
+                            </button>
+                            <div class="card-actions">
+                                <button class="btn btn-danger" onclick="deleteProject('${project.id}')">
+                                    <i class="fas fa-trash"></i>
+                                    Delete
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+        }
+
+        function renderTeam() {
+            const teamList = document.getElementById('teamList');
+            if (state.team.length === 0) {
+                teamList.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-users"></i>
+                        <p>No team members yet. Add your team!</p>
+                    </div>
+                `;
+            } else {
+                teamList.innerHTML = state.team.map(member => {
+                    const initials = member.name.split(' ').map(n => n[0]).join('').toUpperCase();
+                    return `
+                        <div class="team-member">
+                            <div class="team-avatar">${initials}</div>
+                            <div class="team-info">
+                                <div class="team-name">${member.name}</div>
+                                <div class="team-role">${member.email ? member.email + ' • ' : ''}${member.role}</div>
+                            </div>
+                            <div class="team-actions">
+                                <button class="btn btn-danger" onclick="deleteTeamMember('${member.id}')" title="Delete">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+        }
+
+        function createRole() {
+            const nameInput = document.getElementById('newRoleName');
+            const name = nameInput.value.trim();
+            if (!name) {
+                alert('Please enter a role name');
+                return;
+            }
+            if (state.roles.some(r => r.name.toLowerCase() === name.toLowerCase())) {
+                alert('A role with that name already exists');
+                return;
+            }
+
+            const checks = document.querySelectorAll('#newRoleModules input[type="checkbox"]');
+            const modules = Array.from(checks).filter(c => c.checked).map(c => c.value);
+
+            fns.addDoc(fns.collection(db, 'roles'), { name, modules, protected: false });
+
+            nameInput.value = '';
+            checks.forEach(c => c.checked = false);
+        }
+
+        function toggleRoleModule(roleId, moduleKey, checked) {
+            const role = state.roles.find(r => r.id === roleId);
+            if (!role) return;
+            let modules = role.modules || [];
+            if (checked) {
+                if (!modules.includes(moduleKey)) modules = [...modules, moduleKey];
+            } else {
+                modules = modules.filter(m => m !== moduleKey);
+            }
+            fns.updateDoc(fns.doc(db, 'roles', roleId), { modules });
+        }
+
+        function deleteRole(roleId) {
+            const role = state.roles.find(r => r.id === roleId);
+            if (!role) return;
+            if (role.protected) {
+                alert('The Admin role cannot be deleted.');
+                return;
+            }
+            if (state.team.some(m => m.role === role.name)) {
+                alert('This role is assigned to one or more team members. Reassign them before deleting this role.');
+                return;
+            }
+            if (confirm(`Delete role "${role.name}"?`)) {
+                fns.deleteDoc(fns.doc(db, 'roles', roleId));
+            }
+        }
+
+        function renderRoles() {
+            const roleList = document.getElementById('roleList');
+            if (state.roles.length === 0) {
+                roleList.innerHTML = `<div class="empty-state"><i class="fas fa-user-shield"></i><p>No roles yet.</p></div>`;
+                return;
+            }
+            roleList.innerHTML = state.roles.map(role => {
+                const modules = role.modules || [];
+                const checksHtml = CORE_MODULES.map(m => `
+                    <label class="module-check">
+                        <input type="checkbox" ${modules.includes(m.key) ? 'checked' : ''}
+                            ${role.protected ? 'disabled' : ''}
+                            onchange="toggleRoleModule('${role.id}','${m.key}', this.checked)">
+                        ${m.label}
+                    </label>
+                `).join('');
+
+                return `
+                    <div class="role-card">
+                        <div class="role-card-header">
+                            <span class="role-name ${role.protected ? 'protected' : ''}">${role.name}${role.protected ? ' (protected)' : ''}</span>
+                            ${!role.protected ? `
+                                <button class="btn btn-danger" style="padding:4px 10px;" onclick="deleteRole('${role.id}')">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            ` : ''}
+                        </div>
+                        <div class="module-checks">${checksHtml}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function addLocation() {
+            const nameInput = document.getElementById('locationName');
+            const name = nameInput.value.trim();
+            if (!name) {
+                alert('Please enter a location name');
+                return;
+            }
+            if (state.locations.some(l => l.name.toLowerCase() === name.toLowerCase())) {
+                alert('A location with that name already exists');
+                return;
+            }
+            fns.addDoc(fns.collection(db, 'locations'), { name });
+            nameInput.value = '';
+        }
+
+        function deleteLocation(id) {
+            const inUse = state.shifts.some(s => s.locationId === id);
+            if (inUse) {
+                alert('This location is used by one or more shifts. Delete those shifts first.');
+                return;
+            }
+            if (confirm('Delete this location?')) {
+                fns.deleteDoc(fns.doc(db, 'locations', id));
+            }
+        }
+
+        function renderLocations() {
+            const list = document.getElementById('locationList');
+            if (!list) return;
+            if (state.locations.length === 0) {
+                list.innerHTML = `<div class="empty-state"><i class="fas fa-map-marker-alt"></i><p>No locations yet.</p></div>`;
+                return;
+            }
+            list.innerHTML = state.locations.map(loc => `
+                <div class="team-member">
+                    <div class="team-avatar"><i class="fas fa-map-marker-alt"></i></div>
+                    <div class="team-info">
+                        <div class="team-name">${loc.name}</div>
+                    </div>
+                    <div class="team-actions">
+                        <button class="btn btn-danger" onclick="deleteLocation('${loc.id}')" title="Delete">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function populateLocationSelect() {
+            const select = document.getElementById('shiftLocation');
+            if (!select) return;
+            const current = select.value;
+            if (state.locations.length === 0) {
+                select.innerHTML = '<option value="">No locations yet — create one first</option>';
+                return;
+            }
+            select.innerHTML = state.locations.map(l => `<option value="${l.id}">${l.name}</option>`).join('');
+            if (current && state.locations.some(l => l.id === current)) select.value = current;
+        }
+
+        function calcGrossMinutes(start, end) {
+            const [sh, sm] = start.split(':').map(Number);
+            const [eh, em] = end.split(':').map(Number);
+            let mins = (eh * 60 + em) - (sh * 60 + sm);
+            if (mins < 0) mins += 24 * 60;
+            return mins;
+        }
+
+        function addShift() {
+            const start = document.getElementById('shiftStart').value;
+            const end = document.getElementById('shiftEnd').value;
+            const locationId = document.getElementById('shiftLocation').value;
+
+            if (!start || !end || !locationId) {
+                alert('Please fill in start time, end time and location');
+                return;
+            }
+
+            const grossMinutes = calcGrossMinutes(start, end);
+            if (grossMinutes <= 0) {
+                alert('End time must be after start time.');
+                return;
+            }
+
+            fns.addDoc(fns.collection(db, 'shifts'), {
+                start, end, locationId, grossMinutes
+            });
+
+            document.getElementById('shiftStart').value = '';
+            document.getElementById('shiftEnd').value = '';
+        }
+
+        function deleteShift(id) {
+            if (confirm('Delete this shift?')) {
+                fns.deleteDoc(fns.doc(db, 'shifts', id));
+            }
+        }
+
+        function formatMinutes(mins) {
+            const h = Math.floor(mins / 60);
+            const m = mins % 60;
+            return `${h}h ${m.toString().padStart(2, '0')}m`;
+        }
+
+        function renderShifts() {
+            const list = document.getElementById('shiftList');
+            if (!list) return;
+            if (state.shifts.length === 0) {
+                list.innerHTML = `<div class="empty-state"><i class="fas fa-clock"></i><p>No shifts yet.</p></div>`;
+                return;
+            }
+            list.innerHTML = state.shifts.map(shift => {
+                const loc = state.locations.find(l => l.id === shift.locationId);
+                return `
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">${shift.start} → ${shift.end}</div>
+                        </div>
+                        <div class="card-meta">
+                            <div class="meta-item">
+                                <i class="fas fa-map-marker-alt"></i>
+                                ${loc ? loc.name : 'Unknown location'}
+                            </div>
+                            <div class="meta-item">
+                                <i class="fas fa-briefcase"></i>
+                                Duration: ${formatMinutes(shift.grossMinutes)}
+                            </div>
+                        </div>
+                        <div class="card-actions">
+                            <button class="btn btn-danger" onclick="deleteShift('${shift.id}')">
+                                <i class="fas fa-trash"></i>
+                                Delete
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+    </script>
+</body>
+</html>
