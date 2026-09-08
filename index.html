@@ -9,6 +9,7 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
         import { getFirestore, collection, onSnapshot, addDoc, deleteDoc, doc, updateDoc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
         import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword, sendPasswordResetEmail, updatePassword } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
+        import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-messaging.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyB0_ROV4sjigkHj5yachpCuuAmoUtfsJoA",
@@ -18,6 +19,8 @@
             messagingSenderId: "912477224199",
             appId: "1:912477224199:web:ca3071efacbb5994ff19a2"
         };
+
+        const VAPID_KEY = "BBJvd--7YVedvi37oPohVeS7N5H6EBhc2_m5EopPOItjP2gxBVk2ZZnbb_0yXe4kvQpUDwDb5Q3xwm4LUeIJ8Ow";
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
@@ -33,6 +36,32 @@
         window.firebaseSecondaryAuth = secondaryAuth;
         window.firebaseReady = true;
         window.dispatchEvent(new Event('firebase-ready'));
+
+        // ===== WEB PUSH (Firebase Cloud Messaging) =====
+        window.enablePushNotifications = async function() {
+            try {
+                if (!('serviceWorker' in navigator) || !('Notification' in window)) {
+                    return { ok: false, reason: 'unsupported' };
+                }
+                const registration = await navigator.serviceWorker.register('./firebase-messaging-sw.js');
+                const permission = await Notification.requestPermission();
+                if (permission !== 'granted') {
+                    return { ok: false, reason: 'denied' };
+                }
+                const messaging = getMessaging(app);
+                const token = await getToken(messaging, { vapidKey: VAPID_KEY, serviceWorkerRegistration: registration });
+                if (!token) {
+                    return { ok: false, reason: 'no-token' };
+                }
+                onMessage(messaging, (payload) => {
+                    console.log('Foreground push received', payload);
+                });
+                return { ok: true, token };
+            } catch (err) {
+                console.error('Push setup failed', err);
+                return { ok: false, reason: 'error', error: err.message };
+            }
+        };
     </script>
     <style>
         * {
@@ -94,6 +123,20 @@
 
         .tab-btn i {
             font-size: 16px;
+        }
+
+        .unread-badge {
+            background: #ef4444;
+            color: white;
+            font-size: 10px;
+            font-weight: 700;
+            min-width: 16px;
+            height: 16px;
+            border-radius: 8px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 4px;
         }
 
         .settings-subtabs {
@@ -1124,6 +1167,43 @@
             color: #c92a2a;
         }
 
+        .audit-log-item {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-left: 3px solid #2563eb;
+            border-radius: 8px;
+            padding: 10px 14px;
+            margin-bottom: 8px;
+            font-size: 13px;
+        }
+
+        .audit-log-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 4px;
+        }
+
+        .audit-log-action {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .audit-log-time {
+            font-size: 11px;
+            color: #999;
+        }
+
+        .audit-log-details {
+            color: #666;
+            font-size: 12px;
+        }
+
+        .audit-log-actor {
+            color: #2563eb;
+            font-weight: 600;
+        }
+
         .schedule-grid-wrap {
             overflow-x: auto;
             border: 1px solid #e0e0e0;
@@ -1443,6 +1523,10 @@
                 <span class="topbar-appname">GEBLL</span>
             </div>
             <div class="user-bar-right">
+                <button class="logout-btn" id="enablePushBtn" style="background:#2563eb;" onclick="handleEnablePush()">
+                    <i class="fas fa-bell"></i>
+                    Enable notifications
+                </button>
                 <div class="user-bar-info">
                     <i class="fas fa-user-circle"></i>
                     <span id="currentUserLabel">-</span>
@@ -1456,8 +1540,8 @@
 
         <div class="tabs" id="tabsBar">
             <button class="tab-btn active" data-module="myrota" onclick="switchTab('myrota')">
-                <i class="fas fa-user-clock"></i>
-                My Rota
+                <i class="fas fa-house"></i>
+                Home
             </button>
             <button class="tab-btn" data-module="rotas" onclick="switchTab('rotas')">
                 <i class="fas fa-calendar-week"></i>
@@ -1466,6 +1550,7 @@
             <button class="tab-btn" data-module="inbox" onclick="switchTab('inbox')">
                 <i class="fas fa-inbox"></i>
                 Inbox
+                <span id="inboxUnreadBadge" class="unread-badge app-hidden">0</span>
             </button>
             <button class="tab-btn" data-module="vacation" onclick="switchTab('vacation')">
                 <i class="fas fa-umbrella-beach"></i>
@@ -1510,6 +1595,9 @@
             </button>
             <button class="subtab-btn" data-submodule="resultsValidation" onclick="switchSettingsSubtab('resultsValidation')">
                 <i class="fas fa-check-double"></i> Results Validation
+            </button>
+            <button class="subtab-btn" data-submodule="auditLog" onclick="switchSettingsSubtab('auditLog')">
+                <i class="fas fa-clipboard-list"></i> Audit Log
             </button>
         </div>
 
@@ -1971,6 +2059,12 @@
                 Upcoming shifts
             </div>
             <div id="myUpcomingShifts"></div>
+
+            <div class="section-title" style="margin-top:24px;">
+                <i class="fas fa-envelope"></i>
+                Unread messages
+            </div>
+            <div id="homeUnreadMessages"></div>
         </div>
 
         <!-- TAB ROTAS -->
@@ -2210,12 +2304,13 @@
                         <label class="module-check"><input type="checkbox" value="locations"> Locations</label>
                         <label class="module-check"><input type="checkbox" value="shifts"> Shifts</label>
                         <label class="module-check"><input type="checkbox" value="schedule"> Schedule</label>
-                        <label class="module-check"><input type="checkbox" value="myrota"> My Rota</label>
+                        <label class="module-check"><input type="checkbox" value="myrota"> Home</label>
                         <label class="module-check"><input type="checkbox" value="rotas"> Rotas</label>
                         <label class="module-check"><input type="checkbox" value="inbox"> Inbox</label>
                         <label class="module-check"><input type="checkbox" value="vacation"> Vacation</label>
                         <label class="module-check"><input type="checkbox" value="results"> Results</label>
                         <label class="module-check"><input type="checkbox" value="resultsValidation"> Results Validation</label>
+                        <label class="module-check"><input type="checkbox" value="auditLog"> Audit Log</label>
                     </div>
                 </div>
                 <button class="btn" onclick="createRole()">
@@ -2268,6 +2363,36 @@
                 <div id="rvDayDetailLines"></div>
             </div>
         </div>
+
+        <!-- SUB-TAB AUDIT LOG -->
+        <div id="auditLog" class="content">
+            <div class="form-section">
+                <div class="section-title">
+                    <i class="fas fa-filter"></i>
+                    Filter
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Action type</label>
+                        <select id="auditActionFilter" onchange="renderAuditLog()">
+                            <option value="">All actions</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Team Member</label>
+                        <select id="auditActorFilter" onchange="renderAuditLog()">
+                            <option value="">All members</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section-title">
+                <i class="fas fa-clipboard-list"></i>
+                Activity
+            </div>
+            <div id="auditLogList"></div>
+        </div>
     </div>
 
 
@@ -2280,12 +2405,13 @@
             { key: 'locations', label: 'Locations' },
             { key: 'shifts', label: 'Shifts' },
             { key: 'schedule', label: 'Schedule' },
-            { key: 'myrota', label: 'My Rota' },
+            { key: 'myrota', label: 'Home' },
             { key: 'rotas', label: 'Rotas' },
             { key: 'inbox', label: 'Inbox' },
             { key: 'vacation', label: 'Vacation' },
             { key: 'results', label: 'Results' },
-            { key: 'resultsValidation', label: 'Results Validation' }
+            { key: 'resultsValidation', label: 'Results Validation' },
+            { key: 'auditLog', label: 'Audit Log' }
         ];
 
         const state = {
@@ -2302,7 +2428,8 @@
             dayOffSwapRequests: [],
             resultLines: [],
             resultValidations: [],
-            rescheduleRequests: []
+            rescheduleRequests: [],
+            auditLog: []
         };
 
         let scheduleView = 'daily';
@@ -2450,6 +2577,7 @@
                 populateAssigneeSelects();
                 applyRolePermissions();
                 renderSchedule();
+                updateInboxUnreadBadge();
 
                 if (currentMember && currentMember.mustChangePassword) {
                     showForcePasswordScreen();
@@ -2499,6 +2627,8 @@
             const unsubNotifications = fns.onSnapshot(notificationsCol, (snapshot) => {
                 state.notifications = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
                 if (document.getElementById('inbox').classList.contains('active')) renderInbox();
+                updateInboxUnreadBadge();
+                if (document.getElementById('myrota').classList.contains('active')) renderMyRota();
             });
 
             const vacationRequestsCol = fns.collection(db, 'vacationRequests');
@@ -2533,12 +2663,18 @@
                 if (document.getElementById('inbox').classList.contains('active')) renderInbox();
             });
 
-            unsubscribers = [unsubTasks, unsubProjects, unsubTeam, unsubRoles, unsubLocations, unsubShifts, unsubAssignments, unsubSwapRequests, unsubNotifications, unsubVacationRequests, unsubDayOffSwapRequests, unsubResultLines, unsubResultValidations, unsubRescheduleRequests];
+            const auditLogCol = fns.collection(db, 'auditLog');
+            const unsubAuditLog = fns.onSnapshot(auditLogCol, (snapshot) => {
+                state.auditLog = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                if (document.getElementById('auditLog').classList.contains('active')) renderAuditLog();
+            });
+
+            unsubscribers = [unsubTasks, unsubProjects, unsubTeam, unsubRoles, unsubLocations, unsubShifts, unsubAssignments, unsubSwapRequests, unsubNotifications, unsubVacationRequests, unsubDayOffSwapRequests, unsubResultLines, unsubResultValidations, unsubRescheduleRequests, unsubAuditLog];
         }
 
         async function ensureDefaultRoles() {
             const defaults = [
-                { name: 'Admin', modules: ['tasks', 'projects', 'team', 'locations', 'shifts', 'schedule', 'myrota', 'rotas', 'inbox', 'vacation', 'results', 'resultsValidation', 'roles'], protected: true },
+                { name: 'Admin', modules: ['tasks', 'projects', 'team', 'locations', 'shifts', 'schedule', 'myrota', 'rotas', 'inbox', 'vacation', 'results', 'resultsValidation', 'auditLog', 'roles'], protected: true },
                 { name: 'Lead', modules: ['tasks', 'projects', 'team', 'locations', 'shifts', 'schedule', 'myrota', 'rotas', 'inbox', 'vacation', 'results', 'resultsValidation'], protected: false },
                 { name: 'Member', modules: ['myrota', 'rotas', 'inbox', 'vacation', 'results'], protected: false }
             ];
@@ -2552,13 +2688,13 @@
 
         function getUserRole() {
             if (currentUser && currentUser.uid === ADMIN_UID) {
-                return { name: 'Admin', modules: ['tasks', 'projects', 'team', 'locations', 'shifts', 'schedule', 'myrota', 'rotas', 'inbox', 'vacation', 'results', 'resultsValidation', 'roles'], protected: true };
+                return { name: 'Admin', modules: ['tasks', 'projects', 'team', 'locations', 'shifts', 'schedule', 'myrota', 'rotas', 'inbox', 'vacation', 'results', 'resultsValidation', 'auditLog', 'roles'], protected: true };
             }
             if (!currentMember) return { name: 'Member', modules: [] };
             return state.roles.find(r => r.name === currentMember.role) || { name: currentMember.role, modules: [] };
         }
 
-        const SETTINGS_SUBMODULES = ['shifts', 'locations', 'team', 'roles', 'resultsValidation'];
+        const SETTINGS_SUBMODULES = ['shifts', 'locations', 'team', 'roles', 'resultsValidation', 'auditLog'];
 
         function applyRolePermissions() {
             const role = getUserRole();
@@ -2628,7 +2764,7 @@
 
             if (tab === 'myrota') renderMyRota();
             if (tab === 'rotas') renderRotas();
-            if (tab === 'inbox') renderInbox();
+            if (tab === 'inbox') { renderInbox(); markUnreadNotificationsAsRead(); }
             if (tab === 'schedule') renderSchedule();
             if (tab === 'vacation') renderVacation();
             if (tab === 'results') renderResults();
@@ -2645,6 +2781,7 @@
             updateTaskFabVisibility('settings');
 
             if (sub === 'resultsValidation') initResultsValidation();
+            if (sub === 'auditLog') renderAuditLog();
         }
 
         function populateAssigneeSelects() {
@@ -2715,7 +2852,7 @@
 
             if (tab === 'myrota') renderMyRota();
             if (tab === 'rotas') renderRotas();
-            if (tab === 'inbox') renderInbox();
+            if (tab === 'inbox') { renderInbox(); markUnreadNotificationsAsRead(); }
             if (tab === 'schedule') renderSchedule();
             if (tab === 'vacation') renderVacation();
             if (tab === 'results') renderResults();
@@ -2744,6 +2881,7 @@
                 completed: false,
                 createdAt: new Date().toLocaleDateString('en-US')
             });
+            logAction('Task created', name);
 
             clearTaskForm();
             closeTaskModal();
@@ -2762,12 +2900,15 @@
             const task = state.tasks.find(t => t.id === id);
             if (task) {
                 fns.updateDoc(fns.doc(db, 'tasks', id), { completed: !task.completed });
+                logAction(!task.completed ? 'Task completed' : 'Task reopened', task.name);
             }
         }
 
         function deleteTask(id) {
             if (confirm('Delete this task?')) {
+                const task = state.tasks.find(t => t.id === id);
                 fns.deleteDoc(fns.doc(db, 'tasks', id));
+                logAction('Task deleted', task ? task.name : id);
             }
         }
 
@@ -2791,6 +2932,7 @@
                 tasks: [],
                 createdAt: new Date().toLocaleDateString('en-US')
             });
+            logAction('Project created', name);
 
             clearProjectForm();
         }
@@ -2804,7 +2946,9 @@
 
         function deleteProject(id) {
             if (confirm('Delete this project?')) {
+                const project = state.projects.find(p => p.id === id);
                 fns.deleteDoc(fns.doc(db, 'projects', id));
+                logAction('Project deleted', project ? project.name : id);
             }
         }
 
@@ -2905,6 +3049,7 @@
                     mustChangePassword: true,
                     joinDate: new Date().toLocaleDateString('en-US')
                 });
+                logAction('Team member added', `${name} (${role})`);
 
                 clearMemberForm();
             } catch (err) {
@@ -2924,7 +3069,9 @@
 
         function deleteTeamMember(id) {
             if (confirm('Delete this member?')) {
+                const m = state.team.find(x => x.id === id);
                 fns.deleteDoc(fns.doc(db, 'team', id));
+                logAction('Team member deleted', m ? m.name : id);
             }
         }
 
@@ -3172,6 +3319,7 @@
                 rotationAnchor: rotationAnchor || null,
                 vacationDaysAllotted: vacationDays
             });
+            logAction('Team member updated', name);
 
             closeEditMemberModal();
         }
@@ -3208,6 +3356,7 @@
             const modules = Array.from(checks).filter(c => c.checked).map(c => c.value);
 
             fns.addDoc(fns.collection(db, 'roles'), { name, modules, protected: false });
+            logAction('Role created', name);
 
             nameInput.value = '';
             checks.forEach(c => c.checked = false);
@@ -3223,6 +3372,7 @@
                 modules = modules.filter(m => m !== moduleKey);
             }
             fns.updateDoc(fns.doc(db, 'roles', roleId), { modules });
+            logAction('Role permissions updated', `${role.name}: ${moduleKey} ${checked ? 'enabled' : 'disabled'}`);
         }
 
         function deleteRole(roleId) {
@@ -3238,6 +3388,7 @@
             }
             if (confirm(`Delete role "${role.name}"?`)) {
                 fns.deleteDoc(fns.doc(db, 'roles', roleId));
+                logAction('Role deleted', role.name);
             }
         }
 
@@ -3287,6 +3438,7 @@
             }
             const maxOrder = state.locations.reduce((max, l) => Math.max(max, l.order ?? 0), -1);
             fns.addDoc(fns.collection(db, 'locations'), { name, order: maxOrder + 1 });
+            logAction('Location created', name);
             nameInput.value = '';
         }
 
@@ -3296,8 +3448,10 @@
                 alert('This location is used by one or more shifts. Delete those shifts first.');
                 return;
             }
+            const loc = state.locations.find(l => l.id === id);
             if (confirm('Delete this location?')) {
                 fns.deleteDoc(fns.doc(db, 'locations', id));
+                logAction('Location deleted', loc ? loc.name : id);
             }
         }
 
@@ -3393,10 +3547,12 @@
             }
 
             const end = calcEndTime(start, grossMinutes);
+            const loc = state.locations.find(l => l.id === locationId);
 
             fns.addDoc(fns.collection(db, 'shifts'), {
                 start, end, locationId, grossMinutes
             });
+            logAction('Shift template created', `${start}-${end} (${loc ? loc.name : locationId})`);
 
             document.getElementById('shiftStart').value = '';
             document.getElementById('shiftDurationHours').value = '';
@@ -3404,8 +3560,11 @@
         }
 
         function deleteShift(id) {
+            const shift = state.shifts.find(s => s.id === id);
+            const loc = shift ? state.locations.find(l => l.id === shift.locationId) : null;
             if (confirm('Delete this shift?')) {
                 fns.deleteDoc(fns.doc(db, 'shifts', id));
+                logAction('Shift template deleted', shift ? `${shift.start}-${shift.end} (${loc ? loc.name : ''})` : id);
             }
         }
 
@@ -3508,6 +3667,83 @@
             });
 
             closeEditShiftModal();
+        }
+
+        // ===== NOTIFICATIONS & AUDIT LOG (central helpers) =====
+
+        async function createNotification(memberId, message) {
+            await fns.addDoc(fns.collection(db, 'notifications'), {
+                message,
+                memberId,
+                read: false,
+                createdAt: new Date().toISOString()
+            });
+            sendWebPushToMember(memberId, message);
+        }
+
+        // Web Push delivery note: getting a device token into Firestore (below) is everything
+        // that can be done from a static, backend-less page. Actually pushing a notification to
+        // a token requires calling the FCM send API with a service-account credential, which must
+        // run somewhere with a secret (a Cloud Function, a small server, etc.) — never in this
+        // public HTML/JS, since any key placed here would be visible to everyone. This function
+        // queues the push request in Firestore ('pushQueue') so that a Cloud Function (added later,
+        // when you're ready to enable server-side sending) can pick it up and call FCM's send API.
+        // Until that function exists, entries just sit in 'pushQueue' unsent — everything else
+        // (in-app Inbox, unread badge, Home) already works fully without it.
+        async function sendWebPushToMember(memberId, message) {
+            try {
+                await fns.addDoc(fns.collection(db, 'pushQueue'), {
+                    memberId,
+                    message,
+                    sent: false,
+                    createdAt: new Date().toISOString()
+                });
+            } catch (err) {
+                console.error('Could not queue push', err);
+            }
+        }
+
+        async function handleEnablePush() {
+            const btn = document.getElementById('enablePushBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Requesting...';
+
+            const result = await window.enablePushNotifications();
+
+            if (result.ok) {
+                if (currentMember) {
+                    const existingTokens = currentMember.pushTokens || [];
+                    if (!existingTokens.includes(result.token)) {
+                        await fns.updateDoc(fns.doc(db, 'team', currentMember.id), {
+                            pushTokens: [...existingTokens, result.token]
+                        });
+                    }
+                }
+                btn.innerHTML = '<i class="fas fa-check"></i> Notifications on';
+                btn.style.background = '#22c55e';
+            } else {
+                btn.disabled = false;
+                if (result.reason === 'denied') {
+                    btn.innerHTML = '<i class="fas fa-bell-slash"></i> Permission denied';
+                } else if (result.reason === 'unsupported') {
+                    btn.innerHTML = '<i class="fas fa-bell-slash"></i> Not supported here';
+                } else {
+                    btn.innerHTML = '<i class="fas fa-bell"></i> Enable notifications';
+                    alert('Could not enable notifications: ' + (result.error || result.reason));
+                }
+            }
+        }
+
+        async function logAction(action, details) {
+            if (!currentUser) return;
+            const actorName = currentMember ? currentMember.name : currentUser.email;
+            await fns.addDoc(fns.collection(db, 'auditLog'), {
+                actorId: currentMember ? currentMember.id : null,
+                actorName,
+                action,
+                details: details || '',
+                createdAt: new Date().toISOString()
+            });
         }
 
         // ===== SCHEDULE (Fase C) =====
@@ -3930,9 +4166,25 @@
             }
 
             const sickLeave = document.getElementById('assignSickLeave').checked;
+            const loc = state.locations.find(l => l.id === shift.locationId);
+            const locName = loc ? loc.name : '';
 
             if (pendingAssign.assignmentId) {
+                const existing = state.assignments.find(a => a.id === pendingAssign.assignmentId);
+                const previousMemberId = existing ? existing.memberId : null;
+
                 await fns.updateDoc(fns.doc(db, 'assignments', pendingAssign.assignmentId), { memberId, sickLeave });
+
+                if (previousMemberId && previousMemberId !== memberId) {
+                    const newM = assigneeMap[memberId];
+                    const oldM = assigneeMap[previousMemberId];
+                    await createNotification(previousMemberId, `Your shift on ${pendingAssign.dateKey} (${shift.start}-${shift.end}, ${locName}) was reassigned to ${newM ? newM.name : 'another member'}.`);
+                    await createNotification(memberId, `You were assigned a shift on ${pendingAssign.dateKey} (${shift.start}-${shift.end}, ${locName}), previously held by ${oldM ? oldM.name : 'another member'}.`);
+                    await logAction('Shift reassigned', `${pendingAssign.dateKey} ${shift.start}-${shift.end} (${locName}): from ${oldM ? oldM.name : previousMemberId} to ${newM ? newM.name : memberId}`);
+                } else if (previousMemberId === memberId) {
+                    await createNotification(memberId, `Your shift on ${pendingAssign.dateKey} (${shift.start}-${shift.end}, ${locName}) was updated.${sickLeave ? ' Marked as Sick Leave.' : ''}`);
+                    await logAction('Shift updated', `${pendingAssign.dateKey} ${shift.start}-${shift.end} (${locName}) for ${assigneeMap[memberId] ? assigneeMap[memberId].name : memberId}${sickLeave ? ' — marked Sick Leave' : ''}`);
+                }
             } else {
                 await fns.addDoc(fns.collection(db, 'assignments'), {
                     shiftId: pendingAssign.shiftId,
@@ -3941,6 +4193,9 @@
                     sickLeave: false,
                     published: false
                 });
+                const newM = assigneeMap[memberId];
+                await createNotification(memberId, `You were assigned a new shift on ${pendingAssign.dateKey} (${shift.start}-${shift.end}, ${locName}).`);
+                await logAction('Shift assigned', `${pendingAssign.dateKey} ${shift.start}-${shift.end} (${locName}) to ${newM ? newM.name : memberId}`);
             }
 
             closeAssignModal();
@@ -3949,7 +4204,18 @@
         async function confirmUnassign() {
             if (!pendingAssign || !pendingAssign.assignmentId) return;
             if (confirm('Remove this assignment?')) {
+                const existing = state.assignments.find(a => a.id === pendingAssign.assignmentId);
+                const shift = state.shifts.find(s => s.id === pendingAssign.shiftId);
+                const loc = shift ? state.locations.find(l => l.id === shift.locationId) : null;
+
                 await fns.deleteDoc(fns.doc(db, 'assignments', pendingAssign.assignmentId));
+
+                if (existing) {
+                    const m = assigneeMap[existing.memberId];
+                    await createNotification(existing.memberId, `Your shift on ${pendingAssign.dateKey}${shift ? ' (' + shift.start + '-' + shift.end + ', ' + (loc ? loc.name : '') + ')' : ''} was removed.`);
+                    await logAction('Shift unassigned', `${pendingAssign.dateKey}${shift ? ' ' + shift.start + '-' + shift.end : ''} — removed from ${m ? m.name : existing.memberId}`);
+                }
+
                 closeAssignModal();
             }
         }
@@ -4012,11 +4278,13 @@
         function renderMyRota() {
             const nextEl = document.getElementById('myNextShift');
             const listEl = document.getElementById('myUpcomingShifts');
+            const unreadEl = document.getElementById('homeUnreadMessages');
             if (!nextEl || !listEl) return;
 
             if (!currentMember) {
                 nextEl.innerHTML = `<div class="empty-state"><i class="fas fa-user"></i><p>Your account isn't linked to a team member yet.</p></div>`;
                 listEl.innerHTML = '';
+                if (unreadEl) unreadEl.innerHTML = '';
                 return;
             }
 
@@ -4025,30 +4293,43 @@
             if (upcoming.length === 0) {
                 nextEl.innerHTML = `<div class="empty-state"><i class="fas fa-calendar-times"></i><p>No upcoming shifts scheduled.</p></div>`;
                 listEl.innerHTML = '';
-                return;
+            } else {
+                const next = upcoming[0];
+                nextEl.innerHTML = `
+                    <div class="next-shift-card">
+                        <div class="ns-label">My next shift</div>
+                        <div class="ns-time">${next.shift.start} - ${next.shift.end}</div>
+                        <div class="ns-meta"><i class="fas fa-map-marker-alt"></i> ${next.loc ? next.loc.name : ''} &nbsp; • &nbsp; ${next.dateKey}</div>
+                    </div>
+                `;
+
+                const rest = upcoming.slice(1);
+                listEl.innerHTML = rest.length === 0
+                    ? `<p style="color:#999; font-size:13px;">No other upcoming shifts.</p>`
+                    : rest.map(a => `
+                        <div class="upcoming-shift-item">
+                            <div>
+                                <div class="sg-shift-time">${a.shift.start} - ${a.shift.end}</div>
+                                <div style="color:#666; font-size:12px;">${a.loc ? a.loc.name : ''}</div>
+                            </div>
+                            <div style="color:#333; font-weight:600; font-size:13px;">${a.dateKey}</div>
+                        </div>
+                    `).join('');
             }
 
-            const next = upcoming[0];
-            nextEl.innerHTML = `
-                <div class="next-shift-card">
-                    <div class="ns-label">My next shift</div>
-                    <div class="ns-time">${next.shift.start} - ${next.shift.end}</div>
-                    <div class="ns-meta"><i class="fas fa-map-marker-alt"></i> ${next.loc ? next.loc.name : ''} &nbsp; • &nbsp; ${next.dateKey}</div>
-                </div>
-            `;
+            if (unreadEl) {
+                const myUnread = state.notifications
+                    .filter(n => (!n.memberId || n.memberId === currentMember.id) && n.read === false)
+                    .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
 
-            const rest = upcoming.slice(1);
-            listEl.innerHTML = rest.length === 0
-                ? `<p style="color:#999; font-size:13px;">No other upcoming shifts.</p>`
-                : rest.map(a => `
-                    <div class="upcoming-shift-item">
-                        <div>
-                            <div class="sg-shift-time">${a.shift.start} - ${a.shift.end}</div>
-                            <div style="color:#666; font-size:12px;">${a.loc ? a.loc.name : ''}</div>
+                unreadEl.innerHTML = myUnread.length === 0
+                    ? `<div class="empty-state"><i class="fas fa-envelope-open"></i><p>No unread messages.</p></div>`
+                    : myUnread.map(n => `
+                        <div class="inbox-item unread">
+                            <p style="font-size:13px; color:#333; margin:0;">${n.message}</p>
                         </div>
-                        <div style="color:#333; font-weight:600; font-size:13px;">${a.dateKey}</div>
-                    </div>
-                `).join('');
+                    `).join('');
+            }
         }
 
         // ===== ROTAS (read-only, published only) =====
@@ -4315,6 +4596,9 @@
                 createdAt: new Date().toISOString()
             });
 
+            await createNotification(targetAssignment.memberId, `${currentMember.name} requested to swap shifts with you on ${targetAssignment.dateKey}. Check Inbox to review.`);
+            logAction('Shift swap requested', `${currentMember.name} → ${assigneeMap[targetAssignment.memberId] ? assigneeMap[targetAssignment.memberId].name : targetAssignment.memberId} on ${targetAssignment.dateKey}`);
+
             closeRequestSwapModal();
             alert('Swap request sent. You will be notified once it is reviewed.');
         }
@@ -4326,6 +4610,30 @@
             if (role.name === 'Admin') return true;
             if (req.needsAdminOnly) return false;
             return role.name === 'Lead';
+        }
+
+        function updateInboxUnreadBadge() {
+            const badge = document.getElementById('inboxUnreadBadge');
+            if (!badge || !currentMember) return;
+            const myUnread = state.notifications.filter(n =>
+                (!n.memberId || n.memberId === currentMember.id) && n.read === false
+            ).length;
+            if (myUnread > 0) {
+                badge.textContent = myUnread > 99 ? '99+' : myUnread;
+                badge.classList.remove('app-hidden');
+            } else {
+                badge.classList.add('app-hidden');
+            }
+        }
+
+        async function markUnreadNotificationsAsRead() {
+            if (!currentMember) return;
+            const unread = state.notifications.filter(n =>
+                (!n.memberId || n.memberId === currentMember.id) && n.read === false
+            );
+            for (const n of unread) {
+                await fns.updateDoc(fns.doc(db, 'notifications', n.id), { read: true });
+            }
         }
 
         function renderInbox() {
@@ -4476,17 +4784,12 @@
                         await fns.updateDoc(fns.doc(db, 'assignments', a.id), { memberId: req.targetMemberId });
                     }
                 }
-                await fns.addDoc(fns.collection(db, 'notifications'), {
-                    message: `Your shift swap request was approved. All shifts for that day were exchanged.`,
-                    memberId: req.requesterId,
-                    createdAt: new Date().toISOString()
-                });
+                await createNotification(req.requesterId, `Your shift swap request was approved. All shifts for that day were exchanged.`);
+                await createNotification(req.targetMemberId, `A shift swap involving your schedule was approved and applied.`);
+                logAction('Shift swap approved', `${assigneeMap[req.requesterId] ? assigneeMap[req.requesterId].name : req.requesterId} ↔ ${assigneeMap[req.targetMemberId] ? assigneeMap[req.targetMemberId].name : req.targetMemberId}`);
             } else {
-                await fns.addDoc(fns.collection(db, 'notifications'), {
-                    message: `Your shift swap request was declined.`,
-                    memberId: req.requesterId,
-                    createdAt: new Date().toISOString()
-                });
+                await createNotification(req.requesterId, `Your shift swap request was declined.`);
+                logAction('Shift swap declined', `${assigneeMap[req.requesterId] ? assigneeMap[req.requesterId].name : req.requesterId} → ${assigneeMap[req.targetMemberId] ? assigneeMap[req.targetMemberId].name : req.targetMemberId}`);
             }
 
             await fns.updateDoc(fns.doc(db, 'swapRequests', requestId), { status: approve ? 'approved' : 'declined' });
@@ -4619,6 +4922,7 @@
                 status: 'pending',
                 createdAt: new Date().toISOString()
             });
+            logAction(requestType === 'vacation' ? 'Vacation requested' : 'Time off requested', `${startKey} to ${endKey} by ${currentMember.name}`);
 
             document.getElementById('vacationStart').value = '';
             document.getElementById('vacationEnd').value = '';
@@ -4641,11 +4945,9 @@
 
             await fns.updateDoc(fns.doc(db, 'vacationRequests', requestId), { status: approve ? 'approved' : 'rejected' });
 
-            await fns.addDoc(fns.collection(db, 'notifications'), {
-                message: `Your ${req.requestType === 'vacation' ? 'vacation' : 'time off'} request (${req.startKey} to ${req.endKey}) was ${approve ? 'approved' : 'rejected'}.`,
-                memberId: req.memberId,
-                createdAt: new Date().toISOString()
-            });
+            await createNotification(req.memberId, `Your ${req.requestType === 'vacation' ? 'vacation' : 'time off'} request (${req.startKey} to ${req.endKey}) was ${approve ? 'approved' : 'rejected'}.`);
+            const m = assigneeMap[req.memberId];
+            logAction(approve ? 'Vacation approved' : 'Vacation rejected', `${req.startKey} to ${req.endKey} for ${m ? m.name : req.memberId}`);
         }
 
         function renderVacation() {
@@ -4771,6 +5073,7 @@
                 needsAdminOnly,
                 createdAt: new Date().toISOString()
             });
+            logAction('Shift reschedule requested', `${currentMember.name}: ${a.dateKey} → ${newDateKey}`);
 
             closeRescheduleShiftModal();
             alert('Request sent. You will be notified once it is reviewed.');
@@ -4789,19 +5092,15 @@
             const req = state.rescheduleRequests.find(r => r.id === requestId);
             if (!req) return;
 
+            const m = assigneeMap[req.memberId];
+
             if (approve) {
                 await fns.updateDoc(fns.doc(db, 'assignments', req.assignmentId), { dateKey: req.newDateKey });
-                await fns.addDoc(fns.collection(db, 'notifications'), {
-                    message: `Your shift originally on ${req.originalDateKey} was approved to move to ${req.newDateKey}.`,
-                    memberId: req.memberId,
-                    createdAt: new Date().toISOString()
-                });
+                await createNotification(req.memberId, `Your shift originally on ${req.originalDateKey} was approved to move to ${req.newDateKey}.`);
+                logAction('Shift reschedule approved', `${m ? m.name : req.memberId}: ${req.originalDateKey} → ${req.newDateKey}`);
             } else {
-                await fns.addDoc(fns.collection(db, 'notifications'), {
-                    message: `Your request to move your shift from ${req.originalDateKey} to ${req.newDateKey} was declined.`,
-                    memberId: req.memberId,
-                    createdAt: new Date().toISOString()
-                });
+                await createNotification(req.memberId, `Your request to move your shift from ${req.originalDateKey} to ${req.newDateKey} was declined.`);
+                logAction('Shift reschedule declined', `${m ? m.name : req.memberId}: ${req.originalDateKey} → ${req.newDateKey}`);
             }
 
             await fns.updateDoc(fns.doc(db, 'rescheduleRequests', requestId), { status: approve ? 'approved' : 'declined' });
@@ -4878,6 +5177,9 @@
                 createdAt: new Date().toISOString()
             });
 
+            await createNotification(pendingDayOffSwap.targetMemberId, `${currentMember.name} requested to take your day off on ${pendingDayOffSwap.targetDateKey}. Check Inbox to review.`);
+            logAction('Day off swap requested', `${currentMember.name} → ${targetMember ? targetMember.name : pendingDayOffSwap.targetMemberId} on ${pendingDayOffSwap.targetDateKey}`);
+
             closeDayOffSwapModal();
             alert('Request sent. You will be notified once it is reviewed.');
         }
@@ -4905,25 +5207,18 @@
             const req = state.dayOffSwapRequests.find(r => r.id === requestId);
             if (!req) return;
 
+            const reqM = assigneeMap[req.requesterId];
+            const tgtM = assigneeMap[req.targetMemberId];
+
             if (approve) {
                 await swapDayAssignments(req.requesterId, req.targetMemberId, req.takeDateKey);
 
-                await fns.addDoc(fns.collection(db, 'notifications'), {
-                    message: `Your request to take a colleague's day off on ${req.takeDateKey} was approved. You'll return the favor on ${req.returnDateKey}.`,
-                    memberId: req.requesterId,
-                    createdAt: new Date().toISOString()
-                });
-                await fns.addDoc(fns.collection(db, 'notifications'), {
-                    message: `Your day off on ${req.takeDateKey} was covered by a colleague. They will cover for you again on ${req.returnDateKey}.`,
-                    memberId: req.targetMemberId,
-                    createdAt: new Date().toISOString()
-                });
+                await createNotification(req.requesterId, `Your request to take a colleague's day off on ${req.takeDateKey} was approved. You'll return the favor on ${req.returnDateKey}.`);
+                await createNotification(req.targetMemberId, `Your day off on ${req.takeDateKey} was covered by a colleague. They will cover for you again on ${req.returnDateKey}.`);
+                logAction('Day off swap approved', `${reqM ? reqM.name : req.requesterId} ↔ ${tgtM ? tgtM.name : req.targetMemberId} on ${req.takeDateKey}`);
             } else {
-                await fns.addDoc(fns.collection(db, 'notifications'), {
-                    message: `Your request to take a colleague's day off was declined.`,
-                    memberId: req.requesterId,
-                    createdAt: new Date().toISOString()
-                });
+                await createNotification(req.requesterId, `Your request to take a colleague's day off was declined.`);
+                logAction('Day off swap declined', `${reqM ? reqM.name : req.requesterId} → ${tgtM ? tgtM.name : req.targetMemberId}`);
             }
 
             await fns.updateDoc(fns.doc(db, 'dayOffSwapRequests', requestId), { status: approve ? 'approved' : 'declined' });
@@ -4939,16 +5234,9 @@
                 await swapDayAssignments(req.requesterId, req.targetMemberId, req.returnDateKey);
                 await fns.updateDoc(fns.doc(db, 'dayOffSwapRequests', req.id), { swapBackDone: true });
 
-                await fns.addDoc(fns.collection(db, 'notifications'), {
-                    message: `The day off swap for ${req.returnDateKey} has been applied automatically as agreed.`,
-                    memberId: req.requesterId,
-                    createdAt: new Date().toISOString()
-                });
-                await fns.addDoc(fns.collection(db, 'notifications'), {
-                    message: `The day off swap for ${req.returnDateKey} has been applied automatically as agreed.`,
-                    memberId: req.targetMemberId,
-                    createdAt: new Date().toISOString()
-                });
+                await createNotification(req.requesterId, `The day off swap for ${req.returnDateKey} has been applied automatically as agreed.`);
+                await createNotification(req.targetMemberId, `The day off swap for ${req.returnDateKey} has been applied automatically as agreed.`);
+                logAction('Day off swap-back applied', `Automatic swap-back for ${req.returnDateKey}`);
             }
         }
 
@@ -5074,6 +5362,8 @@
             }
 
             await clearValidationForDate(memberId, dateKey);
+            const m = assigneeMap[memberId];
+            logAction('Results saved', `${dateKey} — ${currentResultLines.length} line(s) for ${m ? m.name : memberId}`);
 
             closeResultsModal();
             alert('Results saved.');
@@ -5278,17 +5568,17 @@
                 dateKey,
                 validatedAt: new Date().toISOString()
             });
-            await fns.addDoc(fns.collection(db, 'notifications'), {
-                message: `Your results for ${dateKey} have been reviewed and confirmed as correct.`,
-                memberId,
-                createdAt: new Date().toISOString()
-            });
+            await createNotification(memberId, `Your results for ${dateKey} have been reviewed and confirmed as correct.`);
+            const m = assigneeMap[memberId];
+            logAction('Results validated', `${dateKey} for ${m ? m.name : memberId}`);
         }
 
         async function unvalidateResultsDay(memberId, dateKey) {
             const existing = (state.resultValidations || []).find(v => v.memberId === memberId && v.dateKey === dateKey);
             if (existing) {
                 await fns.deleteDoc(fns.doc(db, 'resultValidations', existing.id));
+                const m = assigneeMap[memberId];
+                logAction('Results unvalidated', `${dateKey} for ${m ? m.name : memberId}`);
             }
         }
 
@@ -5297,6 +5587,58 @@
             if (existing) {
                 await fns.deleteDoc(fns.doc(db, 'resultValidations', existing.id));
             }
+        }
+
+        // ===== AUDIT LOG (Settings sub-tab, Admin only) =====
+
+        function renderAuditLog() {
+            const list = document.getElementById('auditLogList');
+            const actionFilterEl = document.getElementById('auditActionFilter');
+            const actorFilterEl = document.getElementById('auditActorFilter');
+            if (!list || !actionFilterEl || !actorFilterEl) return;
+
+            const currentActionVal = actionFilterEl.value;
+            const currentActorVal = actorFilterEl.value;
+
+            const uniqueActions = [...new Set(state.auditLog.map(e => e.action))].sort();
+            actionFilterEl.innerHTML = '<option value="">All actions</option>' +
+                uniqueActions.map(a => `<option value="${a}">${a}</option>`).join('');
+            if (uniqueActions.includes(currentActionVal)) actionFilterEl.value = currentActionVal;
+
+            const uniqueActors = [...new Map(state.auditLog.map(e => [e.actorId || e.actorName, e.actorName])).entries()];
+            actorFilterEl.innerHTML = '<option value="">All members</option>' +
+                uniqueActors.map(([id, name]) => `<option value="${id}">${name}</option>`).join('');
+            if (uniqueActors.some(([id]) => id === currentActorVal)) actorFilterEl.value = currentActorVal;
+
+            let entries = [...state.auditLog].sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+
+            if (actionFilterEl.value) {
+                entries = entries.filter(e => e.action === actionFilterEl.value);
+            }
+            if (actorFilterEl.value) {
+                entries = entries.filter(e => (e.actorId || e.actorName) === actorFilterEl.value);
+            }
+
+            if (entries.length === 0) {
+                list.innerHTML = `<div class="empty-state"><i class="fas fa-clipboard-list"></i><p>No activity recorded yet.</p></div>`;
+                return;
+            }
+
+            list.innerHTML = entries.slice(0, 300).map(e => {
+                const time = e.createdAt ? new Date(e.createdAt).toLocaleString() : '';
+                return `
+                    <div class="audit-log-item">
+                        <div class="audit-log-header">
+                            <span class="audit-log-action">${e.action}</span>
+                            <span class="audit-log-time">${time}</span>
+                        </div>
+                        <div class="audit-log-details">
+                            <span class="audit-log-actor">${e.actorName || 'Unknown'}</span>
+                            ${e.details ? ' — ' + e.details : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
         }
 
     </script>
