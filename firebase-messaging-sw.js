@@ -15,6 +15,11 @@ const messaging = firebase.messaging();
 messaging.onBackgroundMessage((payload) => {
     const title = (payload.notification && payload.notification.title) || 'GEBLL';
     const body = (payload.notification && payload.notification.body) || (payload.data && payload.data.message) || '';
+    const badgeCount = parseInt((payload.data && payload.data.badge) || '0', 10);
+
+    if (badgeCount > 0 && 'setAppBadge' in navigator) {
+        navigator.setAppBadge(badgeCount).catch(() => {});
+    }
 
     self.registration.showNotification(title, {
         body,
@@ -25,6 +30,9 @@ messaging.onBackgroundMessage((payload) => {
 
 self.addEventListener('notificationclick', (event) => {
     event.notification.close();
+    if ('clearAppBadge' in navigator) {
+        navigator.clearAppBadge().catch(() => {});
+    }
     event.waitUntil(
         clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
             for (const client of clientList) {

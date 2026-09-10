@@ -4816,6 +4816,25 @@
             } else {
                 badge.classList.add('app-hidden');
             }
+
+            updateAppIconBadge(myUnread);
+        }
+
+        // Sets the number shown on the installed app's home screen icon.
+        // Only works when the app is installed to the home screen, and support
+        // varies by device — it silently does nothing where unsupported.
+        function updateAppIconBadge(count) {
+            try {
+                if ('setAppBadge' in navigator) {
+                    if (count > 0) {
+                        navigator.setAppBadge(count);
+                    } else if ('clearAppBadge' in navigator) {
+                        navigator.clearAppBadge();
+                    }
+                }
+            } catch (err) {
+                // Badging isn't available here — nothing to do.
+            }
         }
 
         async function markUnreadNotificationsAsRead() {
@@ -5180,13 +5199,28 @@
                 status: 'pending',
                 createdAt: new Date().toISOString()
             });
+
+            // Let the people who can approve it know straight away.
+            // A Lead's request must be approved by an Admin, so only Admins are told in that case.
+            const requesterIsLead = currentMember.role === 'Lead';
+            const approvers = state.team.filter(m => {
+                if (m.id === currentMember.id) return false;
+                if (requesterIsLead) return m.role === 'Admin';
+                return m.role === 'Admin' || m.role === 'Lead';
+            });
+
+            const typeLabel = requestType === 'vacation' ? 'vacation' : 'time off';
+            for (const approver of approvers) {
+                await createNotification(approver.id, `${currentMember.name} requested ${typeLabel} from ${startKey} to ${endKey}${workingDaysCounted ? ' (' + workingDaysCounted + ' day(s))' : ''}. Awaiting your approval.`);
+            }
+
             logAction(requestType === 'vacation' ? 'Vacation requested' : 'Time off requested', `${startKey} to ${endKey} by ${currentMember.name}`);
 
             document.getElementById('vacationStart').value = '';
             document.getElementById('vacationEnd').value = '';
             document.getElementById('vacationNote').value = '';
 
-            alert('Request submitted.');
+            alert('Request submitted. A Lead or Admin has been notified.');
         }
 
         function canApproveVacation(req) {
