@@ -2029,6 +2029,10 @@
                     <i class="fas fa-check"></i>
                     Assign
                 </button>
+                <button class="btn btn-success" id="publishSingleBtn" style="width:100%; justify-content:center; margin-top:8px; display:none;" onclick="togglePublishSingleAssignment()">
+                    <i class="fas fa-eye"></i>
+                    Publish this shift
+                </button>
                 <button class="btn btn-danger" id="unassignBtn" style="width:100%; justify-content:center; margin-top:8px; display:none;" onclick="confirmUnassign()">
                     <i class="fas fa-user-minus"></i>
                     Remove assignment
@@ -3985,10 +3989,35 @@
             return date >= weekStart && date <= weekEnd;
         }
 
+        // Notifies each affected member once, summarising how many shifts became visible.
+        async function notifyMembersAboutPublish(assignments, publish) {
+            const byMember = {};
+            assignments.forEach(a => {
+                if (!byMember[a.memberId]) byMember[a.memberId] = [];
+                byMember[a.memberId].push(a);
+            });
+
+            for (const memberId of Object.keys(byMember)) {
+                const list = byMember[memberId];
+                const dates = [...new Set(list.map(a => a.dateKey))].sort();
+                const dateSummary = dates.length <= 3
+                    ? dates.join(', ')
+                    : `${dates[0]} to ${dates[dates.length - 1]}`;
+
+                if (publish) {
+                    await createNotification(memberId, `Your rota has been published: ${list.length} shift(s) on ${dateSummary}.`);
+                } else {
+                    await createNotification(memberId, `${list.length} of your shift(s) on ${dateSummary} were withdrawn and are no longer published.`);
+                }
+            }
+        }
+
         async function publishByRange(rangeType, publish) {
-            const targets = state.assignments.filter(a => dateKeyInCurrentRange(a.dateKey, rangeType));
+            const targets = state.assignments.filter(a =>
+                dateKeyInCurrentRange(a.dateKey, rangeType) && !!a.published !== publish
+            );
             if (targets.length === 0) {
-                alert(`No assignments found in the current ${rangeType}.`);
+                alert(`No assignments to ${publish ? 'publish' : 'unpublish'} in the current ${rangeType}.`);
                 return;
             }
             const label = rangeType === 'month' ? 'this month' : 'this week';
@@ -3997,6 +4026,9 @@
             for (const a of targets) {
                 await fns.updateDoc(fns.doc(db, 'assignments', a.id), { published: publish });
             }
+
+            await notifyMembersAboutPublish(targets, publish);
+            await logAction(publish ? 'Rota published' : 'Rota unpublished', `${targets.length} assignment(s) for ${label}`);
         }
 
         function openPublishByUserModal() {
@@ -4016,9 +4048,9 @@
         async function publishByUser(publish) {
             const memberId = document.getElementById('publishUserSelect').value;
             if (!memberId) return;
-            const targets = state.assignments.filter(a => a.memberId === memberId);
+            const targets = state.assignments.filter(a => a.memberId === memberId && !!a.published !== publish);
             if (targets.length === 0) {
-                alert('This member has no assignments.');
+                alert(`This member has no assignments to ${publish ? 'publish' : 'unpublish'}.`);
                 return;
             }
             const m = assigneeMap[memberId];
@@ -4027,7 +4059,35 @@
             for (const a of targets) {
                 await fns.updateDoc(fns.doc(db, 'assignments', a.id), { published: publish });
             }
+
+            await notifyMembersAboutPublish(targets, publish);
+            await logAction(publish ? 'Rota published' : 'Rota unpublished', `${targets.length} assignment(s) for ${m ? m.name : memberId}`);
             closePublishByUserModal();
+        }
+
+        // Publishes (or withdraws) one single assignment, from inside the assign modal.
+        async function togglePublishSingleAssignment() {
+            if (!pendingAssign || !pendingAssign.assignmentId) return;
+            const existing = state.assignments.find(a => a.id === pendingAssign.assignmentId);
+            if (!existing) return;
+
+            const shift = state.shifts.find(s => s.id === existing.shiftId);
+            const loc = shift ? state.locations.find(l => l.id === shift.locationId) : null;
+            const locName = loc ? loc.name : '';
+            const newPublished = !existing.published;
+
+            await fns.updateDoc(fns.doc(db, 'assignments', pendingAssign.assignmentId), { published: newPublished });
+
+            const m = assigneeMap[existing.memberId];
+            if (newPublished) {
+                await createNotification(existing.memberId, `Your shift on ${existing.dateKey} (${shift ? shift.start + '-' + shift.end : ''}${locName ? ', ' + locName : ''}) has been published.`);
+            } else {
+                await createNotification(existing.memberId, `Your shift on ${existing.dateKey} (${shift ? shift.start + '-' + shift.end : ''}${locName ? ', ' + locName : ''}) was withdrawn and is no longer published.`);
+            }
+
+            await logAction(newPublished ? 'Shift published' : 'Shift unpublished', `${existing.dateKey} ${shift ? shift.start + '-' + shift.end : ''} (${locName}) for ${m ? m.name : existing.memberId}`);
+
+            closeAssignModal();
         }
 
         function renderSchedule() {
@@ -4189,6 +4249,23 @@
             const unassignBtn = document.getElementById('unassignBtn');
             unassignBtn.style.display = assignmentId ? 'block' : 'none';
 
+            const publishBtn = document.getElementById('publishSingleBtn');
+            if (assignmentId && existing) {
+                publishBtn.style.display = 'block';
+                if (existing.published) {
+                    publishBtn.innerHTML = '<i class="fas fa-eye-slash"></i> Unpublish this shift';
+                    publishBtn.className = 'btn btn-secondary';
+                } else {
+                    publishBtn.innerHTML = '<i class="fas fa-eye"></i> Publish this shift';
+                    publishBtn.className = 'btn btn-success';
+                }
+                publishBtn.style.width = '100%';
+                publishBtn.style.justifyContent = 'center';
+                publishBtn.style.marginTop = '8px';
+            } else {
+                publishBtn.style.display = 'none';
+            }
+
             const sickWrap = document.getElementById('sickLeaveWrap');
             const sickCheckbox = document.getElementById('assignSickLeave');
             if (assignmentId) {
@@ -4258,17 +4335,23 @@
             if (pendingAssign.assignmentId) {
                 const existing = state.assignments.find(a => a.id === pendingAssign.assignmentId);
                 const previousMemberId = existing ? existing.memberId : null;
+                const wasPublished = existing ? !!existing.published : false;
 
                 await fns.updateDoc(fns.doc(db, 'assignments', pendingAssign.assignmentId), { memberId, sickLeave });
 
                 if (previousMemberId && previousMemberId !== memberId) {
                     const newM = assigneeMap[memberId];
                     const oldM = assigneeMap[previousMemberId];
-                    await createNotification(previousMemberId, `Your shift on ${pendingAssign.dateKey} (${shift.start}-${shift.end}, ${locName}) was reassigned to ${newM ? newM.name : 'another member'}.`);
-                    await createNotification(memberId, `You were assigned a shift on ${pendingAssign.dateKey} (${shift.start}-${shift.end}, ${locName}), previously held by ${oldM ? oldM.name : 'another member'}.`);
+                    // Only tell people about it if the rota was already public.
+                    if (wasPublished) {
+                        await createNotification(previousMemberId, `Your shift on ${pendingAssign.dateKey} (${shift.start}-${shift.end}, ${locName}) was reassigned to ${newM ? newM.name : 'another member'}.`);
+                        await createNotification(memberId, `You were assigned a shift on ${pendingAssign.dateKey} (${shift.start}-${shift.end}, ${locName}), previously held by ${oldM ? oldM.name : 'another member'}.`);
+                    }
                     await logAction('Shift reassigned', `${pendingAssign.dateKey} ${shift.start}-${shift.end} (${locName}): from ${oldM ? oldM.name : previousMemberId} to ${newM ? newM.name : memberId}`);
                 } else if (previousMemberId === memberId) {
-                    await createNotification(memberId, `Your shift on ${pendingAssign.dateKey} (${shift.start}-${shift.end}, ${locName}) was updated.${sickLeave ? ' Marked as Sick Leave.' : ''}`);
+                    if (wasPublished) {
+                        await createNotification(memberId, `Your shift on ${pendingAssign.dateKey} (${shift.start}-${shift.end}, ${locName}) was updated.${sickLeave ? ' Marked as Sick Leave.' : ''}`);
+                    }
                     await logAction('Shift updated', `${pendingAssign.dateKey} ${shift.start}-${shift.end} (${locName}) for ${assigneeMap[memberId] ? assigneeMap[memberId].name : memberId}${sickLeave ? ' — marked Sick Leave' : ''}`);
                 }
             } else {
@@ -4280,7 +4363,8 @@
                     published: false
                 });
                 const newM = assigneeMap[memberId];
-                await createNotification(memberId, `You were assigned a new shift on ${pendingAssign.dateKey} (${shift.start}-${shift.end}, ${locName}).`);
+                // New assignments always start as a draft, so no notification here —
+                // the member is told when the rota is published.
                 await logAction('Shift assigned', `${pendingAssign.dateKey} ${shift.start}-${shift.end} (${locName}) to ${newM ? newM.name : memberId}`);
             }
 
@@ -4293,12 +4377,15 @@
                 const existing = state.assignments.find(a => a.id === pendingAssign.assignmentId);
                 const shift = state.shifts.find(s => s.id === pendingAssign.shiftId);
                 const loc = shift ? state.locations.find(l => l.id === shift.locationId) : null;
+                const wasPublished = existing ? !!existing.published : false;
 
                 await fns.deleteDoc(fns.doc(db, 'assignments', pendingAssign.assignmentId));
 
                 if (existing) {
                     const m = assigneeMap[existing.memberId];
-                    await createNotification(existing.memberId, `Your shift on ${pendingAssign.dateKey}${shift ? ' (' + shift.start + '-' + shift.end + ', ' + (loc ? loc.name : '') + ')' : ''} was removed.`);
+                    if (wasPublished) {
+                        await createNotification(existing.memberId, `Your shift on ${pendingAssign.dateKey}${shift ? ' (' + shift.start + '-' + shift.end + ', ' + (loc ? loc.name : '') + ')' : ''} was removed.`);
+                    }
                     await logAction('Shift unassigned', `${pendingAssign.dateKey}${shift ? ' ' + shift.start + '-' + shift.end : ''} — removed from ${m ? m.name : existing.memberId}`);
                 }
 
