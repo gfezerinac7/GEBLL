@@ -2611,6 +2611,7 @@
                 applyRolePermissions();
                 renderSchedule();
                 updateInboxUnreadBadge();
+                refreshPushButtonState();
 
                 if (currentMember && currentMember.mustChangePassword) {
                     showForcePasswordScreen();
@@ -3738,6 +3739,53 @@
             }
         }
 
+        async function refreshPushButtonState() {
+            const btn = document.getElementById('enablePushBtn');
+            if (!btn) return;
+
+            // Not supported at all (e.g. iOS Safari tab, not installed to home screen)
+            if (!('Notification' in window) || !('serviceWorker' in navigator)) {
+                btn.classList.add('app-hidden');
+                return;
+            }
+
+            const permission = Notification.permission;
+
+            // Permission already granted: make sure THIS device's token is registered,
+            // then hide the button. This covers reopening the app and new devices.
+            if (permission === 'granted' && currentMember) {
+                btn.classList.add('app-hidden');
+                try {
+                    const result = await window.enablePushNotifications();
+                    if (result.ok) {
+                        const existingTokens = currentMember.pushTokens || [];
+                        if (!existingTokens.includes(result.token)) {
+                            await fns.updateDoc(fns.doc(db, 'team', currentMember.id), {
+                                pushTokens: [...existingTokens, result.token]
+                            });
+                        }
+                    }
+                } catch (err) {
+                    console.error('Could not refresh push token', err);
+                }
+                return;
+            }
+
+            btn.classList.remove('app-hidden');
+            btn.disabled = false;
+
+            if (permission === 'denied') {
+                btn.innerHTML = '<i class="fas fa-bell-slash"></i> Notifications blocked';
+                btn.style.background = '#94a3b8';
+                btn.title = 'Notifications are blocked in your browser settings for this site.';
+                btn.disabled = true;
+            } else {
+                btn.innerHTML = '<i class="fas fa-bell"></i> Enable notifications';
+                btn.style.background = '#2563eb';
+                btn.title = '';
+            }
+        }
+
         async function handleEnablePush() {
             const btn = document.getElementById('enablePushBtn');
             btn.disabled = true;
@@ -3756,12 +3804,15 @@
                 }
                 btn.innerHTML = '<i class="fas fa-check"></i> Notifications on';
                 btn.style.background = '#22c55e';
+                setTimeout(() => refreshPushButtonState(), 2500);
             } else {
                 btn.disabled = false;
                 if (result.reason === 'denied') {
-                    btn.innerHTML = '<i class="fas fa-bell-slash"></i> Permission denied';
+                    btn.innerHTML = '<i class="fas fa-bell-slash"></i> Notifications blocked';
+                    btn.style.background = '#94a3b8';
+                    btn.disabled = true;
                 } else if (result.reason === 'unsupported') {
-                    btn.innerHTML = '<i class="fas fa-bell-slash"></i> Not supported here';
+                    btn.classList.add('app-hidden');
                 } else {
                     btn.innerHTML = '<i class="fas fa-bell"></i> Enable notifications';
                     alert('Could not enable notifications: ' + (result.error || result.reason));
