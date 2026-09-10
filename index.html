@@ -1596,6 +1596,9 @@
             <button class="subtab-btn" data-submodule="resultsValidation" onclick="switchSettingsSubtab('resultsValidation')">
                 <i class="fas fa-check-double"></i> Results Validation
             </button>
+            <button class="subtab-btn" data-submodule="swapHistory" onclick="switchSettingsSubtab('swapHistory')">
+                <i class="fas fa-clock-rotate-left"></i> Swap History
+            </button>
             <button class="subtab-btn" data-submodule="auditLog" onclick="switchSettingsSubtab('auditLog')">
                 <i class="fas fa-clipboard-list"></i> Audit Log
             </button>
@@ -2310,6 +2313,7 @@
                         <label class="module-check"><input type="checkbox" value="vacation"> Vacation</label>
                         <label class="module-check"><input type="checkbox" value="results"> Results</label>
                         <label class="module-check"><input type="checkbox" value="resultsValidation"> Results Validation</label>
+                        <label class="module-check"><input type="checkbox" value="swapHistory"> Swap History</label>
                         <label class="module-check"><input type="checkbox" value="auditLog"> Audit Log</label>
                     </div>
                 </div>
@@ -2364,6 +2368,34 @@
             </div>
         </div>
 
+        <!-- SUB-TAB SWAP HISTORY -->
+        <div id="swapHistory" class="content">
+            <div class="form-section">
+                <div class="section-title">
+                    <i class="fas fa-filter"></i>
+                    Filter
+                </div>
+                <div class="form-group">
+                    <label>Swap type</label>
+                    <select id="swapHistoryTypeFilter" onchange="renderSwapHistory()">
+                        <option value="">All types</option>
+                        <option value="shift">Shift swaps</option>
+                        <option value="dayoff">Day off swaps</option>
+                        <option value="reschedule">Shift reschedules</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="section-title">
+                <i class="fas fa-clock-rotate-left"></i>
+                Approved swaps
+            </div>
+            <p style="font-size:12px; color:#999; margin-bottom:12px;">
+                Deleting an approved swap reverts the shifts back to how they were before it was applied.
+            </p>
+            <div id="swapHistoryList"></div>
+        </div>
+
         <!-- SUB-TAB AUDIT LOG -->
         <div id="auditLog" class="content">
             <div class="form-section">
@@ -2411,6 +2443,7 @@
             { key: 'vacation', label: 'Vacation' },
             { key: 'results', label: 'Results' },
             { key: 'resultsValidation', label: 'Results Validation' },
+            { key: 'swapHistory', label: 'Swap History' },
             { key: 'auditLog', label: 'Audit Log' }
         ];
 
@@ -2621,6 +2654,7 @@
             const unsubSwapRequests = fns.onSnapshot(swapRequestsCol, (snapshot) => {
                 state.swapRequests = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
                 if (document.getElementById('inbox').classList.contains('active')) renderInbox();
+                if (document.getElementById('swapHistory').classList.contains('active')) renderSwapHistory();
             });
 
             const notificationsCol = fns.collection(db, 'notifications');
@@ -2674,8 +2708,8 @@
 
         async function ensureDefaultRoles() {
             const defaults = [
-                { name: 'Admin', modules: ['tasks', 'projects', 'team', 'locations', 'shifts', 'schedule', 'myrota', 'rotas', 'inbox', 'vacation', 'results', 'resultsValidation', 'auditLog', 'roles'], protected: true },
-                { name: 'Lead', modules: ['tasks', 'projects', 'team', 'locations', 'shifts', 'schedule', 'myrota', 'rotas', 'inbox', 'vacation', 'results', 'resultsValidation'], protected: false },
+                { name: 'Admin', modules: ['tasks', 'projects', 'team', 'locations', 'shifts', 'schedule', 'myrota', 'rotas', 'inbox', 'vacation', 'results', 'resultsValidation', 'swapHistory', 'auditLog', 'roles'], protected: true },
+                { name: 'Lead', modules: ['tasks', 'projects', 'team', 'locations', 'shifts', 'schedule', 'myrota', 'rotas', 'inbox', 'vacation', 'results', 'resultsValidation', 'swapHistory'], protected: false },
                 { name: 'Member', modules: ['myrota', 'rotas', 'inbox', 'vacation', 'results'], protected: false }
             ];
             for (const d of defaults) {
@@ -2688,13 +2722,13 @@
 
         function getUserRole() {
             if (currentUser && currentUser.uid === ADMIN_UID) {
-                return { name: 'Admin', modules: ['tasks', 'projects', 'team', 'locations', 'shifts', 'schedule', 'myrota', 'rotas', 'inbox', 'vacation', 'results', 'resultsValidation', 'auditLog', 'roles'], protected: true };
+                return { name: 'Admin', modules: ['tasks', 'projects', 'team', 'locations', 'shifts', 'schedule', 'myrota', 'rotas', 'inbox', 'vacation', 'results', 'resultsValidation', 'swapHistory', 'auditLog', 'roles'], protected: true };
             }
             if (!currentMember) return { name: 'Member', modules: [] };
             return state.roles.find(r => r.name === currentMember.role) || { name: currentMember.role, modules: [] };
         }
 
-        const SETTINGS_SUBMODULES = ['shifts', 'locations', 'team', 'roles', 'resultsValidation', 'auditLog'];
+        const SETTINGS_SUBMODULES = ['shifts', 'locations', 'team', 'roles', 'resultsValidation', 'swapHistory', 'auditLog'];
 
         function applyRolePermissions() {
             const role = getUserRole();
@@ -2782,6 +2816,7 @@
 
             if (sub === 'resultsValidation') initResultsValidation();
             if (sub === 'auditLog') renderAuditLog();
+            if (sub === 'swapHistory') renderSwapHistory();
         }
 
         function populateAssigneeSelects() {
@@ -4580,36 +4615,55 @@
             }
 
             const targetAssignment = state.assignments.find(a => a.id === pendingSwapRequest.targetAssignmentId);
-            if (!targetAssignment) return;
+            const requesterAssignment = state.assignments.find(a => a.id === myAssignmentId);
+            if (!targetAssignment || !requesterAssignment) return;
 
-            const requiresAdminOnly = currentMember.role === 'Lead' || targetAssignment.memberId &&
-                (assigneeMap[targetAssignment.memberId] && assigneeMap[targetAssignment.memberId].role === 'Lead');
+            const targetMember = state.team.find(m => m.id === targetAssignment.memberId);
+            const targetIsAdmin = targetMember && targetMember.role === 'Admin';
 
             await fns.addDoc(fns.collection(db, 'swapRequests'), {
                 requesterId: currentMember.id,
+                requesterRole: currentMember.role,
                 requesterAssignmentId: myAssignmentId,
+                requesterDateKey: requesterAssignment.dateKey,
                 targetAssignmentId: pendingSwapRequest.targetAssignmentId,
                 targetMemberId: targetAssignment.memberId,
+                targetRole: targetMember ? targetMember.role : 'Member',
+                targetDateKey: targetAssignment.dateKey,
                 message,
-                status: 'pending',
-                needsAdminOnly: !!requiresAdminOnly,
+                status: 'pending_recipient',
+                movedAssignments: [],
                 createdAt: new Date().toISOString()
             });
 
-            await createNotification(targetAssignment.memberId, `${currentMember.name} requested to swap shifts with you on ${targetAssignment.dateKey}. Check Inbox to review.`);
-            logAction('Shift swap requested', `${currentMember.name} → ${assigneeMap[targetAssignment.memberId] ? assigneeMap[targetAssignment.memberId].name : targetAssignment.memberId} on ${targetAssignment.dateKey}`);
+            await createNotification(targetAssignment.memberId, `${currentMember.name} requested to swap shifts with you (${requesterAssignment.dateKey} ↔ ${targetAssignment.dateKey}). Check Inbox to accept or decline.`);
+            logAction('Shift swap requested', `${currentMember.name} → ${targetMember ? targetMember.name : targetAssignment.memberId}: ${requesterAssignment.dateKey} ↔ ${targetAssignment.dateKey}`);
 
             closeRequestSwapModal();
-            alert('Swap request sent. You will be notified once it is reviewed.');
+            alert('Swap request sent to your colleague. Once they accept, a Lead or Admin will approve it.');
         }
 
         // ===== INBOX =====
 
+        // Step 1: only the person who received the request can accept/decline (their consent).
+        function canRespondAsRecipient(req) {
+            return currentMember && req.status === 'pending_recipient' && req.targetMemberId === currentMember.id;
+        }
+
+        // Step 2: after consent, a Lead or Admin approves so the swap is actually applied.
+        // If the target is an Admin, their acceptance already counts as final approval,
+        // so the request never reaches this stage.
         function canApproveSwap(req) {
+            if (req.status !== 'pending_approval') return false;
             const role = getUserRole();
             if (role.name === 'Admin') return true;
-            if (req.needsAdminOnly) return false;
-            return role.name === 'Lead';
+            if (role.name !== 'Lead') return false;
+            // A Lead cannot give final approval when either side of the swap is a Lead —
+            // that case needs the Admin.
+            if (req.requesterRole === 'Lead' || req.targetRole === 'Lead') return false;
+            // A Lead also cannot approve a swap they are part of.
+            if (currentMember && (req.requesterId === currentMember.id || req.targetMemberId === currentMember.id)) return false;
+            return true;
         }
 
         function updateInboxUnreadBadge() {
@@ -4642,10 +4696,10 @@
             if (!swapList || !notifList) return;
 
             const relevantRequests = state.swapRequests.filter(r => {
-                if (r.status !== 'pending') return false;
-                const role = getUserRole();
-                if (role.name === 'Admin' || role.name === 'Lead') return canApproveSwap(r);
-                return currentMember && (r.requesterId === currentMember.id || r.targetMemberId === currentMember.id);
+                if (r.status !== 'pending_recipient' && r.status !== 'pending_approval') return false;
+                if (!currentMember) return false;
+                if (r.requesterId === currentMember.id || r.targetMemberId === currentMember.id) return true;
+                return canApproveSwap(r);
             });
 
             const relevantDayOffRequests = state.dayOffSwapRequests.filter(r => {
@@ -4668,25 +4722,42 @@
                 swapHtml += relevantRequests.map(req => {
                     const requester = assigneeMap[req.requesterId];
                     const targetMember = assigneeMap[req.targetMemberId];
-                    const targetAssignment = state.assignments.find(a => a.id === req.targetAssignmentId);
-                    const targetShift = targetAssignment ? state.shifts.find(s => s.id === targetAssignment.shiftId) : null;
-                    const canAct = canApproveSwap(req);
+                    const isRecipientStep = req.status === 'pending_recipient';
+                    const iAmRecipient = canRespondAsRecipient(req);
+                    const iCanApprove = canApproveSwap(req);
+
+                    let actionsHtml;
+                    if (iAmRecipient) {
+                        actionsHtml = `
+                            <div class="card-actions">
+                                <button class="btn btn-success" onclick="respondSwapAsRecipient('${req.id}', true)"><i class="fas fa-check"></i> Accept</button>
+                                <button class="btn btn-danger" onclick="respondSwapAsRecipient('${req.id}', false)"><i class="fas fa-times"></i> Decline</button>
+                            </div>
+                        `;
+                    } else if (iCanApprove) {
+                        actionsHtml = `
+                            <div class="card-actions">
+                                <button class="btn btn-success" onclick="respondSwapRequest('${req.id}', true)"><i class="fas fa-check"></i> Approve</button>
+                                <button class="btn btn-danger" onclick="respondSwapRequest('${req.id}', false)"><i class="fas fa-times"></i> Decline</button>
+                            </div>
+                        `;
+                    } else if (isRecipientStep) {
+                        actionsHtml = `<p style="font-size:12px; color:#999;">Waiting for ${targetMember ? targetMember.name : 'your colleague'} to accept.</p>`;
+                    } else {
+                        actionsHtml = `<p style="font-size:12px; color:#999;">Accepted — waiting for Lead or Admin approval.</p>`;
+                    }
 
                     return `
                         <div class="inbox-item unread">
                             <div class="inbox-item-header">
-                                <strong style="font-size:14px;">${requester ? requester.name : 'Someone'} wants ${targetMember ? targetMember.name : 'a member'}'s shift</strong>
+                                <strong style="font-size:14px;">${requester ? requester.name : 'Someone'} ↔ ${targetMember ? targetMember.name : 'a member'} shift swap</strong>
+                                <span class="vr-status ${isRecipientStep ? 'pending' : 'approved'}">${isRecipientStep ? 'Awaiting colleague' : 'Awaiting approval'}</span>
                             </div>
                             <p style="font-size:13px; color:#666; margin-bottom:8px;">
-                                ${targetShift ? targetShift.start + '-' + targetShift.end : ''} on ${targetAssignment ? targetAssignment.dateKey : ''}
+                                Dates: ${req.requesterDateKey || '?'} ↔ ${req.targetDateKey || '?'}
                                 ${req.message ? `<br>"${req.message}"` : ''}
                             </p>
-                            ${canAct ? `
-                                <div class="card-actions">
-                                    <button class="btn btn-success" onclick="respondSwapRequest('${req.id}', true)"><i class="fas fa-check"></i> Approve</button>
-                                    <button class="btn btn-danger" onclick="respondSwapRequest('${req.id}', false)"><i class="fas fa-times"></i> Decline</button>
-                                </div>
-                            ` : `<p style="font-size:12px; color:#999;">Waiting for approval.</p>`}
+                            ${actionsHtml}
                         </div>
                     `;
                 }).join('');
@@ -4758,41 +4829,90 @@
                 `).join('');
         }
 
-        async function respondSwapRequest(requestId, approve) {
+        // Step 1 — the recipient gives (or refuses) their consent.
+        async function respondSwapAsRecipient(requestId, accept) {
             const req = state.swapRequests.find(r => r.id === requestId);
-            if (!req) return;
+            if (!req || !currentMember) return;
 
-            if (approve) {
-                const targetAssignment = state.assignments.find(a => a.id === req.targetAssignmentId);
-                const requesterAssignment = state.assignments.find(a => a.id === req.requesterAssignmentId);
+            const requesterName = assigneeMap[req.requesterId] ? assigneeMap[req.requesterId].name : req.requesterId;
 
-                if (targetAssignment && requesterAssignment) {
-                    const targetDateKey = targetAssignment.dateKey;
-                    const requesterDateKey = requesterAssignment.dateKey;
-
-                    const allTargetDayAssignments = state.assignments.filter(a =>
-                        a.memberId === req.targetMemberId && a.dateKey === targetDateKey
-                    );
-                    const allRequesterDayAssignments = state.assignments.filter(a =>
-                        a.memberId === req.requesterId && a.dateKey === requesterDateKey
-                    );
-
-                    for (const a of allTargetDayAssignments) {
-                        await fns.updateDoc(fns.doc(db, 'assignments', a.id), { memberId: req.requesterId });
-                    }
-                    for (const a of allRequesterDayAssignments) {
-                        await fns.updateDoc(fns.doc(db, 'assignments', a.id), { memberId: req.targetMemberId });
-                    }
-                }
-                await createNotification(req.requesterId, `Your shift swap request was approved. All shifts for that day were exchanged.`);
-                await createNotification(req.targetMemberId, `A shift swap involving your schedule was approved and applied.`);
-                logAction('Shift swap approved', `${assigneeMap[req.requesterId] ? assigneeMap[req.requesterId].name : req.requesterId} ↔ ${assigneeMap[req.targetMemberId] ? assigneeMap[req.targetMemberId].name : req.targetMemberId}`);
-            } else {
-                await createNotification(req.requesterId, `Your shift swap request was declined.`);
-                logAction('Shift swap declined', `${assigneeMap[req.requesterId] ? assigneeMap[req.requesterId].name : req.requesterId} → ${assigneeMap[req.targetMemberId] ? assigneeMap[req.targetMemberId].name : req.targetMemberId}`);
+            if (!accept) {
+                await fns.updateDoc(fns.doc(db, 'swapRequests', requestId), { status: 'declined' });
+                await createNotification(req.requesterId, `${currentMember.name} declined your shift swap request.`);
+                logAction('Shift swap declined by colleague', `${currentMember.name} declined ${requesterName}'s request`);
+                return;
             }
 
-            await fns.updateDoc(fns.doc(db, 'swapRequests', requestId), { status: approve ? 'approved' : 'declined' });
+            // If the person accepting is an Admin, their acceptance is also the final approval.
+            if (currentMember.role === 'Admin') {
+                await executeSwap(req, requestId, `${currentMember.name} (Admin)`);
+                return;
+            }
+
+            await fns.updateDoc(fns.doc(db, 'swapRequests', requestId), {
+                status: 'pending_approval',
+                recipientAcceptedAt: new Date().toISOString()
+            });
+
+            await createNotification(req.requesterId, `${currentMember.name} accepted your swap request. It now needs approval from a Lead or Admin.`);
+
+            const approvers = state.team.filter(m =>
+                (m.role === 'Admin' || m.role === 'Lead') &&
+                m.id !== req.requesterId && m.id !== req.targetMemberId
+            );
+            for (const approver of approvers) {
+                await createNotification(approver.id, `A shift swap between ${requesterName} and ${currentMember.name} is awaiting your approval.`);
+            }
+
+            logAction('Shift swap accepted by colleague', `${currentMember.name} accepted ${requesterName}'s request — awaiting approval`);
+        }
+
+        // Step 2 — a Lead or Admin approves, and only then are the shifts actually exchanged.
+        async function respondSwapRequest(requestId, approve) {
+            const req = state.swapRequests.find(r => r.id === requestId);
+            if (!req || !currentMember) return;
+
+            const requesterName = assigneeMap[req.requesterId] ? assigneeMap[req.requesterId].name : req.requesterId;
+            const targetName = assigneeMap[req.targetMemberId] ? assigneeMap[req.targetMemberId].name : req.targetMemberId;
+
+            if (!approve) {
+                await fns.updateDoc(fns.doc(db, 'swapRequests', requestId), { status: 'declined' });
+                await createNotification(req.requesterId, `Your shift swap request was declined by management.`);
+                await createNotification(req.targetMemberId, `The shift swap you accepted was declined by management.`);
+                logAction('Shift swap declined', `${requesterName} ↔ ${targetName}`);
+                return;
+            }
+
+            await executeSwap(req, requestId, currentMember.name);
+        }
+
+        // Applies the swap: every shift both members hold on either of the two dates
+        // involved is exchanged between them. No other member is ever affected.
+        async function executeSwap(req, requestId, approvedByName) {
+            const requesterName = assigneeMap[req.requesterId] ? assigneeMap[req.requesterId].name : req.requesterId;
+            const targetName = assigneeMap[req.targetMemberId] ? assigneeMap[req.targetMemberId].name : req.targetMemberId;
+
+            const targetAssignment = state.assignments.find(a => a.id === req.targetAssignmentId);
+            const requesterAssignment = state.assignments.find(a => a.id === req.requesterAssignmentId);
+
+            const dateKeys = [...new Set([
+                req.requesterDateKey || (requesterAssignment ? requesterAssignment.dateKey : null),
+                req.targetDateKey || (targetAssignment ? targetAssignment.dateKey : null)
+            ].filter(Boolean))];
+
+            const moved = await swapAllAssignmentsAcrossDates(req.requesterId, req.targetMemberId, dateKeys);
+
+            await fns.updateDoc(fns.doc(db, 'swapRequests', requestId), {
+                status: 'approved',
+                movedAssignments: moved,
+                swappedDateKeys: dateKeys,
+                approvedBy: approvedByName,
+                approvedAt: new Date().toISOString()
+            });
+
+            await createNotification(req.requesterId, `Your shift swap was approved and applied (${dateKeys.join(' and ')}).`);
+            await createNotification(req.targetMemberId, `The shift swap you accepted was approved and applied (${dateKeys.join(' and ')}).`);
+            logAction('Shift swap approved', `${requesterName} ↔ ${targetName} on ${dateKeys.join(', ')} — approved by ${approvedByName}`);
         }
 
         // ===== VACATION (Fase E) =====
@@ -5200,6 +5320,40 @@
             }
             for (const a of bAssignments) {
                 await fns.updateDoc(fns.doc(db, 'assignments', a.id), { memberId: memberAId });
+            }
+        }
+
+        // Swaps every shift the two members hold across ALL the dates involved in the request.
+        // Only the requester and the target are ever touched — no third member is affected.
+        // Returns a snapshot of what moved, so the swap can be reverted later.
+        async function swapAllAssignmentsAcrossDates(memberAId, memberBId, dateKeys) {
+            const moved = [];
+
+            const aAssignments = state.assignments.filter(a =>
+                a.memberId === memberAId && dateKeys.includes(a.dateKey)
+            );
+            const bAssignments = state.assignments.filter(a =>
+                a.memberId === memberBId && dateKeys.includes(a.dateKey)
+            );
+
+            for (const a of aAssignments) {
+                moved.push({ assignmentId: a.id, from: memberAId, to: memberBId });
+                await fns.updateDoc(fns.doc(db, 'assignments', a.id), { memberId: memberBId });
+            }
+            for (const b of bAssignments) {
+                moved.push({ assignmentId: b.id, from: memberBId, to: memberAId });
+                await fns.updateDoc(fns.doc(db, 'assignments', b.id), { memberId: memberAId });
+            }
+
+            return moved;
+        }
+
+        async function revertMovedAssignments(moved) {
+            for (const m of (moved || [])) {
+                const stillExists = state.assignments.some(a => a.id === m.assignmentId);
+                if (stillExists) {
+                    await fns.updateDoc(fns.doc(db, 'assignments', m.assignmentId), { memberId: m.from });
+                }
             }
         }
 
@@ -5639,6 +5793,138 @@
                     </div>
                 `;
             }).join('');
+        }
+
+        // ===== SWAP HISTORY (Settings sub-tab, Lead/Admin only) =====
+
+        function getAllApprovedSwaps() {
+            const items = [];
+
+            state.swapRequests.filter(r => r.status === 'approved').forEach(r => {
+                const a = assigneeMap[r.requesterId];
+                const b = assigneeMap[r.targetMemberId];
+                items.push({
+                    id: r.id,
+                    type: 'shift',
+                    typeLabel: 'Shift swap',
+                    who: `${a ? a.name : r.requesterId} ↔ ${b ? b.name : r.targetMemberId}`,
+                    detail: `Dates: ${(r.swappedDateKeys || [r.requesterDateKey, r.targetDateKey].filter(Boolean)).join(' ↔ ')}`,
+                    approvedAt: r.approvedAt || r.createdAt,
+                    approvedBy: r.approvedBy || ''
+                });
+            });
+
+            state.dayOffSwapRequests.filter(r => r.status === 'approved').forEach(r => {
+                const a = assigneeMap[r.requesterId];
+                const b = assigneeMap[r.targetMemberId];
+                items.push({
+                    id: r.id,
+                    type: 'dayoff',
+                    typeLabel: 'Day off swap',
+                    who: `${a ? a.name : r.requesterId} ↔ ${b ? b.name : r.targetMemberId}`,
+                    detail: `Took ${r.takeDateKey} • Returns ${r.returnDateKey}${r.swapBackDone ? ' (swap-back applied)' : ''}`,
+                    approvedAt: r.createdAt
+                });
+            });
+
+            state.rescheduleRequests.filter(r => r.status === 'approved').forEach(r => {
+                const m = assigneeMap[r.memberId];
+                items.push({
+                    id: r.id,
+                    type: 'reschedule',
+                    typeLabel: 'Shift reschedule',
+                    who: m ? m.name : r.memberId,
+                    detail: `${r.originalDateKey} → ${r.newDateKey}`,
+                    approvedAt: r.createdAt
+                });
+            });
+
+            return items.sort((a, b) => (b.approvedAt || '').localeCompare(a.approvedAt || ''));
+        }
+
+        function renderSwapHistory() {
+            const list = document.getElementById('swapHistoryList');
+            const typeFilter = document.getElementById('swapHistoryTypeFilter');
+            if (!list || !typeFilter) return;
+
+            let items = getAllApprovedSwaps();
+            if (typeFilter.value) {
+                items = items.filter(i => i.type === typeFilter.value);
+            }
+
+            if (items.length === 0) {
+                list.innerHTML = `<div class="empty-state"><i class="fas fa-clock-rotate-left"></i><p>No approved swaps yet.</p></div>`;
+                return;
+            }
+
+            list.innerHTML = items.map(item => {
+                const when = item.approvedAt ? new Date(item.approvedAt).toLocaleString() : '';
+                return `
+                    <div class="vacation-request-item">
+                        <div class="vr-header">
+                            <strong style="font-size:14px;">${item.typeLabel}</strong>
+                            <span class="vr-status approved">Approved</span>
+                        </div>
+                        <p style="font-size:13px; color:#333; margin:0 0 4px;">${item.who}</p>
+                        <p style="font-size:12px; color:#666; margin:0 0 4px;">${item.detail}</p>
+                        <p style="font-size:11px; color:#999; margin:0 0 8px;">
+                            ${when}${item.approvedBy ? ' • approved by ' + item.approvedBy : ''}
+                        </p>
+                        <div class="card-actions">
+                            <button class="btn btn-danger" onclick="deleteSwapFromHistory('${item.type}','${item.id}')">
+                                <i class="fas fa-rotate-left"></i> Revert &amp; delete
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function deleteSwapFromHistory(type, id) {
+            if (!confirm('Revert this swap and delete it from history? The affected shifts will go back to how they were before.')) return;
+
+            if (type === 'shift') {
+                const req = state.swapRequests.find(r => r.id === id);
+                if (!req) return;
+                await revertMovedAssignments(req.movedAssignments);
+                await fns.deleteDoc(fns.doc(db, 'swapRequests', id));
+
+                const a = assigneeMap[req.requesterId];
+                const b = assigneeMap[req.targetMemberId];
+                await createNotification(req.requesterId, `A previously approved shift swap was reverted by management.`);
+                await createNotification(req.targetMemberId, `A previously approved shift swap was reverted by management.`);
+                logAction('Shift swap reverted', `${a ? a.name : req.requesterId} ↔ ${b ? b.name : req.targetMemberId}`);
+
+            } else if (type === 'dayoff') {
+                const req = state.dayOffSwapRequests.find(r => r.id === id);
+                if (!req) return;
+
+                await swapDayAssignments(req.requesterId, req.targetMemberId, req.takeDateKey);
+                if (req.swapBackDone) {
+                    await swapDayAssignments(req.requesterId, req.targetMemberId, req.returnDateKey);
+                }
+                await fns.deleteDoc(fns.doc(db, 'dayOffSwapRequests', id));
+
+                await createNotification(req.requesterId, `A previously approved day off swap was reverted by management.`);
+                await createNotification(req.targetMemberId, `A previously approved day off swap was reverted by management.`);
+                logAction('Day off swap reverted', `${req.takeDateKey}${req.swapBackDone ? ' and ' + req.returnDateKey : ''}`);
+
+            } else if (type === 'reschedule') {
+                const req = state.rescheduleRequests.find(r => r.id === id);
+                if (!req) return;
+
+                const stillExists = state.assignments.some(a => a.id === req.assignmentId);
+                if (stillExists) {
+                    await fns.updateDoc(fns.doc(db, 'assignments', req.assignmentId), { dateKey: req.originalDateKey });
+                }
+                await fns.deleteDoc(fns.doc(db, 'rescheduleRequests', id));
+
+                const m = assigneeMap[req.memberId];
+                await createNotification(req.memberId, `Your shift was moved back to ${req.originalDateKey} by management.`);
+                logAction('Shift reschedule reverted', `${m ? m.name : req.memberId}: ${req.newDateKey} → ${req.originalDateKey}`);
+            }
+
+            renderSwapHistory();
         }
 
     </script>
