@@ -1601,6 +1601,12 @@
             <button class="subtab-btn" data-submodule="roles" onclick="switchSettingsSubtab('roles')">
                 <i class="fas fa-user-shield"></i> Roles
             </button>
+            <button class="subtab-btn" data-submodule="ccySettings" onclick="switchSettingsSubtab('ccySettings')">
+                <i class="fas fa-coins"></i> CCY Settings
+            </button>
+            <button class="subtab-btn" data-submodule="bonusSettings" onclick="switchSettingsSubtab('bonusSettings')">
+                <i class="fas fa-trophy"></i> Bonus Settings
+            </button>
             <button class="subtab-btn" data-submodule="resultsValidation" onclick="switchSettingsSubtab('resultsValidation')">
                 <i class="fas fa-check-double"></i> Results Validation
             </button>
@@ -2325,6 +2331,8 @@
                         <label class="module-check"><input type="checkbox" value="vacation"> Vacation</label>
                         <label class="module-check"><input type="checkbox" value="results"> Results</label>
                         <label class="module-check"><input type="checkbox" value="resultsValidation"> Results Validation</label>
+                        <label class="module-check"><input type="checkbox" value="ccySettings"> CCY Settings</label>
+                        <label class="module-check"><input type="checkbox" value="bonusSettings"> Bonus Settings</label>
                         <label class="module-check"><input type="checkbox" value="swapHistory"> Swap History</label>
                         <label class="module-check"><input type="checkbox" value="auditLog"> Audit Log</label>
                     </div>
@@ -2378,6 +2386,210 @@
                 </div>
                 <div id="rvDayDetailLines"></div>
             </div>
+        </div>
+
+        <!-- SUB-TAB CCY SETTINGS -->
+        <div id="ccySettings" class="content">
+            <div class="settings-subtabs" style="background:#f8fafc; border-radius:10px; margin-bottom:18px;">
+                <button class="subtab-btn active" data-ccytab="currencies" onclick="switchCcyTab('currencies')">
+                    <i class="fas fa-coins"></i> Currencies
+                </button>
+                <button class="subtab-btn" data-ccytab="discounts" onclick="switchCcyTab('discounts')">
+                    <i class="fas fa-percent"></i> Discounts
+                </button>
+            </div>
+
+            <div id="ccyTabCurrencies">
+                <div class="form-section">
+                    <div class="section-title">
+                        <i class="fas fa-star"></i>
+                        Base settings
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Reference currency (ISO)</label>
+                            <input type="text" id="baseCurrencyInput" placeholder="DKK" maxlength="5" style="text-transform:uppercase;">
+                        </div>
+                        <div class="form-group">
+                            <label>Service fee amount</label>
+                            <input type="number" id="serviceFeeInput" step="0.01" min="0" placeholder="0.00">
+                        </div>
+                    </div>
+                    <button class="btn" onclick="saveBaseCcySettings()">
+                        <i class="fas fa-check"></i>
+                        Save base settings
+                    </button>
+                </div>
+
+                <div class="form-section">
+                    <div class="section-title">
+                        <i class="fas fa-plus-circle"></i>
+                        Add currency
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>ISO code</label>
+                            <input type="text" id="ccyIsoInput" placeholder="EUR" maxlength="5" style="text-transform:uppercase;">
+                        </div>
+                        <div class="form-group">
+                            <label>Rate (vs reference)</label>
+                            <input type="number" id="ccyRateInput" step="0.0001" placeholder="7.4500">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Margin (%)</label>
+                        <input type="number" id="ccyMarginInput" step="0.01" min="0" max="100" placeholder="5.00">
+                    </div>
+                    <button class="btn" onclick="addCurrency()">
+                        <i class="fas fa-plus"></i>
+                        Add currency
+                    </button>
+                </div>
+
+                <div class="section-title">
+                    <i class="fas fa-coins"></i>
+                    Currencies
+                </div>
+                <div id="currencyList"></div>
+            </div>
+
+            <div id="ccyTabDiscounts" class="app-hidden">
+                <div class="form-section">
+                    <div class="section-title">
+                        <i class="fas fa-plus-circle"></i>
+                        Add discount code
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Code</label>
+                            <input type="text" id="discountCodeInput" placeholder="STAFF10" style="text-transform:uppercase;">
+                        </div>
+                        <div class="form-group">
+                            <label>Discount (%)</label>
+                            <input type="number" id="discountPercentInput" step="0.01" min="0" max="100" placeholder="10.00">
+                        </div>
+                    </div>
+                    <button class="btn" onclick="addDiscountCode()">
+                        <i class="fas fa-plus"></i>
+                        Add discount code
+                    </button>
+                </div>
+
+                <div class="section-title">
+                    <i class="fas fa-percent"></i>
+                    Discount codes
+                </div>
+                <div id="discountCodeList"></div>
+            </div>
+        </div>
+
+        <div id="editCurrencyModalOverlay" class="modal-overlay" onclick="closeEditCurrencyModalOutside(event)">
+            <div class="modal-box">
+                <div class="modal-header">
+                    <div class="section-title" style="margin-bottom:0;">
+                        <i class="fas fa-pen"></i>
+                        Edit Currency
+                    </div>
+                    <button class="modal-close" onclick="closeEditCurrencyModal()"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="form-group">
+                    <label>ISO code</label>
+                    <input type="text" id="editCcyIso" maxlength="5" style="text-transform:uppercase;">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Rate</label>
+                        <input type="number" id="editCcyRate" step="0.0001">
+                    </div>
+                    <div class="form-group">
+                        <label>Margin (%)</label>
+                        <input type="number" id="editCcyMargin" step="0.01" min="0" max="100">
+                    </div>
+                </div>
+                <button class="btn" style="width:100%; justify-content:center;" onclick="saveEditCurrency()">
+                    <i class="fas fa-check"></i>
+                    Save changes
+                </button>
+            </div>
+        </div>
+
+        <!-- SUB-TAB BONUS SETTINGS -->
+        <div id="bonusSettings" class="content">
+            <div class="form-section">
+                <div class="section-title">
+                    <i class="fas fa-calendar"></i>
+                    Select period
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Month</label>
+                        <select id="bonusMonthSelect" onchange="loadBonusConfig()"></select>
+                    </div>
+                    <div class="form-group">
+                        <label>Year</label>
+                        <select id="bonusYearSelect" onchange="loadBonusConfig()"></select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <div class="section-title">
+                    <i class="fas fa-bullseye"></i>
+                    Targets
+                </div>
+                <p style="font-size:12px; color:#999; margin-bottom:14px;">
+                    Tick the metrics that count towards the bonus and set their target.
+                    Weights are used both for the Index and for overall achievement.
+                </p>
+                <div id="bonusTargetsList"></div>
+            </div>
+
+            <div class="form-section">
+                <div class="section-title">
+                    <i class="fas fa-sliders"></i>
+                    Bonus mode
+                </div>
+                <div class="form-group">
+                    <label>How are the selected targets treated?</label>
+                    <select id="bonusModeSelect">
+                        <option value="combined">Combined — one bonus, weighted across all selected targets</option>
+                        <option value="independent">Independent — each target pays its own bonus</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <div class="section-title">
+                    <i class="fas fa-layer-group"></i>
+                    Bonus tiers
+                </div>
+                <p style="font-size:12px; color:#999; margin-bottom:14px;">
+                    Define what is paid at each achievement level.
+                </p>
+                <div class="results-entry-row results-entry-header" style="grid-template-columns: 1fr 1fr 1fr auto;">
+                    <div>From (%)</div>
+                    <div>Type</div>
+                    <div>Value</div>
+                    <div></div>
+                </div>
+                <div class="results-entry-row" style="grid-template-columns: 1fr 1fr 1fr auto;">
+                    <input type="number" id="tierFromInput" step="1" min="0" placeholder="80">
+                    <select id="tierTypeInput">
+                        <option value="fixed">Fixed</option>
+                        <option value="percent">% of</option>
+                    </select>
+                    <input type="number" id="tierValueInput" step="0.01" min="0" placeholder="500">
+                    <button class="btn" style="padding:8px 12px;" onclick="addBonusTier()">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </div>
+                <div id="bonusTierList" style="margin-top:12px;"></div>
+            </div>
+
+            <button class="btn" style="width:100%; justify-content:center;" onclick="saveBonusConfig()">
+                <i class="fas fa-check"></i>
+                Save bonus settings for this month
+            </button>
         </div>
 
         <!-- SUB-TAB SWAP HISTORY -->
@@ -2438,7 +2650,7 @@
             <div id="auditLogList"></div>
         </div>
 
-        <div class="app-version">GEBLL v-0.33</div>
+        <div class="app-version">GEBLL v-0.34</div>
     </div>
 
 
@@ -2457,6 +2669,8 @@
             { key: 'vacation', label: 'Vacation' },
             { key: 'results', label: 'Results' },
             { key: 'resultsValidation', label: 'Results Validation' },
+            { key: 'ccySettings', label: 'CCY Settings' },
+            { key: 'bonusSettings', label: 'Bonus Settings' },
             { key: 'swapHistory', label: 'Swap History' },
             { key: 'auditLog', label: 'Audit Log' }
         ];
@@ -2476,7 +2690,11 @@
             resultLines: [],
             resultValidations: [],
             rescheduleRequests: [],
-            auditLog: []
+            auditLog: [],
+            currencies: [],
+            discountCodes: [],
+            appConfig: null,
+            bonusConfigs: []
         };
 
         let scheduleView = 'daily';
@@ -2718,12 +2936,37 @@
                 if (document.getElementById('auditLog').classList.contains('active')) renderAuditLog();
             });
 
-            unsubscribers = [unsubTasks, unsubProjects, unsubTeam, unsubRoles, unsubLocations, unsubShifts, unsubAssignments, unsubSwapRequests, unsubNotifications, unsubVacationRequests, unsubDayOffSwapRequests, unsubResultLines, unsubResultValidations, unsubRescheduleRequests, unsubAuditLog];
+            const currenciesCol = fns.collection(db, 'currencies');
+            const unsubCurrencies = fns.onSnapshot(currenciesCol, (snapshot) => {
+                state.currencies = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                if (document.getElementById('ccySettings').classList.contains('active')) renderCurrencies();
+            });
+
+            const discountCodesCol = fns.collection(db, 'discountCodes');
+            const unsubDiscountCodes = fns.onSnapshot(discountCodesCol, (snapshot) => {
+                state.discountCodes = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                if (document.getElementById('ccySettings').classList.contains('active')) renderDiscountCodes();
+            });
+
+            const appConfigCol = fns.collection(db, 'appConfig');
+            const unsubAppConfig = fns.onSnapshot(appConfigCol, (snapshot) => {
+                const docs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                state.appConfig = docs.find(d => d.id === 'main') || null;
+                if (document.getElementById('ccySettings').classList.contains('active')) loadBaseCcySettings();
+            });
+
+            const bonusConfigsCol = fns.collection(db, 'bonusConfigs');
+            const unsubBonusConfigs = fns.onSnapshot(bonusConfigsCol, (snapshot) => {
+                state.bonusConfigs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                if (document.getElementById('bonusSettings').classList.contains('active')) loadBonusConfig();
+            });
+
+            unsubscribers = [unsubTasks, unsubProjects, unsubTeam, unsubRoles, unsubLocations, unsubShifts, unsubAssignments, unsubSwapRequests, unsubNotifications, unsubVacationRequests, unsubDayOffSwapRequests, unsubResultLines, unsubResultValidations, unsubRescheduleRequests, unsubAuditLog, unsubCurrencies, unsubDiscountCodes, unsubAppConfig, unsubBonusConfigs];
         }
 
         async function ensureDefaultRoles() {
             const defaults = [
-                { name: 'Admin', modules: ['tasks', 'projects', 'team', 'locations', 'shifts', 'schedule', 'myrota', 'rotas', 'inbox', 'vacation', 'results', 'resultsValidation', 'swapHistory', 'auditLog', 'roles'], protected: true },
+                { name: 'Admin', modules: ['tasks', 'projects', 'team', 'locations', 'shifts', 'schedule', 'myrota', 'rotas', 'inbox', 'vacation', 'results', 'ccySettings', 'bonusSettings', 'resultsValidation', 'swapHistory', 'auditLog', 'roles'], protected: true },
                 { name: 'Lead', modules: ['tasks', 'projects', 'team', 'locations', 'shifts', 'schedule', 'myrota', 'rotas', 'inbox', 'vacation', 'results', 'resultsValidation', 'swapHistory'], protected: false },
                 { name: 'Member', modules: ['myrota', 'rotas', 'inbox', 'vacation', 'results'], protected: false }
             ];
@@ -2737,13 +2980,13 @@
 
         function getUserRole() {
             if (currentUser && currentUser.uid === ADMIN_UID) {
-                return { name: 'Admin', modules: ['tasks', 'projects', 'team', 'locations', 'shifts', 'schedule', 'myrota', 'rotas', 'inbox', 'vacation', 'results', 'resultsValidation', 'swapHistory', 'auditLog', 'roles'], protected: true };
+                return { name: 'Admin', modules: ['tasks', 'projects', 'team', 'locations', 'shifts', 'schedule', 'myrota', 'rotas', 'inbox', 'vacation', 'results', 'ccySettings', 'bonusSettings', 'resultsValidation', 'swapHistory', 'auditLog', 'roles'], protected: true };
             }
             if (!currentMember) return { name: 'Member', modules: [] };
             return state.roles.find(r => r.name === currentMember.role) || { name: currentMember.role, modules: [] };
         }
 
-        const SETTINGS_SUBMODULES = ['shifts', 'locations', 'team', 'roles', 'resultsValidation', 'swapHistory', 'auditLog'];
+        const SETTINGS_SUBMODULES = ['shifts', 'locations', 'team', 'roles', 'ccySettings', 'bonusSettings', 'resultsValidation', 'swapHistory', 'auditLog'];
 
         function applyRolePermissions() {
             const role = getUserRole();
@@ -2832,6 +3075,8 @@
             if (sub === 'resultsValidation') initResultsValidation();
             if (sub === 'auditLog') renderAuditLog();
             if (sub === 'swapHistory') renderSwapHistory();
+            if (sub === 'ccySettings') initCcySettings();
+            if (sub === 'bonusSettings') initBonusSettings();
         }
 
         function populateAssigneeSelects() {
@@ -6107,6 +6352,355 @@
             }
 
             renderSwapHistory();
+        }
+
+        // ===== CCY SETTINGS =====
+
+        const BONUS_METRICS = [
+            { key: 'transactions', label: 'Transactions' },
+            { key: 'average', label: 'Average' },
+            { key: 'turnover', label: 'Turnover' },
+            { key: 'revenue', label: 'Revenue' },
+            { key: 'revenuePerTx', label: 'Revenue per transaction' },
+            { key: 'bbg', label: 'BBG' }
+        ];
+
+        function switchCcyTab(tab) {
+            document.querySelectorAll('[data-ccytab]').forEach(b => b.classList.remove('active'));
+            const btn = document.querySelector(`[data-ccytab="${tab}"]`);
+            if (btn) btn.classList.add('active');
+            document.getElementById('ccyTabCurrencies').classList.toggle('app-hidden', tab !== 'currencies');
+            document.getElementById('ccyTabDiscounts').classList.toggle('app-hidden', tab !== 'discounts');
+        }
+
+        function initCcySettings() {
+            loadBaseCcySettings();
+            renderCurrencies();
+            renderDiscountCodes();
+        }
+
+        function loadBaseCcySettings() {
+            const cfg = state.appConfig || {};
+            const baseInput = document.getElementById('baseCurrencyInput');
+            const feeInput = document.getElementById('serviceFeeInput');
+            if (baseInput && document.activeElement !== baseInput) baseInput.value = cfg.baseCurrency || '';
+            if (feeInput && document.activeElement !== feeInput) feeInput.value = cfg.serviceFee ?? '';
+        }
+
+        async function saveBaseCcySettings() {
+            const baseCurrency = document.getElementById('baseCurrencyInput').value.trim().toUpperCase();
+            const serviceFee = parseFloat(document.getElementById('serviceFeeInput').value) || 0;
+
+            if (!baseCurrency) {
+                alert('Please enter the reference currency (e.g. DKK).');
+                return;
+            }
+
+            await fns.setDoc(fns.doc(db, 'appConfig', 'main'), {
+                baseCurrency,
+                serviceFee
+            });
+
+            logAction('CCY base settings updated', `Reference: ${baseCurrency}, service fee: ${serviceFee}`);
+            alert('Base settings saved.');
+        }
+
+        async function addCurrency() {
+            const iso = document.getElementById('ccyIsoInput').value.trim().toUpperCase();
+            const rate = parseFloat(document.getElementById('ccyRateInput').value);
+            const margin = parseFloat(document.getElementById('ccyMarginInput').value);
+
+            if (!iso || isNaN(rate) || isNaN(margin)) {
+                alert('Please fill in ISO code, rate and margin.');
+                return;
+            }
+            if (state.currencies.some(c => c.iso === iso)) {
+                alert('That currency already exists. Edit it instead.');
+                return;
+            }
+
+            await fns.addDoc(fns.collection(db, 'currencies'), { iso, rate, margin });
+            logAction('Currency added', `${iso} — rate ${rate}, margin ${margin}%`);
+
+            document.getElementById('ccyIsoInput').value = '';
+            document.getElementById('ccyRateInput').value = '';
+            document.getElementById('ccyMarginInput').value = '';
+        }
+
+        function renderCurrencies() {
+            const list = document.getElementById('currencyList');
+            if (!list) return;
+            const base = (state.appConfig && state.appConfig.baseCurrency) || '';
+
+            if (state.currencies.length === 0) {
+                list.innerHTML = `<div class="empty-state"><i class="fas fa-coins"></i><p>No currencies yet.</p></div>`;
+                return;
+            }
+
+            const sorted = [...state.currencies].sort((a, b) => a.iso.localeCompare(b.iso));
+            list.innerHTML = sorted.map(c => `
+                <div class="team-member">
+                    <div class="team-avatar" style="font-size:12px;">${c.iso}</div>
+                    <div class="team-info">
+                        <div class="team-name">${c.iso}${c.iso === base ? ' (reference)' : ''}</div>
+                        <div class="team-role">Rate: ${c.rate} • Margin: ${c.margin}%</div>
+                    </div>
+                    <div class="team-actions">
+                        <button class="btn btn-secondary" onclick="openEditCurrencyModal('${c.id}')" title="Edit">
+                            <i class="fas fa-pen"></i>
+                        </button>
+                        <button class="btn btn-danger" onclick="deleteCurrency('${c.id}')" title="Delete">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function openEditCurrencyModal(currencyId) {
+            const c = state.currencies.find(x => x.id === currencyId);
+            if (!c) return;
+            document.getElementById('editCcyIso').value = c.iso;
+            document.getElementById('editCcyRate').value = c.rate;
+            document.getElementById('editCcyMargin').value = c.margin;
+            document.getElementById('editCurrencyModalOverlay').dataset.currencyId = currencyId;
+            document.getElementById('editCurrencyModalOverlay').classList.add('active');
+        }
+
+        function closeEditCurrencyModal() {
+            document.getElementById('editCurrencyModalOverlay').classList.remove('active');
+        }
+
+        function closeEditCurrencyModalOutside(e) {
+            if (e.target.id === 'editCurrencyModalOverlay') closeEditCurrencyModal();
+        }
+
+        async function saveEditCurrency() {
+            const currencyId = document.getElementById('editCurrencyModalOverlay').dataset.currencyId;
+            if (!currencyId) return;
+
+            const iso = document.getElementById('editCcyIso').value.trim().toUpperCase();
+            const rate = parseFloat(document.getElementById('editCcyRate').value);
+            const margin = parseFloat(document.getElementById('editCcyMargin').value);
+
+            if (!iso || isNaN(rate) || isNaN(margin)) {
+                alert('Please fill in ISO code, rate and margin.');
+                return;
+            }
+
+            await fns.updateDoc(fns.doc(db, 'currencies', currencyId), { iso, rate, margin });
+            logAction('Currency updated', `${iso} — rate ${rate}, margin ${margin}%`);
+            closeEditCurrencyModal();
+        }
+
+        async function deleteCurrency(currencyId) {
+            const c = state.currencies.find(x => x.id === currencyId);
+            if (!c) return;
+            if (!confirm(`Delete currency ${c.iso}?`)) return;
+            await fns.deleteDoc(fns.doc(db, 'currencies', currencyId));
+            logAction('Currency deleted', c.iso);
+        }
+
+        async function addDiscountCode() {
+            const code = document.getElementById('discountCodeInput').value.trim().toUpperCase();
+            const percent = parseFloat(document.getElementById('discountPercentInput').value);
+
+            if (!code || isNaN(percent)) {
+                alert('Please fill in the code and its percentage.');
+                return;
+            }
+            if (percent < 0 || percent > 100) {
+                alert('Discount must be between 0 and 100.');
+                return;
+            }
+            if (state.discountCodes.some(d => d.code === code)) {
+                alert('That code already exists.');
+                return;
+            }
+
+            await fns.addDoc(fns.collection(db, 'discountCodes'), { code, percent });
+            logAction('Discount code added', `${code} — ${percent}%`);
+
+            document.getElementById('discountCodeInput').value = '';
+            document.getElementById('discountPercentInput').value = '';
+        }
+
+        function renderDiscountCodes() {
+            const list = document.getElementById('discountCodeList');
+            if (!list) return;
+
+            if (state.discountCodes.length === 0) {
+                list.innerHTML = `<div class="empty-state"><i class="fas fa-percent"></i><p>No discount codes yet.</p></div>`;
+                return;
+            }
+
+            const sorted = [...state.discountCodes].sort((a, b) => a.code.localeCompare(b.code));
+            list.innerHTML = sorted.map(d => `
+                <div class="team-member">
+                    <div class="team-avatar"><i class="fas fa-percent"></i></div>
+                    <div class="team-info">
+                        <div class="team-name">${d.code}</div>
+                        <div class="team-role">${d.percent}% discount</div>
+                    </div>
+                    <div class="team-actions">
+                        <button class="btn btn-danger" onclick="deleteDiscountCode('${d.id}')" title="Delete">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function deleteDiscountCode(id) {
+            const d = state.discountCodes.find(x => x.id === id);
+            if (!d) return;
+            if (!confirm(`Delete discount code ${d.code}?`)) return;
+            await fns.deleteDoc(fns.doc(db, 'discountCodes', id));
+            logAction('Discount code deleted', d.code);
+        }
+
+        // ===== BONUS SETTINGS =====
+
+        let currentBonusTiers = [];
+
+        function initBonusSettings() {
+            const monthSelect = document.getElementById('bonusMonthSelect');
+            const yearSelect = document.getElementById('bonusYearSelect');
+
+            if (!monthSelect.dataset.initialized) {
+                const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+                monthSelect.innerHTML = monthNames.map((n, i) => `<option value="${i + 1}">${n}</option>`).join('');
+                monthSelect.value = new Date().getMonth() + 1;
+                monthSelect.dataset.initialized = 'true';
+            }
+            if (!yearSelect.dataset.initialized) {
+                const y = new Date().getFullYear();
+                yearSelect.innerHTML = [y - 1, y, y + 1].map(yy => `<option value="${yy}">${yy}</option>`).join('');
+                yearSelect.value = y;
+                yearSelect.dataset.initialized = 'true';
+            }
+
+            loadBonusConfig();
+        }
+
+        function getBonusPeriodKey() {
+            const m = document.getElementById('bonusMonthSelect').value.padStart(2, '0');
+            const y = document.getElementById('bonusYearSelect').value;
+            return `${y}-${m}`;
+        }
+
+        function loadBonusConfig() {
+            const periodKey = getBonusPeriodKey();
+            const cfg = state.bonusConfigs.find(c => c.periodKey === periodKey);
+
+            const targets = (cfg && cfg.targets) || {};
+            const container = document.getElementById('bonusTargetsList');
+            container.innerHTML = BONUS_METRICS.map(m => {
+                const t = targets[m.key] || {};
+                return `
+                    <div class="results-entry-row" style="grid-template-columns: 1.4fr 1fr 1fr; align-items:center;">
+                        <label class="module-check" style="width:fit-content;">
+                            <input type="checkbox" id="target_${m.key}_enabled" ${t.enabled ? 'checked' : ''}>
+                            ${m.label}
+                        </label>
+                        <input type="number" id="target_${m.key}_value" step="0.01" placeholder="Target" value="${t.value ?? ''}">
+                        <input type="number" id="target_${m.key}_weight" step="0.01" min="0" max="1" placeholder="Weight (0-1)" value="${t.weight ?? ''}">
+                    </div>
+                `;
+            }).join('');
+
+            document.getElementById('bonusModeSelect').value = (cfg && cfg.mode) || 'combined';
+            currentBonusTiers = (cfg && cfg.tiers) ? [...cfg.tiers] : [];
+            renderBonusTiers();
+        }
+
+        function addBonusTier() {
+            const from = parseFloat(document.getElementById('tierFromInput').value);
+            const type = document.getElementById('tierTypeInput').value;
+            const value = parseFloat(document.getElementById('tierValueInput').value);
+
+            if (isNaN(from) || isNaN(value)) {
+                alert('Please fill in the achievement level and the bonus value.');
+                return;
+            }
+
+            currentBonusTiers.push({ from, type, value });
+            currentBonusTiers.sort((a, b) => a.from - b.from);
+
+            document.getElementById('tierFromInput').value = '';
+            document.getElementById('tierValueInput').value = '';
+            renderBonusTiers();
+        }
+
+        function removeBonusTier(index) {
+            currentBonusTiers.splice(index, 1);
+            renderBonusTiers();
+        }
+
+        function renderBonusTiers() {
+            const list = document.getElementById('bonusTierList');
+            if (!list) return;
+
+            if (currentBonusTiers.length === 0) {
+                list.innerHTML = `<p style="color:#999; font-size:13px;">No tiers defined yet.</p>`;
+                return;
+            }
+
+            list.innerHTML = currentBonusTiers.map((t, idx) => `
+                <div class="results-line-item" style="grid-template-columns: 1fr 1fr 1fr auto;">
+                    <div>From ${t.from}%</div>
+                    <div>${t.type === 'percent' ? '% of' : 'Fixed'}</div>
+                    <div>${t.value}</div>
+                    <button class="btn btn-danger" style="padding:4px 8px;" onclick="removeBonusTier(${idx})">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        async function saveBonusConfig() {
+            const periodKey = getBonusPeriodKey();
+
+            const targets = {};
+            let anyEnabled = false;
+            for (const m of BONUS_METRICS) {
+                const enabled = document.getElementById(`target_${m.key}_enabled`).checked;
+                const value = parseFloat(document.getElementById(`target_${m.key}_value`).value);
+                const weight = parseFloat(document.getElementById(`target_${m.key}_weight`).value);
+
+                if (enabled) {
+                    if (isNaN(value)) {
+                        alert(`Please set a target value for ${m.label}.`);
+                        return;
+                    }
+                    anyEnabled = true;
+                }
+
+                targets[m.key] = {
+                    enabled: !!enabled,
+                    value: isNaN(value) ? null : value,
+                    weight: isNaN(weight) ? null : weight
+                };
+            }
+
+            if (!anyEnabled) {
+                alert('Select at least one metric as a bonus target.');
+                return;
+            }
+
+            const mode = document.getElementById('bonusModeSelect').value;
+
+            const existing = state.bonusConfigs.find(c => c.periodKey === periodKey);
+            const payload = { periodKey, targets, mode, tiers: currentBonusTiers };
+
+            if (existing) {
+                await fns.updateDoc(fns.doc(db, 'bonusConfigs', existing.id), payload);
+            } else {
+                await fns.addDoc(fns.collection(db, 'bonusConfigs'), payload);
+            }
+
+            logAction('Bonus settings saved', `Period ${periodKey}, mode ${mode}, ${currentBonusTiers.length} tier(s)`);
+            alert('Bonus settings saved for ' + periodKey + '.');
         }
 
     </script>
