@@ -2527,6 +2527,88 @@
             </div>
         </div>
 
+        <div id="editTxModalOverlay" class="modal-overlay" onclick="closeEditTxModalOutside(event)">
+            <div class="modal-box">
+                <div class="modal-header">
+                    <div class="section-title" style="margin-bottom:0;">
+                        <i class="fas fa-pen"></i>
+                        Edit Transaction
+                    </div>
+                    <button class="modal-close" onclick="closeEditTxModal()"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Received currency</label>
+                        <select id="editTxReceivedCcy"></select>
+                    </div>
+                    <div class="form-group">
+                        <label>Received amount</label>
+                        <input type="number" id="editTxReceivedAmount" step="0.01" min="0">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Delivered currency</label>
+                        <select id="editTxDeliveredCcy"></select>
+                    </div>
+                    <div class="form-group">
+                        <label>Delivered amount</label>
+                        <input type="number" id="editTxDeliveredAmount" step="0.01" min="0">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Discount</label>
+                        <select id="editTxDiscountCode"></select>
+                    </div>
+                    <div class="form-group">
+                        <label>Service fee charged</label>
+                        <select id="editTxServiceFee">
+                            <option value="full">Full</option>
+                            <option value="half">Half</option>
+                            <option value="none">None</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="module-check" style="width:fit-content;">
+                        <input type="checkbox" id="editTxBbg">
+                        BBG sold
+                    </label>
+                </div>
+                <button class="btn" style="width:100%; justify-content:center;" onclick="saveEditTransaction()">
+                    <i class="fas fa-check"></i>
+                    Save changes
+                </button>
+            </div>
+        </div>
+
+        <div id="editDiscountModalOverlay" class="modal-overlay" onclick="closeEditDiscountModalOutside(event)">
+            <div class="modal-box">
+                <div class="modal-header">
+                    <div class="section-title" style="margin-bottom:0;">
+                        <i class="fas fa-pen"></i>
+                        Edit Discount Code
+                    </div>
+                    <button class="modal-close" onclick="closeEditDiscountModal()"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Code</label>
+                        <input type="text" id="editDiscountCode" style="text-transform:uppercase;">
+                    </div>
+                    <div class="form-group">
+                        <label>Discount (%)</label>
+                        <input type="number" id="editDiscountPercent" step="0.01" min="0" max="100">
+                    </div>
+                </div>
+                <button class="btn" style="width:100%; justify-content:center;" onclick="saveEditDiscountCode()">
+                    <i class="fas fa-check"></i>
+                    Save changes
+                </button>
+            </div>
+        </div>
+
         <div id="editCurrencyModalOverlay" class="modal-overlay" onclick="closeEditCurrencyModalOutside(event)">
             <div class="modal-box">
                 <div class="modal-header">
@@ -2694,7 +2776,7 @@
             <div id="auditLogList"></div>
         </div>
 
-        <div class="app-version">GEBLL v-0.35</div>
+        <div class="app-version">GEBLL v-0.36</div>
     </div>
 
 
@@ -5869,6 +5951,11 @@
 
         // ===== REVENUE / INDEX CALCULATIONS =====
 
+        // Revenue figures are Admin-only — Members and Leads never see them.
+        function canSeeRevenue() {
+            return getUserRole().name === 'Admin';
+        }
+
         function getBaseCurrency() {
             return (state.appConfig && state.appConfig.baseCurrency) || '';
         }
@@ -6084,6 +6171,8 @@
             const dateKey = a ? a.dateKey : (existingLines[0] ? existingLines[0].dateKey : '');
             const periodKey = dateKey ? dateKey.slice(0, 7) : '';
 
+            const showRevenue = canSeeRevenue();
+
             list.innerHTML = currentResultLines.map((l, idx) => {
                 const revenue = calcLineRevenue(l);
                 const index = calcLineIndex(l, periodKey);
@@ -6091,10 +6180,10 @@
                 const indexText = index === null ? '—' : index.toFixed(2);
 
                 return `
-                    <div class="results-line-item" style="grid-template-columns: 1.6fr 1.6fr 0.8fr 0.6fr 0.8fr auto;">
+                    <div class="results-line-item" style="grid-template-columns: 1.6fr 1.6fr ${showRevenue ? '0.8fr ' : ''}0.6fr 0.8fr auto;">
                         <div>${l.receivedAmount.toFixed(2)} ${l.receivedCcy}</div>
                         <div>${l.deliveredAmount.toFixed(2)} ${l.deliveredCcy}</div>
-                        <div>${revenue.toFixed(2)}</div>
+                        ${showRevenue ? `<div>${revenue.toFixed(2)}</div>` : ''}
                         <div>${l.bbg ? '<i class="fas fa-check" style="color:#22c55e;"></i>' : '—'}</div>
                         <div class="${indexClass}">${indexText}</div>
                         <button class="btn btn-danger" style="padding:4px 8px;" onclick="removeResultLine(${idx})">
@@ -6113,8 +6202,19 @@
             document.getElementById('resultsTotalTransactions').textContent = transactions;
             document.getElementById('resultsTotalTurnover').textContent = turnover.toFixed(2);
             document.getElementById('resultsTotalAverage').textContent = average.toFixed(2);
-            document.getElementById('resultsTotalRevenue').textContent = revenueTotal.toFixed(2);
             document.getElementById('resultsTotalBbg').textContent = bbgTotal;
+
+            const revenueStat = document.getElementById('resultsTotalRevenue');
+            if (revenueStat) {
+                revenueStat.textContent = revenueTotal.toFixed(2);
+                const revenueWrap = revenueStat.closest('.vb-stat');
+                if (revenueWrap) revenueWrap.style.display = showRevenue ? '' : 'none';
+            }
+
+            const totalsCard = list.parentElement.querySelector('.results-totals-card');
+            if (totalsCard) {
+                totalsCard.style.gridTemplateColumns = `repeat(${showRevenue ? 5 : 4}, 1fr)`;
+            }
         }
 
         async function saveResultLines() {
@@ -6193,7 +6293,12 @@
 
             const cfg = getBonusConfigForPeriod(currentMonthKey);
             const targets = (cfg && cfg.targets) || {};
-            const activeMetrics = BONUS_METRICS.filter(m => targets[m.key] && targets[m.key].enabled);
+            const showRevenue = canSeeRevenue();
+            const REVENUE_METRICS = ['revenue', 'revenuePerTx'];
+            const activeMetrics = BONUS_METRICS.filter(m =>
+                targets[m.key] && targets[m.key].enabled &&
+                (showRevenue || !REVENUE_METRICS.includes(m.key))
+            );
 
             let html = '';
 
@@ -6208,22 +6313,25 @@
                     `).join('') + `</div>`;
             }
 
+            const todayCols = showRevenue ? 5 : 4;
+            const monthCols = showRevenue ? 6 : 5;
+
             html += `
                 <div class="section-title"><i class="fas fa-calendar-day"></i> Today</div>
-                <div class="results-summary-card" style="grid-template-columns: repeat(5, 1fr);">
+                <div class="results-summary-card" style="grid-template-columns: repeat(${todayCols}, 1fr);">
                     <div class="vb-stat"><div class="vb-number">${today.transactions}</div><div class="vb-label">Txns</div></div>
                     <div class="vb-stat"><div class="vb-number">${today.turnover.toFixed(0)}</div><div class="vb-label">Turnover</div></div>
                     <div class="vb-stat"><div class="vb-number">${today.average.toFixed(0)}</div><div class="vb-label">Average</div></div>
-                    <div class="vb-stat"><div class="vb-number">${today.revenue.toFixed(0)}</div><div class="vb-label">Revenue</div></div>
+                    ${showRevenue ? `<div class="vb-stat"><div class="vb-number">${today.revenue.toFixed(0)}</div><div class="vb-label">Revenue</div></div>` : ''}
                     <div class="vb-stat"><div class="vb-number">${today.bbg}</div><div class="vb-label">BBG</div></div>
                 </div>
 
                 <div class="section-title"><i class="fas fa-calendar-alt"></i> This month</div>
-                <div class="results-summary-card" style="grid-template-columns: repeat(6, 1fr);">
+                <div class="results-summary-card" style="grid-template-columns: repeat(${monthCols}, 1fr);">
                     <div class="vb-stat"><div class="vb-number">${month.transactions}</div><div class="vb-label">Txns</div></div>
                     <div class="vb-stat"><div class="vb-number">${month.turnover.toFixed(0)}</div><div class="vb-label">Turnover</div></div>
                     <div class="vb-stat"><div class="vb-number">${month.average.toFixed(0)}</div><div class="vb-label">Average</div></div>
-                    <div class="vb-stat"><div class="vb-number">${month.revenue.toFixed(0)}</div><div class="vb-label">Revenue</div></div>
+                    ${showRevenue ? `<div class="vb-stat"><div class="vb-number">${month.revenue.toFixed(0)}</div><div class="vb-label">Revenue</div></div>` : ''}
                     <div class="vb-stat"><div class="vb-number">${month.bbg}</div><div class="vb-label">BBG</div></div>
                     <div class="vb-stat"><div class="vb-number">${calcMonthIndex(month, currentMonthKey)}</div><div class="vb-label">Index</div></div>
                 </div>
@@ -6260,7 +6368,7 @@
                     <div class="results-day-item">
                         <strong>${dk}</strong>
                         <span style="font-size:13px; color:#666;">
-                            ${day.transactions} txns • ${day.turnover.toFixed(0)} turnover • ${day.average.toFixed(0)} avg • ${day.revenue.toFixed(0)} rev • ${day.bbg} BBG
+                            ${day.transactions} txns • ${day.turnover.toFixed(0)} turnover • ${day.average.toFixed(0)} avg${showRevenue ? " • " + day.revenue.toFixed(0) + " rev" : ""} • ${day.bbg} BBG
                         </span>
                     </div>
                 `;
@@ -6350,6 +6458,7 @@
             }
 
             const validations = state.resultValidations || [];
+            const showRevenue = canSeeRevenue();
 
             list.innerHTML = dayKeys.map(dk => {
                 const dayLines = memberLines.filter(l => l.dateKey === dk);
@@ -6365,7 +6474,7 @@
                                 ${isValidated ? '<span class="vr-status approved" style="margin-left:8px;">Validated</span>' : '<span class="vr-status pending" style="margin-left:8px;">Not validated</span>'}
                             </div>
                             <span style="font-size:13px; color:#666;">
-                                ${day.transactions} txns • ${day.turnover.toFixed(0)} turnover • ${day.average.toFixed(0)} avg • ${day.revenue.toFixed(0)} rev • ${day.bbg} BBG
+                                ${day.transactions} txns • ${day.turnover.toFixed(0)} turnover • ${day.average.toFixed(0)} avg${showRevenue ? " • " + day.revenue.toFixed(0) + " rev" : ""} • ${day.bbg} BBG
                             </span>
                         </div>
                         <div class="card-actions">
@@ -6400,11 +6509,14 @@
             document.getElementById('rvDayDetailTitle').textContent = `Transactions for ${dateKey}`;
 
             const linesEl = document.getElementById('rvDayDetailLines');
+            const showRevenue = canSeeRevenue();
+            const cols = `1.5fr 1.5fr ${showRevenue ? '0.8fr ' : ''}0.5fr 0.7fr auto`;
+
             linesEl.innerHTML = lines.length === 0
                 ? `<p style="color:#999; font-size:13px;">No transactions found.</p>`
                 : `
-                    <div class="results-entry-row results-entry-header" style="grid-template-columns: 1.6fr 1.6fr 0.8fr 0.6fr 0.8fr;">
-                        <div>Received</div><div>Delivered</div><div>Revenue</div><div>BBG</div><div>Index</div>
+                    <div class="results-entry-row results-entry-header" style="grid-template-columns: ${cols};">
+                        <div>Received</div><div>Delivered</div>${showRevenue ? '<div>Revenue</div>' : ''}<div>BBG</div><div>Index</div><div></div>
                     </div>
                 ` + lines.map(l => {
                     const revenue = calcLineRevenue(l);
@@ -6415,17 +6527,98 @@
                     const recvCcy = l.receivedCcy || l.ccy || '?';
 
                     return `
-                        <div class="results-line-item" style="grid-template-columns: 1.6fr 1.6fr 0.8fr 0.6fr 0.8fr;">
+                        <div class="results-line-item" style="grid-template-columns: ${cols};">
                             <div>${Number(recvAmount).toFixed(2)} ${recvCcy}</div>
                             <div>${l.deliveredAmount != null ? Number(l.deliveredAmount).toFixed(2) + ' ' + (l.deliveredCcy || '') : '—'}</div>
-                            <div>${revenue.toFixed(2)}</div>
+                            ${showRevenue ? `<div>${revenue.toFixed(2)}</div>` : ''}
                             <div>${l.bbg ? '<i class="fas fa-check" style="color:#22c55e;"></i>' : '—'}</div>
                             <div class="${indexClass}">${indexText}</div>
+                            <button class="btn btn-secondary" style="padding:4px 8px;" onclick="openEditTransactionModal('${l.id}')" title="Edit transaction">
+                                <i class="fas fa-pen"></i>
+                            </button>
                         </div>
                     `;
                 }).join('');
 
             document.getElementById('rvDayDetailWrap').classList.remove('app-hidden');
+        }
+
+        // Lets a Lead/Admin correct one single transaction without touching the rest.
+        function openEditTransactionModal(lineId) {
+            const l = state.resultLines.find(x => x.id === lineId);
+            if (!l) return;
+
+            populateEditTxSelects();
+
+            document.getElementById('editTxReceivedCcy').value = l.receivedCcy || l.ccy || '';
+            document.getElementById('editTxReceivedAmount').value = l.receivedAmount ?? l.amount ?? '';
+            document.getElementById('editTxDeliveredCcy').value = l.deliveredCcy || '';
+            document.getElementById('editTxDeliveredAmount').value = l.deliveredAmount ?? '';
+            document.getElementById('editTxDiscountCode').value = l.discountCode || '';
+            document.getElementById('editTxServiceFee').value = l.serviceFee || 'none';
+            document.getElementById('editTxBbg').checked = !!l.bbg;
+
+            document.getElementById('editTxModalOverlay').dataset.lineId = lineId;
+            document.getElementById('editTxModalOverlay').classList.add('active');
+        }
+
+        function populateEditTxSelects() {
+            const sorted = [...state.currencies].sort((a, b) => a.iso.localeCompare(b.iso));
+            const options = sorted.map(c => `<option value="${c.iso}">${c.iso}</option>`).join('');
+            document.getElementById('editTxReceivedCcy').innerHTML = options;
+            document.getElementById('editTxDeliveredCcy').innerHTML = options;
+
+            const codes = [...state.discountCodes].sort((a, b) => a.code.localeCompare(b.code));
+            document.getElementById('editTxDiscountCode').innerHTML = '<option value="">No discount</option>' +
+                codes.map(d => `<option value="${d.code}" data-percent="${d.percent}">${d.code} (${d.percent}%)</option>`).join('');
+        }
+
+        function closeEditTxModal() {
+            document.getElementById('editTxModalOverlay').classList.remove('active');
+        }
+
+        function closeEditTxModalOutside(e) {
+            if (e.target.id === 'editTxModalOverlay') closeEditTxModal();
+        }
+
+        async function saveEditTransaction() {
+            const lineId = document.getElementById('editTxModalOverlay').dataset.lineId;
+            if (!lineId) return;
+            const l = state.resultLines.find(x => x.id === lineId);
+            if (!l) return;
+
+            const receivedCcy = document.getElementById('editTxReceivedCcy').value;
+            const receivedAmount = parseFloat(document.getElementById('editTxReceivedAmount').value);
+            const deliveredCcy = document.getElementById('editTxDeliveredCcy').value;
+            const deliveredAmount = parseFloat(document.getElementById('editTxDeliveredAmount').value);
+            const discountSelect = document.getElementById('editTxDiscountCode');
+            const discountCode = discountSelect.value;
+            const discount = discountCode
+                ? parseFloat(discountSelect.options[discountSelect.selectedIndex].dataset.percent) || 0
+                : 0;
+            const serviceFee = document.getElementById('editTxServiceFee').value;
+            const bbg = document.getElementById('editTxBbg').checked;
+
+            if (!receivedCcy || !deliveredCcy || isNaN(receivedAmount) || isNaN(deliveredAmount)) {
+                alert('Please fill in both currencies and both amounts.');
+                return;
+            }
+
+            await fns.updateDoc(fns.doc(db, 'resultLines', lineId), {
+                receivedCcy, receivedAmount, deliveredCcy, deliveredAmount,
+                discount, discountCode, serviceFee, bbg
+            });
+
+            await clearValidationForDate(l.memberId, l.dateKey);
+            const m = assigneeMap[l.memberId];
+            logAction('Transaction edited', `${l.dateKey} — ${m ? m.name : l.memberId}`);
+
+            closeEditTxModal();
+            if (rvSelectedDateKey) {
+                rvSelectedDateKey = null;
+                toggleRvDayDetail(l.memberId, l.dateKey);
+            }
+            renderRvDailyList();
         }
 
         async function validateResultsDay(memberId, dateKey) {
@@ -6828,12 +7021,49 @@
                         <div class="team-role">${d.percent}% discount</div>
                     </div>
                     <div class="team-actions">
+                        <button class="btn btn-secondary" onclick="openEditDiscountModal('${d.id}')" title="Edit">
+                            <i class="fas fa-pen"></i>
+                        </button>
                         <button class="btn btn-danger" onclick="deleteDiscountCode('${d.id}')" title="Delete">
                             <i class="fas fa-trash"></i>
                         </button>
                     </div>
                 </div>
             `).join('');
+        }
+
+        function openEditDiscountModal(id) {
+            const d = state.discountCodes.find(x => x.id === id);
+            if (!d) return;
+            document.getElementById('editDiscountCode').value = d.code;
+            document.getElementById('editDiscountPercent').value = d.percent;
+            document.getElementById('editDiscountModalOverlay').dataset.discountId = id;
+            document.getElementById('editDiscountModalOverlay').classList.add('active');
+        }
+
+        function closeEditDiscountModal() {
+            document.getElementById('editDiscountModalOverlay').classList.remove('active');
+        }
+
+        function closeEditDiscountModalOutside(e) {
+            if (e.target.id === 'editDiscountModalOverlay') closeEditDiscountModal();
+        }
+
+        async function saveEditDiscountCode() {
+            const id = document.getElementById('editDiscountModalOverlay').dataset.discountId;
+            if (!id) return;
+
+            const code = document.getElementById('editDiscountCode').value.trim().toUpperCase();
+            const percent = parseFloat(document.getElementById('editDiscountPercent').value);
+
+            if (!code || isNaN(percent) || percent < 0 || percent > 100) {
+                alert('Please enter a valid code and a percentage between 0 and 100.');
+                return;
+            }
+
+            await fns.updateDoc(fns.doc(db, 'discountCodes', id), { code, percent });
+            logAction('Discount code updated', `${code} — ${percent}%`);
+            closeEditDiscountModal();
         }
 
         async function deleteDiscountCode(id) {
@@ -6882,10 +7112,15 @@
             const container = document.getElementById('bonusTargetsList');
             container.innerHTML = BONUS_METRICS.map(m => {
                 const t = targets[m.key] || {};
+                // Only "Revenue per transaction" can be switched on or off.
+                // The rest are always part of the calculation.
+                const isSelectable = m.key === 'revenuePerTx';
+                const checked = isSelectable ? (t.enabled ? 'checked' : '') : 'checked disabled';
+
                 return `
                     <div class="results-entry-row" style="grid-template-columns: 1.4fr 1fr 1fr; align-items:center;">
-                        <label class="module-check" style="width:fit-content;">
-                            <input type="checkbox" id="target_${m.key}_enabled" ${t.enabled ? 'checked' : ''}>
+                        <label class="module-check" style="width:fit-content; ${isSelectable ? '' : 'opacity:0.75;'}">
+                            <input type="checkbox" id="target_${m.key}_enabled" ${checked}>
                             ${m.label}
                         </label>
                         <input type="number" id="target_${m.key}_value" step="0.01" placeholder="Target" value="${t.value ?? ''}">
