@@ -2665,9 +2665,32 @@
                 </div>
                 <p style="font-size:12px; color:#999; margin-bottom:14px;">
                     Tick the metrics that count towards the bonus and set their target.
-                    Weights are used both for the Index and for overall achievement.
+                    Weight is each metric's share of the bonus — the ticked weights must add up to 100% or less.
                 </p>
                 <div id="bonusTargetsList"></div>
+                <p id="bonusWeightSummary" style="font-size:12px; margin-top:10px; font-weight:600;"></p>
+            </div>
+
+            <div class="form-section">
+                <div class="section-title">
+                    <i class="fas fa-scale-balanced"></i>
+                    Index weighting
+                </div>
+                <p style="font-size:12px; color:#999; margin-bottom:14px;">
+                    The Index is always based on the Average and Revenue per transaction targets,
+                    whether or not they count towards the bonus. These two weights must add up to 1.
+                </p>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Average weight</label>
+                        <input type="number" id="indexWeightAverage" step="0.05" min="0" max="1" placeholder="0.5">
+                    </div>
+                    <div class="form-group">
+                        <label>Revenue per transaction weight</label>
+                        <input type="number" id="indexWeightRevenuePerTx" step="0.05" min="0" max="1" placeholder="0.5">
+                    </div>
+                </div>
+                <p id="indexWeightSummary" style="font-size:12px; font-weight:600;"></p>
             </div>
 
             <div class="form-section">
@@ -2776,7 +2799,7 @@
             <div id="auditLogList"></div>
         </div>
 
-        <div class="app-version">GEBLL v-0.36</div>
+        <div class="app-version">GEBLL v-0.38</div>
     </div>
 
 
@@ -6016,29 +6039,24 @@
             return (line.receivedAmount || 0) * (ccy ? ccy.rate || 0 : 0);
         }
 
-        // Index of a single transaction, weighted between the average target
-        // and the revenue-per-transaction target, as configured for that month.
+        // Index of a single transaction. Always based on the Average and
+        // Revenue-per-transaction targets, regardless of whether those metrics
+        // are ticked for the bonus. Can be above or below 1.
         function calcLineIndex(line, periodKey) {
             const cfg = getBonusConfigForPeriod(periodKey);
             if (!cfg || !cfg.targets) return null;
 
-            const avgTarget = cfg.targets.average;
-            const rptTarget = cfg.targets.revenuePerTx;
+            const avgTargetValue = cfg.targets.average && cfg.targets.average.value;
+            const rptTargetValue = cfg.targets.revenuePerTx && cfg.targets.revenuePerTx.value;
+            if (!avgTargetValue && !rptTargetValue) return null;
 
-            const avgWeight = (avgTarget && avgTarget.weight) || 0;
-            const rptWeight = (rptTarget && rptTarget.weight) || 0;
-            if (avgWeight === 0 && rptWeight === 0) return null;
-
+            const weights = cfg.indexWeights || { average: 0.5, revenuePerTx: 0.5 };
             const turnover = calcLineTurnover(line);
             const revenue = calcLineRevenue(line);
 
             let index = 0;
-            if (avgTarget && avgTarget.value) {
-                index += (turnover / avgTarget.value) * avgWeight;
-            }
-            if (rptTarget && rptTarget.value) {
-                index += (revenue / rptTarget.value) * rptWeight;
-            }
+            if (avgTargetValue) index += (turnover / avgTargetValue) * (weights.average || 0);
+            if (rptTargetValue) index += (revenue / rptTargetValue) * (weights.revenuePerTx || 0);
             return index;
         }
 
@@ -6159,6 +6177,26 @@
             renderResultLinesList();
         }
 
+        // Loads a draft line back into the form so it can be corrected,
+        // and removes it from the list — pressing "Add transaction" puts it back.
+        function editDraftLine(index) {
+            const l = currentResultLines[index];
+            if (!l) return;
+
+            document.getElementById('txReceivedCcy').value = l.receivedCcy || '';
+            document.getElementById('txReceivedAmount').value = l.receivedAmount ?? '';
+            document.getElementById('txDeliveredCcy').value = l.deliveredCcy || '';
+            document.getElementById('txDeliveredAmount').value = l.deliveredAmount ?? '';
+            document.getElementById('txDiscountCode').value = l.discountCode || '';
+            document.getElementById('txServiceFee').value = l.serviceFee || 'none';
+            document.getElementById('txBbg').checked = !!l.bbg;
+
+            currentResultLines.splice(index, 1);
+            renderResultLinesList();
+
+            document.getElementById('txReceivedAmount').focus();
+        }
+
         function removeResultLine(index) {
             currentResultLines.splice(index, 1);
             renderResultLinesList();
@@ -6180,13 +6218,16 @@
                 const indexText = index === null ? '—' : index.toFixed(2);
 
                 return `
-                    <div class="results-line-item" style="grid-template-columns: 1.6fr 1.6fr ${showRevenue ? '0.8fr ' : ''}0.6fr 0.8fr auto;">
+                    <div class="results-line-item" style="grid-template-columns: 1.6fr 1.6fr ${showRevenue ? '0.8fr ' : ''}0.6fr 0.8fr auto auto;">
                         <div>${l.receivedAmount.toFixed(2)} ${l.receivedCcy}</div>
                         <div>${l.deliveredAmount.toFixed(2)} ${l.deliveredCcy}</div>
                         ${showRevenue ? `<div>${revenue.toFixed(2)}</div>` : ''}
                         <div>${l.bbg ? '<i class="fas fa-check" style="color:#22c55e;"></i>' : '—'}</div>
                         <div class="${indexClass}">${indexText}</div>
-                        <button class="btn btn-danger" style="padding:4px 8px;" onclick="removeResultLine(${idx})">
+                        <button class="btn btn-secondary" style="padding:4px 8px;" onclick="editDraftLine(${idx})" title="Edit">
+                            <i class="fas fa-pen"></i>
+                        </button>
+                        <button class="btn btn-danger" style="padding:4px 8px;" onclick="removeResultLine(${idx})" title="Delete">
                             <i class="fas fa-trash"></i>
                         </button>
                     </div>
@@ -6363,16 +6404,57 @@
             }
 
             dailyList.innerHTML = dayKeys.map(dk => {
-                const day = aggregateLines(monthLines.filter(l => l.dateKey === dk));
+                const dayLines = monthLines.filter(l => l.dateKey === dk);
+                const day = aggregateLines(dayLines);
+                const periodKey = dk.slice(0, 7);
+                const cols = `1.5fr 1.5fr ${showRevenue ? '0.8fr ' : ''}0.5fr 0.7fr auto`;
+
+                const linesHtml = dayLines.map(l => {
+                    const revenue = calcLineRevenue(l);
+                    const index = calcLineIndex(l, periodKey);
+                    const indexClass = index === null ? '' : (index >= 0.95 ? 'index-good' : 'index-bad');
+                    const indexText = index === null ? '—' : index.toFixed(2);
+                    const recvAmount = l.receivedAmount ?? l.amount ?? 0;
+                    const recvCcy = l.receivedCcy || l.ccy || '?';
+                    const isLegacy = l.deliveredAmount == null;
+
+                    return `
+                        <div class="results-line-item" style="grid-template-columns: ${cols}; ${isLegacy ? 'background:#fff7ed;' : ''}">
+                            <div>${Number(recvAmount).toFixed(2)} ${recvCcy}</div>
+                            <div>${isLegacy ? '<span style="color:#ea580c;">Needs update</span>' : Number(l.deliveredAmount).toFixed(2) + ' ' + (l.deliveredCcy || '')}</div>
+                            ${showRevenue ? `<div>${revenue.toFixed(2)}</div>` : ''}
+                            <div>${l.bbg ? '<i class="fas fa-check" style="color:#22c55e;"></i>' : '—'}</div>
+                            <div class="${indexClass}">${indexText}</div>
+                            <button class="btn btn-secondary" style="padding:4px 8px;" onclick="openEditTransactionModal('${l.id}')" title="Edit">
+                                <i class="fas fa-pen"></i>
+                            </button>
+                        </div>
+                    `;
+                }).join('');
+
                 return `
-                    <div class="results-day-item">
-                        <strong>${dk}</strong>
-                        <span style="font-size:13px; color:#666;">
-                            ${day.transactions} txns • ${day.turnover.toFixed(0)} turnover • ${day.average.toFixed(0)} avg${showRevenue ? " • " + day.revenue.toFixed(0) + " rev" : ""} • ${day.bbg} BBG
-                        </span>
+                    <div class="results-day-item" style="flex-direction:column; align-items:stretch; gap:8px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;" onclick="toggleResultsDayDetail('${dk}')">
+                            <strong>${dk}</strong>
+                            <span style="font-size:13px; color:#666;">
+                                ${day.transactions} txns • ${day.turnover.toFixed(0)} turnover • ${day.average.toFixed(0)} avg${showRevenue ? " • " + day.revenue.toFixed(0) + " rev" : ""} • ${day.bbg} BBG
+                                <i class="fas fa-chevron-down" style="margin-left:8px; font-size:11px;"></i>
+                            </span>
+                        </div>
+                        <div id="resultsDay_${dk}" class="app-hidden">
+                            <div class="results-entry-row results-entry-header" style="grid-template-columns: ${cols};">
+                                <div>Received</div><div>Delivered</div>${showRevenue ? '<div>Revenue</div>' : ''}<div>BBG</div><div>Index</div><div></div>
+                            </div>
+                            ${linesHtml}
+                        </div>
                     </div>
                 `;
             }).join('');
+        }
+
+        function toggleResultsDayDetail(dateKey) {
+            const el = document.getElementById(`resultsDay_${dateKey}`);
+            if (el) el.classList.toggle('app-hidden');
         }
 
         // Monthly index: same weighting as the per-transaction index,
@@ -6381,15 +6463,15 @@
             const cfg = getBonusConfigForPeriod(periodKey);
             if (!cfg || !cfg.targets) return '—';
 
-            const avgTarget = cfg.targets.average;
-            const rptTarget = cfg.targets.revenuePerTx;
-            const avgWeight = (avgTarget && avgTarget.weight) || 0;
-            const rptWeight = (rptTarget && rptTarget.weight) || 0;
-            if (avgWeight === 0 && rptWeight === 0) return '—';
+            const avgTargetValue = cfg.targets.average && cfg.targets.average.value;
+            const rptTargetValue = cfg.targets.revenuePerTx && cfg.targets.revenuePerTx.value;
+            if (!avgTargetValue && !rptTargetValue) return '—';
+
+            const weights = cfg.indexWeights || { average: 0.5, revenuePerTx: 0.5 };
 
             let index = 0;
-            if (avgTarget && avgTarget.value) index += (monthAgg.average / avgTarget.value) * avgWeight;
-            if (rptTarget && rptTarget.value) index += (monthAgg.revenuePerTx / rptTarget.value) * rptWeight;
+            if (avgTargetValue) index += (monthAgg.average / avgTargetValue) * (weights.average || 0);
+            if (rptTargetValue) index += (monthAgg.revenuePerTx / rptTargetValue) * (weights.revenuePerTx || 0);
             return index.toFixed(2);
         }
 
@@ -6614,11 +6696,17 @@
             logAction('Transaction edited', `${l.dateKey} — ${m ? m.name : l.memberId}`);
 
             closeEditTxModal();
-            if (rvSelectedDateKey) {
-                rvSelectedDateKey = null;
-                toggleRvDayDetail(l.memberId, l.dateKey);
+
+            if (document.getElementById('resultsValidation').classList.contains('active')) {
+                if (rvSelectedDateKey) {
+                    rvSelectedDateKey = null;
+                    toggleRvDayDetail(l.memberId, l.dateKey);
+                }
+                renderRvDailyList();
             }
-            renderRvDailyList();
+            if (document.getElementById('results').classList.contains('active')) {
+                renderResults();
+            }
         }
 
         async function validateResultsDay(memberId, dateKey) {
@@ -7112,26 +7200,68 @@
             const container = document.getElementById('bonusTargetsList');
             container.innerHTML = BONUS_METRICS.map(m => {
                 const t = targets[m.key] || {};
-                // Only "Revenue per transaction" can be switched on or off.
-                // The rest are always part of the calculation.
-                const isSelectable = m.key === 'revenuePerTx';
-                const checked = isSelectable ? (t.enabled ? 'checked' : '') : 'checked disabled';
-
                 return `
                     <div class="results-entry-row" style="grid-template-columns: 1.4fr 1fr 1fr; align-items:center;">
-                        <label class="module-check" style="width:fit-content; ${isSelectable ? '' : 'opacity:0.75;'}">
-                            <input type="checkbox" id="target_${m.key}_enabled" ${checked}>
+                        <label class="module-check" style="width:fit-content;">
+                            <input type="checkbox" id="target_${m.key}_enabled" ${t.enabled ? 'checked' : ''} onchange="updateBonusWeightSummary()">
                             ${m.label}
                         </label>
                         <input type="number" id="target_${m.key}_value" step="0.01" placeholder="Target" value="${t.value ?? ''}">
-                        <input type="number" id="target_${m.key}_weight" step="0.01" min="0" max="1" placeholder="Weight (0-1)" value="${t.weight ?? ''}">
+                        <input type="number" id="target_${m.key}_weight" step="1" min="0" max="100" placeholder="Weight %" value="${t.weight ?? ''}" oninput="updateBonusWeightSummary()">
                     </div>
                 `;
             }).join('');
 
+            const iw = (cfg && cfg.indexWeights) || {};
+            document.getElementById('indexWeightAverage').value = iw.average ?? 0.5;
+            document.getElementById('indexWeightRevenuePerTx').value = iw.revenuePerTx ?? 0.5;
+            document.getElementById('indexWeightAverage').oninput = updateIndexWeightSummary;
+            document.getElementById('indexWeightRevenuePerTx').oninput = updateIndexWeightSummary;
+
             document.getElementById('bonusModeSelect').value = (cfg && cfg.mode) || 'combined';
             currentBonusTiers = (cfg && cfg.tiers) ? [...cfg.tiers] : [];
             renderBonusTiers();
+            updateBonusWeightSummary();
+            updateIndexWeightSummary();
+        }
+
+        function getEnabledWeightTotal() {
+            let total = 0;
+            for (const m of BONUS_METRICS) {
+                const chk = document.getElementById(`target_${m.key}_enabled`);
+                const w = document.getElementById(`target_${m.key}_weight`);
+                if (chk && chk.checked && w) total += parseFloat(w.value) || 0;
+            }
+            return total;
+        }
+
+        function updateBonusWeightSummary() {
+            const el = document.getElementById('bonusWeightSummary');
+            if (!el) return;
+            const total = getEnabledWeightTotal();
+            if (total > 100) {
+                el.textContent = `Total weight: ${total}% — must not exceed 100%`;
+                el.style.color = '#dc2626';
+            } else {
+                el.textContent = `Total weight: ${total}%`;
+                el.style.color = total === 100 ? '#16a34a' : '#666';
+            }
+        }
+
+        function updateIndexWeightSummary() {
+            const el = document.getElementById('indexWeightSummary');
+            if (!el) return;
+            const a = parseFloat(document.getElementById('indexWeightAverage').value) || 0;
+            const r = parseFloat(document.getElementById('indexWeightRevenuePerTx').value) || 0;
+            const total = a + r;
+            const rounded = Math.round(total * 100) / 100;
+            if (rounded !== 1) {
+                el.textContent = `Total: ${rounded} — must add up to exactly 1`;
+                el.style.color = '#dc2626';
+            } else {
+                el.textContent = `Total: ${rounded}`;
+                el.style.color = '#16a34a';
+            }
         }
 
         function addBonusTier() {
@@ -7208,10 +7338,40 @@
                 return;
             }
 
+            const weightTotal = getEnabledWeightTotal();
+            if (weightTotal > 100) {
+                alert(`The ticked weights add up to ${weightTotal}%. They must not exceed 100%.`);
+                return;
+            }
+
+            const indexAvgWeight = parseFloat(document.getElementById('indexWeightAverage').value);
+            const indexRptWeight = parseFloat(document.getElementById('indexWeightRevenuePerTx').value);
+
+            if (isNaN(indexAvgWeight) || isNaN(indexRptWeight)) {
+                alert('Please set both Index weights.');
+                return;
+            }
+            const indexTotal = Math.round((indexAvgWeight + indexRptWeight) * 100) / 100;
+            if (indexTotal !== 1) {
+                alert(`The Index weights add up to ${indexTotal}. They must add up to exactly 1.`);
+                return;
+            }
+
+            if (!targets.average.value || !targets.revenuePerTx.value) {
+                alert('The Index needs a target value for both Average and Revenue per transaction, even if they are not ticked for the bonus.');
+                return;
+            }
+
             const mode = document.getElementById('bonusModeSelect').value;
 
             const existing = state.bonusConfigs.find(c => c.periodKey === periodKey);
-            const payload = { periodKey, targets, mode, tiers: currentBonusTiers };
+            const payload = {
+                periodKey,
+                targets,
+                mode,
+                tiers: currentBonusTiers,
+                indexWeights: { average: indexAvgWeight, revenuePerTx: indexRptWeight }
+            };
 
             if (existing) {
                 await fns.updateDoc(fns.doc(db, 'bonusConfigs', existing.id), payload);
