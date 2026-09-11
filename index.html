@@ -1062,6 +1062,16 @@
             box-sizing: border-box;
         }
 
+        .index-good {
+            color: #16a34a;
+            font-weight: 700;
+        }
+
+        .index-bad {
+            color: #dc2626;
+            font-weight: 700;
+        }
+
         .results-lines-list {
             margin-bottom: 16px;
         }
@@ -2204,7 +2214,7 @@
         </div>
 
         <div id="resultsModalOverlay" class="modal-overlay" onclick="closeResultsModalOutside(event)">
-            <div class="modal-box" style="max-width:600px;">
+            <div class="modal-box" style="max-width:720px;">
                 <div class="modal-header">
                     <div class="section-title" style="margin-bottom:0;">
                         <i class="fas fa-chart-line"></i>
@@ -2213,27 +2223,61 @@
                     <button class="modal-close" onclick="closeResultsModal()"><i class="fas fa-times"></i></button>
                 </div>
 
-                <div class="results-entry-row results-entry-header">
-                    <div>Amount</div>
-                    <div>CCY</div>
-                    <div>Discount (%)</div>
-                    <div></div>
-                </div>
-                <div class="results-entry-row">
-                    <input type="number" id="resultsAmountInput" step="0.01" placeholder="0.00">
-                    <input type="text" id="resultsCcyInput" placeholder="USD">
-                    <input type="number" id="resultsDiscountInput" step="0.01" min="0" max="100" placeholder="0-100%">
-                    <button class="btn" style="padding:8px 12px;" onclick="addResultLine()">
+                <div class="form-section" style="margin-bottom:16px;">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Received currency</label>
+                            <select id="txReceivedCcy"></select>
+                        </div>
+                        <div class="form-group">
+                            <label>Received amount</label>
+                            <input type="number" id="txReceivedAmount" step="0.01" min="0" placeholder="0.00">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Delivered currency</label>
+                            <select id="txDeliveredCcy"></select>
+                        </div>
+                        <div class="form-group">
+                            <label>Delivered amount</label>
+                            <input type="number" id="txDeliveredAmount" step="0.01" min="0" placeholder="0.00">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Discount</label>
+                            <select id="txDiscountCode"></select>
+                        </div>
+                        <div class="form-group">
+                            <label>Service fee charged</label>
+                            <select id="txServiceFee">
+                                <option value="full">Full</option>
+                                <option value="half">Half</option>
+                                <option value="none" selected>None</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="module-check" style="width:fit-content;">
+                            <input type="checkbox" id="txBbg">
+                            BBG sold
+                        </label>
+                    </div>
+                    <button class="btn" style="width:100%; justify-content:center;" onclick="addResultLine()">
                         <i class="fas fa-plus"></i>
+                        Add transaction
                     </button>
                 </div>
 
                 <div id="resultsLinesList" class="results-lines-list"></div>
 
-                <div class="results-totals-card">
-                    <div class="vb-stat"><div class="vb-number" id="resultsTotalTransactions">0</div><div class="vb-label">Transactions</div></div>
+                <div class="results-totals-card" style="grid-template-columns: repeat(5, 1fr);">
+                    <div class="vb-stat"><div class="vb-number" id="resultsTotalTransactions">0</div><div class="vb-label">Txns</div></div>
                     <div class="vb-stat"><div class="vb-number" id="resultsTotalTurnover">0.00</div><div class="vb-label">Turnover</div></div>
                     <div class="vb-stat"><div class="vb-number" id="resultsTotalAverage">0.00</div><div class="vb-label">Average</div></div>
+                    <div class="vb-stat"><div class="vb-number" id="resultsTotalRevenue">0.00</div><div class="vb-label">Revenue</div></div>
+                    <div class="vb-stat"><div class="vb-number" id="resultsTotalBbg">0</div><div class="vb-label">BBG</div></div>
                 </div>
 
                 <button class="btn" style="width:100%; justify-content:center; margin-top:14px;" onclick="saveResultLines()">
@@ -2650,7 +2694,7 @@
             <div id="auditLogList"></div>
         </div>
 
-        <div class="app-version">GEBLL v-0.34</div>
+        <div class="app-version">GEBLL v-0.35</div>
     </div>
 
 
@@ -5823,6 +5867,115 @@
 
         // ===== RESULTS =====
 
+        // ===== REVENUE / INDEX CALCULATIONS =====
+
+        function getBaseCurrency() {
+            return (state.appConfig && state.appConfig.baseCurrency) || '';
+        }
+
+        function getServiceFeeAmount() {
+            return (state.appConfig && state.appConfig.serviceFee) || 0;
+        }
+
+        function getCurrencyByIso(iso) {
+            return state.currencies.find(c => c.iso === iso) || null;
+        }
+
+        function getBonusConfigForPeriod(periodKey) {
+            return state.bonusConfigs.find(c => c.periodKey === periodKey) || null;
+        }
+
+        // Revenue is the margin earned on the non-reference side of the exchange.
+        // Discount reduces the margin: effective margin = margin - (margin * discount%)
+        function calcLineRevenue(line) {
+            const base = getBaseCurrency();
+            if (!base) return 0;
+
+            let foreignIso, foreignAmount;
+            if (line.receivedCcy === base) {
+                foreignIso = line.deliveredCcy;
+                foreignAmount = line.deliveredAmount;
+            } else if (line.deliveredCcy === base) {
+                foreignIso = line.receivedCcy;
+                foreignAmount = line.receivedAmount;
+            } else {
+                // Neither side is the reference currency — fall back to the received side.
+                foreignIso = line.receivedCcy;
+                foreignAmount = line.receivedAmount;
+            }
+
+            const ccy = getCurrencyByIso(foreignIso);
+            if (!ccy) return 0;
+
+            const marginPct = (ccy.margin || 0) / 100;
+            const discountPct = (line.discount || 0) / 100;
+            const effectiveMargin = marginPct - (marginPct * discountPct);
+
+            const revenue = (foreignAmount || 0) * (ccy.rate || 0) * effectiveMargin;
+
+            let fee = 0;
+            if (line.serviceFee === 'full') fee = getServiceFeeAmount();
+            else if (line.serviceFee === 'half') fee = getServiceFeeAmount() / 2;
+
+            return revenue + fee;
+        }
+
+        // Turnover of a line, expressed in the reference currency.
+        function calcLineTurnover(line) {
+            const base = getBaseCurrency();
+            if (line.receivedCcy === base) return line.receivedAmount || 0;
+            if (line.deliveredCcy === base) return line.deliveredAmount || 0;
+            const ccy = getCurrencyByIso(line.receivedCcy);
+            return (line.receivedAmount || 0) * (ccy ? ccy.rate || 0 : 0);
+        }
+
+        // Index of a single transaction, weighted between the average target
+        // and the revenue-per-transaction target, as configured for that month.
+        function calcLineIndex(line, periodKey) {
+            const cfg = getBonusConfigForPeriod(periodKey);
+            if (!cfg || !cfg.targets) return null;
+
+            const avgTarget = cfg.targets.average;
+            const rptTarget = cfg.targets.revenuePerTx;
+
+            const avgWeight = (avgTarget && avgTarget.weight) || 0;
+            const rptWeight = (rptTarget && rptTarget.weight) || 0;
+            if (avgWeight === 0 && rptWeight === 0) return null;
+
+            const turnover = calcLineTurnover(line);
+            const revenue = calcLineRevenue(line);
+
+            let index = 0;
+            if (avgTarget && avgTarget.value) {
+                index += (turnover / avgTarget.value) * avgWeight;
+            }
+            if (rptTarget && rptTarget.value) {
+                index += (revenue / rptTarget.value) * rptWeight;
+            }
+            return index;
+        }
+
+        function populateResultsFormSelects() {
+            const base = getBaseCurrency();
+            const sorted = [...state.currencies].sort((a, b) => a.iso.localeCompare(b.iso));
+            const options = sorted.map(c => `<option value="${c.iso}">${c.iso}</option>`).join('');
+
+            const recv = document.getElementById('txReceivedCcy');
+            const deliv = document.getElementById('txDeliveredCcy');
+            if (recv) {
+                recv.innerHTML = options || '<option value="">No currencies configured</option>';
+                if (base && sorted.some(c => c.iso === base)) recv.value = base;
+            }
+            if (deliv) deliv.innerHTML = options || '<option value="">No currencies configured</option>';
+
+            const disc = document.getElementById('txDiscountCode');
+            if (disc) {
+                const codes = [...state.discountCodes].sort((a, b) => a.code.localeCompare(b.code));
+                disc.innerHTML = '<option value="">No discount</option>' +
+                    codes.map(d => `<option value="${d.code}" data-percent="${d.percent}">${d.code} (${d.percent}%)</option>`).join('');
+            }
+        }
+
         function openResultsModal(assignmentId) {
             const a = state.assignments.find(x => x.id === assignmentId);
 
@@ -5834,6 +5987,11 @@
                 return;
             }
 
+            if (state.currencies.length === 0) {
+                alert('No currencies have been configured yet. Ask an Admin to set them up in Settings → CCY Settings.');
+                return;
+            }
+
             const shift = a ? state.shifts.find(s => s.id === a.shiftId) : null;
             const loc = shift ? state.locations.find(l => l.id === shift.locationId) : null;
 
@@ -5842,15 +6000,29 @@
                 ? `Results — ${a.dateKey} ${shift ? shift.start + '-' + shift.end : ''} ${loc ? '(' + loc.name + ')' : ''}`
                 : `Results — ${fallbackDateKey} (original shift no longer found)`;
 
-            currentResultLines = linesForThisAssignment
-                .map(l => ({ amount: l.amount, ccy: l.ccy, discount: l.discount }));
+            currentResultLines = linesForThisAssignment.map(l => ({
+                receivedCcy: l.receivedCcy || l.ccy || '',
+                receivedAmount: l.receivedAmount ?? l.amount ?? 0,
+                deliveredCcy: l.deliveredCcy || '',
+                deliveredAmount: l.deliveredAmount ?? 0,
+                discount: l.discount || 0,
+                discountCode: l.discountCode || '',
+                serviceFee: l.serviceFee || 'none',
+                bbg: !!l.bbg
+            }));
 
-            document.getElementById('resultsAmountInput').value = '';
-            document.getElementById('resultsCcyInput').value = '';
-            document.getElementById('resultsDiscountInput').value = '';
-
+            populateResultsFormSelects();
+            clearTransactionForm();
             renderResultLinesList();
             document.getElementById('resultsModalOverlay').classList.add('active');
+        }
+
+        function clearTransactionForm() {
+            document.getElementById('txReceivedAmount').value = '';
+            document.getElementById('txDeliveredAmount').value = '';
+            document.getElementById('txDiscountCode').value = '';
+            document.getElementById('txServiceFee').value = 'none';
+            document.getElementById('txBbg').checked = false;
         }
 
         function closeResultsModal() {
@@ -5864,25 +6036,39 @@
         }
 
         function addResultLine() {
-            const amount = parseFloat(document.getElementById('resultsAmountInput').value);
-            const ccy = document.getElementById('resultsCcyInput').value.trim();
-            const discount = parseFloat(document.getElementById('resultsDiscountInput').value) || 0;
+            const receivedCcy = document.getElementById('txReceivedCcy').value;
+            const receivedAmount = parseFloat(document.getElementById('txReceivedAmount').value);
+            const deliveredCcy = document.getElementById('txDeliveredCcy').value;
+            const deliveredAmount = parseFloat(document.getElementById('txDeliveredAmount').value);
+            const discountSelect = document.getElementById('txDiscountCode');
+            const discountCode = discountSelect.value;
+            const discountPercent = discountCode
+                ? parseFloat(discountSelect.options[discountSelect.selectedIndex].dataset.percent) || 0
+                : 0;
+            const serviceFee = document.getElementById('txServiceFee').value;
+            const bbg = document.getElementById('txBbg').checked;
 
-            if (isNaN(amount) || !ccy) {
-                alert('Please enter an amount and a currency.');
+            if (!receivedCcy || !deliveredCcy || isNaN(receivedAmount) || isNaN(deliveredAmount)) {
+                alert('Please fill in both currencies and both amounts.');
                 return;
             }
-            if (discount < 0 || discount > 100) {
-                alert('Discount must be a percentage between 0 and 100.');
+            if (receivedCcy === deliveredCcy) {
+                alert('Received and delivered currency cannot be the same.');
                 return;
             }
 
-            currentResultLines.push({ amount, ccy, discount });
+            currentResultLines.push({
+                receivedCcy,
+                receivedAmount,
+                deliveredCcy,
+                deliveredAmount,
+                discount: discountPercent,
+                discountCode,
+                serviceFee,
+                bbg
+            });
 
-            document.getElementById('resultsAmountInput').value = '';
-            document.getElementById('resultsCcyInput').value = '';
-            document.getElementById('resultsDiscountInput').value = '';
-
+            clearTransactionForm();
             renderResultLinesList();
         }
 
@@ -5893,24 +6079,42 @@
 
         function renderResultLinesList() {
             const list = document.getElementById('resultsLinesList');
-            list.innerHTML = currentResultLines.map((l, idx) => `
-                <div class="results-line-item">
-                    <div>${l.amount.toFixed(2)}</div>
-                    <div>${l.ccy}</div>
-                    <div>${l.discount.toFixed(2)}%</div>
-                    <button class="btn btn-danger" style="padding:4px 8px;" onclick="removeResultLine(${idx})">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </div>
-            `).join('');
+            const a = state.assignments.find(x => x.id === pendingResultsAssignmentId);
+            const existingLines = state.resultLines.filter(l => l.assignmentId === pendingResultsAssignmentId);
+            const dateKey = a ? a.dateKey : (existingLines[0] ? existingLines[0].dateKey : '');
+            const periodKey = dateKey ? dateKey.slice(0, 7) : '';
+
+            list.innerHTML = currentResultLines.map((l, idx) => {
+                const revenue = calcLineRevenue(l);
+                const index = calcLineIndex(l, periodKey);
+                const indexClass = index === null ? '' : (index >= 0.95 ? 'index-good' : 'index-bad');
+                const indexText = index === null ? '—' : index.toFixed(2);
+
+                return `
+                    <div class="results-line-item" style="grid-template-columns: 1.6fr 1.6fr 0.8fr 0.6fr 0.8fr auto;">
+                        <div>${l.receivedAmount.toFixed(2)} ${l.receivedCcy}</div>
+                        <div>${l.deliveredAmount.toFixed(2)} ${l.deliveredCcy}</div>
+                        <div>${revenue.toFixed(2)}</div>
+                        <div>${l.bbg ? '<i class="fas fa-check" style="color:#22c55e;"></i>' : '—'}</div>
+                        <div class="${indexClass}">${indexText}</div>
+                        <button class="btn btn-danger" style="padding:4px 8px;" onclick="removeResultLine(${idx})">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                `;
+            }).join('');
 
             const transactions = currentResultLines.length;
-            const turnover = currentResultLines.reduce((sum, l) => sum + l.amount, 0);
+            const turnover = currentResultLines.reduce((sum, l) => sum + calcLineTurnover(l), 0);
+            const revenueTotal = currentResultLines.reduce((sum, l) => sum + calcLineRevenue(l), 0);
             const average = transactions > 0 ? turnover / transactions : 0;
+            const bbgTotal = currentResultLines.filter(l => l.bbg).length;
 
             document.getElementById('resultsTotalTransactions').textContent = transactions;
             document.getElementById('resultsTotalTurnover').textContent = turnover.toFixed(2);
             document.getElementById('resultsTotalAverage').textContent = average.toFixed(2);
+            document.getElementById('resultsTotalRevenue').textContent = revenueTotal.toFixed(2);
+            document.getElementById('resultsTotalBbg').textContent = bbgTotal;
         }
 
         async function saveResultLines() {
@@ -5935,16 +6139,21 @@
                     assignmentId: pendingResultsAssignmentId,
                     memberId,
                     dateKey,
-                    amount: line.amount,
-                    ccy: line.ccy,
+                    receivedCcy: line.receivedCcy,
+                    receivedAmount: line.receivedAmount,
+                    deliveredCcy: line.deliveredCcy,
+                    deliveredAmount: line.deliveredAmount,
                     discount: line.discount,
+                    discountCode: line.discountCode || '',
+                    serviceFee: line.serviceFee || 'none',
+                    bbg: !!line.bbg,
                     createdAt: new Date().toISOString()
                 });
             }
 
             await clearValidationForDate(memberId, dateKey);
             const m = assigneeMap[memberId];
-            logAction('Results saved', `${dateKey} — ${currentResultLines.length} line(s) for ${m ? m.name : memberId}`);
+            logAction('Results saved', `${dateKey} — ${currentResultLines.length} transaction(s) for ${m ? m.name : memberId}`);
 
             closeResultsModal();
             alert('Results saved.');
@@ -5952,6 +6161,17 @@
             if (document.getElementById('resultsValidation').classList.contains('active')) {
                 renderRvDailyList();
             }
+        }
+
+        // Aggregates a set of result lines into the metrics used everywhere.
+        function aggregateLines(lines) {
+            const transactions = lines.length;
+            const turnover = lines.reduce((sum, l) => sum + calcLineTurnover(l), 0);
+            const revenue = lines.reduce((sum, l) => sum + calcLineRevenue(l), 0);
+            const bbg = lines.filter(l => l.bbg).length;
+            const average = transactions > 0 ? turnover / transactions : 0;
+            const revenuePerTx = transactions > 0 ? revenue / transactions : 0;
+            return { transactions, turnover, revenue, bbg, average, revenuePerTx };
         }
 
         function renderResults() {
@@ -5966,29 +6186,66 @@
             const todayKey = toDateKey(now);
 
             const monthLines = myLines.filter(l => l.dateKey.slice(0, 7) === currentMonthKey);
-            const monthTransactions = monthLines.length;
-            const monthTurnover = monthLines.reduce((sum, l) => sum + l.amount, 0);
-            const monthAverage = monthTransactions > 0 ? monthTurnover / monthTransactions : 0;
-
             const todayLines = myLines.filter(l => l.dateKey === todayKey);
-            const todayTransactions = todayLines.length;
-            const todayTurnover = todayLines.reduce((sum, l) => sum + l.amount, 0);
-            const todayAverage = todayTransactions > 0 ? todayTurnover / todayTransactions : 0;
 
-            summaryCard.innerHTML = `
+            const month = aggregateLines(monthLines);
+            const today = aggregateLines(todayLines);
+
+            const cfg = getBonusConfigForPeriod(currentMonthKey);
+            const targets = (cfg && cfg.targets) || {};
+            const activeMetrics = BONUS_METRICS.filter(m => targets[m.key] && targets[m.key].enabled);
+
+            let html = '';
+
+            if (activeMetrics.length > 0) {
+                html += `<div class="section-title"><i class="fas fa-bullseye"></i> Targets this month</div>
+                    <div class="results-summary-card" style="grid-template-columns: repeat(${Math.min(activeMetrics.length, 4)}, 1fr);">` +
+                    activeMetrics.map(m => `
+                        <div class="vb-stat">
+                            <div class="vb-number">${Number(targets[m.key].value).toLocaleString()}</div>
+                            <div class="vb-label">${m.label}</div>
+                        </div>
+                    `).join('') + `</div>`;
+            }
+
+            html += `
                 <div class="section-title"><i class="fas fa-calendar-day"></i> Today</div>
-                <div class="results-summary-card">
-                    <div class="vb-stat"><div class="vb-number">${todayTransactions}</div><div class="vb-label">Transactions</div></div>
-                    <div class="vb-stat"><div class="vb-number">${todayTurnover.toFixed(2)}</div><div class="vb-label">Turnover</div></div>
-                    <div class="vb-stat"><div class="vb-number">${todayAverage.toFixed(2)}</div><div class="vb-label">Average</div></div>
+                <div class="results-summary-card" style="grid-template-columns: repeat(5, 1fr);">
+                    <div class="vb-stat"><div class="vb-number">${today.transactions}</div><div class="vb-label">Txns</div></div>
+                    <div class="vb-stat"><div class="vb-number">${today.turnover.toFixed(0)}</div><div class="vb-label">Turnover</div></div>
+                    <div class="vb-stat"><div class="vb-number">${today.average.toFixed(0)}</div><div class="vb-label">Average</div></div>
+                    <div class="vb-stat"><div class="vb-number">${today.revenue.toFixed(0)}</div><div class="vb-label">Revenue</div></div>
+                    <div class="vb-stat"><div class="vb-number">${today.bbg}</div><div class="vb-label">BBG</div></div>
                 </div>
+
                 <div class="section-title"><i class="fas fa-calendar-alt"></i> This month</div>
-                <div class="results-summary-card">
-                    <div class="vb-stat"><div class="vb-number">${monthTransactions}</div><div class="vb-label">Transactions</div></div>
-                    <div class="vb-stat"><div class="vb-number">${monthTurnover.toFixed(2)}</div><div class="vb-label">Turnover</div></div>
-                    <div class="vb-stat"><div class="vb-number">${monthAverage.toFixed(2)}</div><div class="vb-label">Average</div></div>
+                <div class="results-summary-card" style="grid-template-columns: repeat(6, 1fr);">
+                    <div class="vb-stat"><div class="vb-number">${month.transactions}</div><div class="vb-label">Txns</div></div>
+                    <div class="vb-stat"><div class="vb-number">${month.turnover.toFixed(0)}</div><div class="vb-label">Turnover</div></div>
+                    <div class="vb-stat"><div class="vb-number">${month.average.toFixed(0)}</div><div class="vb-label">Average</div></div>
+                    <div class="vb-stat"><div class="vb-number">${month.revenue.toFixed(0)}</div><div class="vb-label">Revenue</div></div>
+                    <div class="vb-stat"><div class="vb-number">${month.bbg}</div><div class="vb-label">BBG</div></div>
+                    <div class="vb-stat"><div class="vb-number">${calcMonthIndex(month, currentMonthKey)}</div><div class="vb-label">Index</div></div>
                 </div>
             `;
+
+            if (activeMetrics.length > 0) {
+                html += `<div class="section-title"><i class="fas fa-percent"></i> Achievement</div>
+                    <div class="results-summary-card" style="grid-template-columns: repeat(${Math.min(activeMetrics.length, 4)}, 1fr); background: linear-gradient(135deg, #059669 0%, #047857 100%);">` +
+                    activeMetrics.map(m => {
+                        const target = Number(targets[m.key].value) || 0;
+                        const actual = month[m.key] || 0;
+                        const pct = target > 0 ? (actual / target) * 100 : 0;
+                        return `
+                            <div class="vb-stat">
+                                <div class="vb-number">${pct.toFixed(0)}%</div>
+                                <div class="vb-label">${m.label}</div>
+                            </div>
+                        `;
+                    }).join('') + `</div>`;
+            }
+
+            summaryCard.innerHTML = html;
 
             const dayKeys = [...new Set(monthLines.map(l => l.dateKey))].sort().reverse();
 
@@ -5998,17 +6255,34 @@
             }
 
             dailyList.innerHTML = dayKeys.map(dk => {
-                const dayLines = monthLines.filter(l => l.dateKey === dk);
-                const t = dayLines.length;
-                const to = dayLines.reduce((sum, l) => sum + l.amount, 0);
-                const av = t > 0 ? to / t : 0;
+                const day = aggregateLines(monthLines.filter(l => l.dateKey === dk));
                 return `
                     <div class="results-day-item">
                         <strong>${dk}</strong>
-                        <span style="font-size:13px; color:#666;">${t} txns • ${to.toFixed(2)} turnover • ${av.toFixed(2)} avg</span>
+                        <span style="font-size:13px; color:#666;">
+                            ${day.transactions} txns • ${day.turnover.toFixed(0)} turnover • ${day.average.toFixed(0)} avg • ${day.revenue.toFixed(0)} rev • ${day.bbg} BBG
+                        </span>
                     </div>
                 `;
             }).join('');
+        }
+
+        // Monthly index: same weighting as the per-transaction index,
+        // but using the month's accumulated average and revenue per transaction.
+        function calcMonthIndex(monthAgg, periodKey) {
+            const cfg = getBonusConfigForPeriod(periodKey);
+            if (!cfg || !cfg.targets) return '—';
+
+            const avgTarget = cfg.targets.average;
+            const rptTarget = cfg.targets.revenuePerTx;
+            const avgWeight = (avgTarget && avgTarget.weight) || 0;
+            const rptWeight = (rptTarget && rptTarget.weight) || 0;
+            if (avgWeight === 0 && rptWeight === 0) return '—';
+
+            let index = 0;
+            if (avgTarget && avgTarget.value) index += (monthAgg.average / avgTarget.value) * avgWeight;
+            if (rptTarget && rptTarget.value) index += (monthAgg.revenuePerTx / rptTarget.value) * rptWeight;
+            return index.toFixed(2);
         }
 
         // ===== RESULTS VALIDATION (Settings sub-tab, Lead/Admin only) =====
@@ -6079,9 +6353,7 @@
 
             list.innerHTML = dayKeys.map(dk => {
                 const dayLines = memberLines.filter(l => l.dateKey === dk);
-                const t = dayLines.length;
-                const to = dayLines.reduce((sum, l) => sum + l.amount, 0);
-                const av = t > 0 ? to / t : 0;
+                const day = aggregateLines(dayLines);
                 const isValidated = validations.some(v => v.memberId === memberId && v.dateKey === dk);
                 const assignmentId = dayLines[0] ? dayLines[0].assignmentId : null;
 
@@ -6092,7 +6364,9 @@
                                 <strong>${dk}</strong>
                                 ${isValidated ? '<span class="vr-status approved" style="margin-left:8px;">Validated</span>' : '<span class="vr-status pending" style="margin-left:8px;">Not validated</span>'}
                             </div>
-                            <span style="font-size:13px; color:#666;">${t} txns • ${to.toFixed(2)} turnover • ${av.toFixed(2)} avg</span>
+                            <span style="font-size:13px; color:#666;">
+                                ${day.transactions} txns • ${day.turnover.toFixed(0)} turnover • ${day.average.toFixed(0)} avg • ${day.revenue.toFixed(0)} rev • ${day.bbg} BBG
+                            </span>
                         </div>
                         <div class="card-actions">
                             <button class="btn btn-secondary" onclick="openResultsModal('${assignmentId}')">
@@ -6122,23 +6396,34 @@
             rvSelectedDateKey = dateKey;
 
             const lines = state.resultLines.filter(l => l.memberId === memberId && l.dateKey === dateKey);
-            document.getElementById('rvDayDetailTitle').textContent = `Lines for ${dateKey}`;
+            const periodKey = dateKey.slice(0, 7);
+            document.getElementById('rvDayDetailTitle').textContent = `Transactions for ${dateKey}`;
 
             const linesEl = document.getElementById('rvDayDetailLines');
             linesEl.innerHTML = lines.length === 0
-                ? `<p style="color:#999; font-size:13px;">No lines found.</p>`
+                ? `<p style="color:#999; font-size:13px;">No transactions found.</p>`
                 : `
-                    <div class="results-entry-row results-entry-header">
-                        <div>Amount</div><div>CCY</div><div>Discount</div><div></div>
+                    <div class="results-entry-row results-entry-header" style="grid-template-columns: 1.6fr 1.6fr 0.8fr 0.6fr 0.8fr;">
+                        <div>Received</div><div>Delivered</div><div>Revenue</div><div>BBG</div><div>Index</div>
                     </div>
-                ` + lines.map(l => `
-                    <div class="results-line-item">
-                        <div>${l.amount.toFixed(2)}</div>
-                        <div>${l.ccy}</div>
-                        <div>${l.discount.toFixed(2)}%</div>
-                        <div></div>
-                    </div>
-                `).join('');
+                ` + lines.map(l => {
+                    const revenue = calcLineRevenue(l);
+                    const index = calcLineIndex(l, periodKey);
+                    const indexClass = index === null ? '' : (index >= 0.95 ? 'index-good' : 'index-bad');
+                    const indexText = index === null ? '—' : index.toFixed(2);
+                    const recvAmount = l.receivedAmount ?? l.amount ?? 0;
+                    const recvCcy = l.receivedCcy || l.ccy || '?';
+
+                    return `
+                        <div class="results-line-item" style="grid-template-columns: 1.6fr 1.6fr 0.8fr 0.6fr 0.8fr;">
+                            <div>${Number(recvAmount).toFixed(2)} ${recvCcy}</div>
+                            <div>${l.deliveredAmount != null ? Number(l.deliveredAmount).toFixed(2) + ' ' + (l.deliveredCcy || '') : '—'}</div>
+                            <div>${revenue.toFixed(2)}</div>
+                            <div>${l.bbg ? '<i class="fas fa-check" style="color:#22c55e;"></i>' : '—'}</div>
+                            <div class="${indexClass}">${indexText}</div>
+                        </div>
+                    `;
+                }).join('');
 
             document.getElementById('rvDayDetailWrap').classList.remove('app-hidden');
         }
