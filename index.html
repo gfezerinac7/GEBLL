@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GEBLL</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
         import { getFirestore, collection, onSnapshot, addDoc, deleteDoc, doc, updateDoc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
@@ -2420,6 +2421,32 @@
 
         <!-- SUB-TAB RESULTS VALIDATION -->
         <div id="resultsValidation" class="content">
+            <div class="form-section" id="importSection">
+                <div class="section-title">
+                    <i class="fas fa-file-excel"></i>
+                    Bulk import transactions
+                </div>
+                <p style="font-size:12px; color:#666; margin-bottom:12px;">
+                    Upload an Excel or CSV file to register many transactions at once.
+                    Importing <strong>replaces</strong> everything already recorded for each employee/date found in the file.
+                </p>
+                <div class="form-group">
+                    <button class="btn btn-secondary" onclick="downloadImportTemplate()">
+                        <i class="fas fa-download"></i>
+                        Download template
+                    </button>
+                </div>
+                <div class="form-group">
+                    <label>Select file</label>
+                    <input type="file" id="importFileInput" accept=".xlsx,.xls,.csv" onchange="previewImportFile()">
+                </div>
+                <div id="importPreview"></div>
+                <button class="btn app-hidden" id="importConfirmBtn" style="width:100%; justify-content:center;" onclick="confirmImport()">
+                    <i class="fas fa-upload"></i>
+                    Import transactions
+                </button>
+            </div>
+
             <div class="form-section">
                 <div class="section-title">
                     <i class="fas fa-filter"></i>
@@ -2823,7 +2850,7 @@
             <div id="auditLogList"></div>
         </div>
 
-        <div class="app-version">GEBLL v-0.39</div>
+        <div class="app-version">GEBLL v-0.40</div>
     </div>
 
 
@@ -6503,7 +6530,223 @@
 
         let rvSelectedDateKey = null;
 
+        // ===== BULK IMPORT (Admin only) =====
+
+        let pendingImportRows = [];
+
+        function downloadImportTemplate() {
+            const headers = [
+                'Employee', 'Date', 'Received CCY', 'Received Amount',
+                'Delivered CCY', 'Delivered Amount', 'Discount Code', 'Service Fee', 'BBG'
+            ];
+            const example = [
+                state.team[0] ? state.team[0].name : 'John Smith',
+                toDateKey(new Date()),
+                getBaseCurrency() || 'DKK',
+                1000,
+                'EUR',
+                100,
+                '',
+                'none',
+                'no'
+            ];
+
+            const ws = XLSX.utils.aoa_to_sheet([headers, example]);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Transactions');
+            XLSX.writeFile(wb, 'GEBLL_transactions_template.xlsx');
+        }
+
+        function normaliseDateValue(value) {
+            if (value == null || value === '') return null;
+
+            // Excel serial date
+            if (typeof value === 'number') {
+                const parsed = XLSX.SSF.parse_date_code(value);
+                if (!parsed) return null;
+                const y = parsed.y;
+                const m = String(parsed.m).padStart(2, '0');
+                const d = String(parsed.d).padStart(2, '0');
+                return `${y}-${m}-${d}`;
+            }
+
+            const str = String(value).trim();
+            if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+
+            const parsedDate = new Date(str);
+            if (!isNaN(parsedDate.getTime())) return toDateKey(parsedDate);
+            return null;
+        }
+
+        function previewImportFile() {
+            const input = document.getElementById('importFileInput');
+            const previewEl = document.getElementById('importPreview');
+            const confirmBtn = document.getElementById('importConfirmBtn');
+            pendingImportRows = [];
+            confirmBtn.classList.add('app-hidden');
+
+            const file = input.files && input.files[0];
+            if (!file) {
+                previewEl.innerHTML = '';
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const wb = XLSX.read(e.target.result, { type: 'array' });
+                    const sheet = wb.Sheets[wb.SheetNames[0]];
+                    const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+
+                    const valid = [];
+                    const errors = [];
+
+                    rows.forEach((row, i) => {
+                        const rowNum = i + 2; // header is row 1
+                        const employeeName = String(row['Employee'] || '').trim();
+                        const dateKey = normaliseDateValue(row['Date']);
+                        const receivedCcy = String(row['Received CCY'] || '').trim().toUpperCase();
+                        const deliveredCcy = String(row['Delivered CCY'] || '').trim().toUpperCase();
+                        const receivedAmount = parseFloat(row['Received Amount']);
+                        const deliveredAmount = parseFloat(row['Delivered Amount']);
+                        const discountCodeRaw = String(row['Discount Code'] || '').trim().toUpperCase();
+                        const serviceFeeRaw = String(row['Service Fee'] || 'none').trim().toLowerCase();
+                        const bbgRaw = String(row['BBG'] || '').trim().toLowerCase();
+
+                        const member = state.team.find(m => m.name.trim().toLowerCase() === employeeName.toLowerCase());
+                        if (!member) { errors.push(`Row ${rowNum}: employee "${employeeName}" not found in Team.`); return; }
+                        if (!dateKey) { errors.push(`Row ${rowNum}: could not read the date.`); return; }
+                        if (!getCurrencyByIso(receivedCcy)) { errors.push(`Row ${rowNum}: currency "${receivedCcy}" is not configured.`); return; }
+                        if (!getCurrencyByIso(deliveredCcy)) { errors.push(`Row ${rowNum}: currency "${deliveredCcy}" is not configured.`); return; }
+                        if (isNaN(receivedAmount) || isNaN(deliveredAmount)) { errors.push(`Row ${rowNum}: amounts must be numbers.`); return; }
+
+                        let discount = 0;
+                        let discountCode = '';
+                        if (discountCodeRaw) {
+                            const dc = state.discountCodes.find(d => d.code === discountCodeRaw);
+                            if (!dc) { errors.push(`Row ${rowNum}: discount code "${discountCodeRaw}" not found.`); return; }
+                            discount = dc.percent;
+                            discountCode = dc.code;
+                        }
+
+                        const serviceFee = ['full', 'half', 'none'].includes(serviceFeeRaw) ? serviceFeeRaw : 'none';
+                        const bbg = ['yes', 'y', '1', 'true', 'x'].includes(bbgRaw);
+
+                        valid.push({
+                            memberId: member.id,
+                            memberName: member.name,
+                            dateKey,
+                            receivedCcy, receivedAmount,
+                            deliveredCcy, deliveredAmount,
+                            discount, discountCode, serviceFee, bbg
+                        });
+                    });
+
+                    pendingImportRows = valid;
+
+                    const affected = {};
+                    valid.forEach(r => {
+                        const key = `${r.memberName}|${r.dateKey}`;
+                        affected[key] = (affected[key] || 0) + 1;
+                    });
+
+                    let html = '';
+                    if (errors.length > 0) {
+                        html += `<div class="inbox-item" style="border-left:3px solid #dc2626;">
+                            <strong style="font-size:13px; color:#dc2626;">${errors.length} row(s) will be skipped:</strong>
+                            <ul style="font-size:12px; color:#666; margin:6px 0 0 16px;">
+                                ${errors.slice(0, 15).map(er => `<li>${er}</li>`).join('')}
+                                ${errors.length > 15 ? `<li>…and ${errors.length - 15} more</li>` : ''}
+                            </ul>
+                        </div>`;
+                    }
+
+                    if (valid.length > 0) {
+                        html += `<div class="inbox-item" style="border-left:3px solid #16a34a;">
+                            <strong style="font-size:13px;">${valid.length} transaction(s) ready to import</strong>
+                            <p style="font-size:12px; color:#666; margin:6px 0 0;">
+                                Affecting ${Object.keys(affected).length} employee/date combination(s).
+                                Existing records for those dates will be replaced.
+                            </p>
+                        </div>`;
+                        confirmBtn.classList.remove('app-hidden');
+                    } else {
+                        html += `<p style="font-size:13px; color:#dc2626;">No valid rows found.</p>`;
+                    }
+
+                    previewEl.innerHTML = html;
+                } catch (err) {
+                    previewEl.innerHTML = `<p style="font-size:13px; color:#dc2626;">Could not read the file: ${err.message}</p>`;
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        async function confirmImport() {
+            if (pendingImportRows.length === 0) return;
+            if (getUserRole().name !== 'Admin') {
+                alert('Only an Admin can import transactions.');
+                return;
+            }
+
+            const combos = [...new Set(pendingImportRows.map(r => `${r.memberId}|${r.dateKey}`))];
+            if (!confirm(`Import ${pendingImportRows.length} transaction(s)? This will replace existing records for ${combos.length} employee/date combination(s).`)) return;
+
+            const confirmBtn = document.getElementById('importConfirmBtn');
+            confirmBtn.disabled = true;
+            confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Importing...';
+
+            try {
+                // Clear what is already recorded for the employee/date pairs in the file.
+                for (const combo of combos) {
+                    const [memberId, dateKey] = combo.split('|');
+                    const existing = state.resultLines.filter(l => l.memberId === memberId && l.dateKey === dateKey);
+                    for (const l of existing) {
+                        await fns.deleteDoc(fns.doc(db, 'resultLines', l.id));
+                    }
+                    await clearValidationForDate(memberId, dateKey);
+                }
+
+                for (const r of pendingImportRows) {
+                    await fns.addDoc(fns.collection(db, 'resultLines'), {
+                        assignmentId: null,
+                        memberId: r.memberId,
+                        dateKey: r.dateKey,
+                        receivedCcy: r.receivedCcy,
+                        receivedAmount: r.receivedAmount,
+                        deliveredCcy: r.deliveredCcy,
+                        deliveredAmount: r.deliveredAmount,
+                        discount: r.discount,
+                        discountCode: r.discountCode,
+                        serviceFee: r.serviceFee,
+                        bbg: r.bbg,
+                        imported: true,
+                        createdAt: new Date().toISOString()
+                    });
+                }
+
+                await logAction('Transactions imported', `${pendingImportRows.length} transaction(s) across ${combos.length} employee/date combination(s)`);
+
+                alert(`Imported ${pendingImportRows.length} transaction(s).`);
+                document.getElementById('importFileInput').value = '';
+                document.getElementById('importPreview').innerHTML = '';
+                pendingImportRows = [];
+                confirmBtn.classList.add('app-hidden');
+                renderRvDailyList();
+            } catch (err) {
+                alert('Import failed: ' + (err.message || err));
+            } finally {
+                confirmBtn.disabled = false;
+                confirmBtn.innerHTML = '<i class="fas fa-upload"></i> Import transactions';
+            }
+        }
+
         function initResultsValidation() {
+            const importSection = document.getElementById('importSection');
+            if (importSection) {
+                importSection.classList.toggle('app-hidden', getUserRole().name !== 'Admin');
+            }
+
             const memberSelect = document.getElementById('rvMemberSelect');
             const currentMemberVal = memberSelect.value;
             memberSelect.innerHTML = state.team.map(m => `<option value="${m.id}">${m.name} (${m.role})</option>`).join('')
@@ -6584,9 +6827,11 @@
                             </span>
                         </div>
                         <div class="card-actions">
-                            <button class="btn btn-secondary" onclick="openResultsModal('${assignmentId}')">
-                                <i class="fas fa-pen"></i> Edit
-                            </button>
+                            ${assignmentId ? `
+                                <button class="btn btn-secondary" onclick="openResultsModal('${assignmentId}')">
+                                    <i class="fas fa-pen"></i> Edit all
+                                </button>
+                            ` : ''}
                             ${!isValidated ? `
                                 <button class="btn btn-success" onclick="validateResultsDay('${memberId}','${dk}')">
                                     <i class="fas fa-check"></i> Mark as validated
