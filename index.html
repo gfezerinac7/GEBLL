@@ -2269,19 +2269,9 @@
                             <input type="number" id="txDeliveredAmount" step="0.01" min="0" placeholder="0.00">
                         </div>
                     </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Discount</label>
-                            <select id="txDiscountCode"></select>
-                        </div>
-                        <div class="form-group">
-                            <label>Service fee charged</label>
-                            <select id="txServiceFee">
-                                <option value="full">Full</option>
-                                <option value="half">Half</option>
-                                <option value="none" selected>None</option>
-                            </select>
-                        </div>
+                    <div class="form-group">
+                        <label>Discount code</label>
+                        <select id="txDiscountCode"></select>
                     </div>
                     <div class="form-group">
                         <label class="module-check" style="width:fit-content;">
@@ -2564,6 +2554,13 @@
                             <input type="number" id="discountPercentInput" step="0.01" min="0" max="100" placeholder="10.00">
                         </div>
                     </div>
+                    <div class="form-group">
+                        <label>Applies to</label>
+                        <select id="discountTypeInput">
+                            <option value="margin">Margin — reduces the exchange margin</option>
+                            <option value="fee">Service fee — reduces the service fee charged</option>
+                        </select>
+                    </div>
                     <button class="btn" onclick="addDiscountCode()">
                         <i class="fas fa-plus"></i>
                         Add discount code
@@ -2607,19 +2604,9 @@
                         <input type="number" id="editTxDeliveredAmount" step="0.01" min="0">
                     </div>
                 </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Discount</label>
-                        <select id="editTxDiscountCode"></select>
-                    </div>
-                    <div class="form-group">
-                        <label>Service fee charged</label>
-                        <select id="editTxServiceFee">
-                            <option value="full">Full</option>
-                            <option value="half">Half</option>
-                            <option value="none">None</option>
-                        </select>
-                    </div>
+                <div class="form-group">
+                    <label>Discount code</label>
+                    <select id="editTxDiscountCode"></select>
                 </div>
                 <div class="form-group">
                     <label class="module-check" style="width:fit-content;">
@@ -2652,6 +2639,13 @@
                         <label>Discount (%)</label>
                         <input type="number" id="editDiscountPercent" step="0.01" min="0" max="100">
                     </div>
+                </div>
+                <div class="form-group">
+                    <label>Applies to</label>
+                    <select id="editDiscountType">
+                        <option value="margin">Margin — reduces the exchange margin</option>
+                        <option value="fee">Service fee — reduces the service fee charged</option>
+                    </select>
                 </div>
                 <button class="btn" style="width:100%; justify-content:center;" onclick="saveEditDiscountCode()">
                     <i class="fas fa-check"></i>
@@ -2850,7 +2844,7 @@
             <div id="auditLogList"></div>
         </div>
 
-        <div class="app-version">GEBLL v-0.40</div>
+        <div class="app-version">GEBLL v-0.41</div>
     </div>
 
 
@@ -6046,8 +6040,9 @@
             return state.bonusConfigs.find(c => c.periodKey === periodKey) || null;
         }
 
-        // Revenue is the margin earned on the non-reference side of the exchange.
-        // Discount reduces the margin: effective margin = margin - (margin * discount%)
+        // Revenue is the margin earned on the non-reference side of the exchange,
+        // plus the service fee. A discount code reduces EITHER the margin OR the fee,
+        // never both — its type decides which.
         function calcLineRevenue(line) {
             const base = getBaseCurrency();
             if (!base) return 0;
@@ -6068,17 +6063,23 @@
             const ccy = getCurrencyByIso(foreignIso);
             if (!ccy) return 0;
 
-            const marginPct = (ccy.margin || 0) / 100;
             const discountPct = (line.discount || 0) / 100;
-            const effectiveMargin = marginPct - (marginPct * discountPct);
+            const discountType = line.discountType || 'margin';
 
-            const revenue = (foreignAmount || 0) * (ccy.rate || 0) * effectiveMargin;
+            const marginPct = (ccy.margin || 0) / 100;
+            const effectiveMargin = discountType === 'margin'
+                ? marginPct - (marginPct * discountPct)
+                : marginPct;
 
-            let fee = 0;
-            if (line.serviceFee === 'full') fee = getServiceFeeAmount();
-            else if (line.serviceFee === 'half') fee = getServiceFeeAmount() / 2;
+            const marginRevenue = (foreignAmount || 0) * (ccy.rate || 0) * effectiveMargin;
 
-            return revenue + fee;
+            // The service fee is charged in full unless a fee-type discount reduces it.
+            const baseFee = getServiceFeeAmount();
+            const fee = discountType === 'fee'
+                ? baseFee - (baseFee * discountPct)
+                : baseFee;
+
+            return marginRevenue + fee;
         }
 
         // Turnover of a line, expressed in the reference currency.
@@ -6128,7 +6129,7 @@
             if (disc) {
                 const codes = [...state.discountCodes].sort((a, b) => a.code.localeCompare(b.code));
                 disc.innerHTML = '<option value="">No discount</option>' +
-                    codes.map(d => `<option value="${d.code}" data-percent="${d.percent}">${d.code} (${d.percent}%)</option>`).join('');
+                    codes.map(d => `<option value="${d.code}" data-percent="${d.percent}" data-type="${d.type || 'margin'}">${d.code} (${d.percent}% ${d.type === 'fee' ? 'off fee' : 'off margin'})</option>`).join('');
             }
         }
 
@@ -6163,7 +6164,7 @@
                 deliveredAmount: l.deliveredAmount ?? 0,
                 discount: l.discount || 0,
                 discountCode: l.discountCode || '',
-                serviceFee: l.serviceFee || 'none',
+                discountType: l.discountType || 'margin',
                 bbg: !!l.bbg
             }));
 
@@ -6177,7 +6178,6 @@
             document.getElementById('txReceivedAmount').value = '';
             document.getElementById('txDeliveredAmount').value = '';
             document.getElementById('txDiscountCode').value = '';
-            document.getElementById('txServiceFee').value = 'none';
             document.getElementById('txBbg').checked = false;
         }
 
@@ -6201,7 +6201,9 @@
             const discountPercent = discountCode
                 ? parseFloat(discountSelect.options[discountSelect.selectedIndex].dataset.percent) || 0
                 : 0;
-            const serviceFee = document.getElementById('txServiceFee').value;
+            const discountType = discountCode
+                ? (discountSelect.options[discountSelect.selectedIndex].dataset.type || 'margin')
+                : 'margin';
             const bbg = document.getElementById('txBbg').checked;
 
             if (!receivedCcy || !deliveredCcy || isNaN(receivedAmount) || isNaN(deliveredAmount)) {
@@ -6220,7 +6222,7 @@
                 deliveredAmount,
                 discount: discountPercent,
                 discountCode,
-                serviceFee,
+                discountType,
                 bbg
             });
 
@@ -6239,7 +6241,6 @@
             document.getElementById('txDeliveredCcy').value = l.deliveredCcy || '';
             document.getElementById('txDeliveredAmount').value = l.deliveredAmount ?? '';
             document.getElementById('txDiscountCode').value = l.discountCode || '';
-            document.getElementById('txServiceFee').value = l.serviceFee || 'none';
             document.getElementById('txBbg').checked = !!l.bbg;
 
             currentResultLines.splice(index, 1);
@@ -6337,7 +6338,7 @@
                     deliveredAmount: line.deliveredAmount,
                     discount: line.discount,
                     discountCode: line.discountCode || '',
-                    serviceFee: line.serviceFee || 'none',
+                    discountType: line.discountType || 'margin',
                     bbg: !!line.bbg,
                     createdAt: new Date().toISOString()
                 });
@@ -6537,7 +6538,7 @@
         function downloadImportTemplate() {
             const headers = [
                 'Employee', 'Date', 'Received CCY', 'Received Amount',
-                'Delivered CCY', 'Delivered Amount', 'Discount Code', 'Service Fee', 'BBG'
+                'Delivered CCY', 'Delivered Amount', 'Discount Code', 'BBG'
             ];
             const example = [
                 state.team[0] ? state.team[0].name : 'John Smith',
@@ -6547,7 +6548,6 @@
                 'EUR',
                 100,
                 '',
-                'none',
                 'no'
             ];
 
@@ -6610,7 +6610,6 @@
                         const receivedAmount = parseFloat(row['Received Amount']);
                         const deliveredAmount = parseFloat(row['Delivered Amount']);
                         const discountCodeRaw = String(row['Discount Code'] || '').trim().toUpperCase();
-                        const serviceFeeRaw = String(row['Service Fee'] || 'none').trim().toLowerCase();
                         const bbgRaw = String(row['BBG'] || '').trim().toLowerCase();
 
                         const member = state.team.find(m => m.name.trim().toLowerCase() === employeeName.toLowerCase());
@@ -6622,14 +6621,14 @@
 
                         let discount = 0;
                         let discountCode = '';
+                        let discountType = 'margin';
                         if (discountCodeRaw) {
                             const dc = state.discountCodes.find(d => d.code === discountCodeRaw);
                             if (!dc) { errors.push(`Row ${rowNum}: discount code "${discountCodeRaw}" not found.`); return; }
                             discount = dc.percent;
                             discountCode = dc.code;
+                            discountType = dc.type || 'margin';
                         }
-
-                        const serviceFee = ['full', 'half', 'none'].includes(serviceFeeRaw) ? serviceFeeRaw : 'none';
                         const bbg = ['yes', 'y', '1', 'true', 'x'].includes(bbgRaw);
 
                         valid.push({
@@ -6638,7 +6637,7 @@
                             dateKey,
                             receivedCcy, receivedAmount,
                             deliveredCcy, deliveredAmount,
-                            discount, discountCode, serviceFee, bbg
+                            discount, discountCode, discountType, bbg
                         });
                     });
 
@@ -6718,7 +6717,7 @@
                         deliveredAmount: r.deliveredAmount,
                         discount: r.discount,
                         discountCode: r.discountCode,
-                        serviceFee: r.serviceFee,
+                        discountType: r.discountType,
                         bbg: r.bbg,
                         imported: true,
                         createdAt: new Date().toISOString()
@@ -6906,7 +6905,6 @@
             document.getElementById('editTxDeliveredCcy').value = l.deliveredCcy || '';
             document.getElementById('editTxDeliveredAmount').value = l.deliveredAmount ?? '';
             document.getElementById('editTxDiscountCode').value = l.discountCode || '';
-            document.getElementById('editTxServiceFee').value = l.serviceFee || 'none';
             document.getElementById('editTxBbg').checked = !!l.bbg;
 
             document.getElementById('editTxModalOverlay').dataset.lineId = lineId;
@@ -6921,7 +6919,7 @@
 
             const codes = [...state.discountCodes].sort((a, b) => a.code.localeCompare(b.code));
             document.getElementById('editTxDiscountCode').innerHTML = '<option value="">No discount</option>' +
-                codes.map(d => `<option value="${d.code}" data-percent="${d.percent}">${d.code} (${d.percent}%)</option>`).join('');
+                codes.map(d => `<option value="${d.code}" data-percent="${d.percent}" data-type="${d.type || 'margin'}">${d.code} (${d.percent}% ${d.type === 'fee' ? 'off fee' : 'off margin'})</option>`).join('');
         }
 
         function closeEditTxModal() {
@@ -6947,7 +6945,9 @@
             const discount = discountCode
                 ? parseFloat(discountSelect.options[discountSelect.selectedIndex].dataset.percent) || 0
                 : 0;
-            const serviceFee = document.getElementById('editTxServiceFee').value;
+            const discountType = discountCode
+                ? (discountSelect.options[discountSelect.selectedIndex].dataset.type || 'margin')
+                : 'margin';
             const bbg = document.getElementById('editTxBbg').checked;
 
             if (!receivedCcy || !deliveredCcy || isNaN(receivedAmount) || isNaN(deliveredAmount)) {
@@ -6957,7 +6957,7 @@
 
             await fns.updateDoc(fns.doc(db, 'resultLines', lineId), {
                 receivedCcy, receivedAmount, deliveredCcy, deliveredAmount,
-                discount, discountCode, serviceFee, bbg
+                discount, discountCode, discountType, bbg
             });
 
             await clearValidationForDate(l.memberId, l.dateKey);
@@ -7339,6 +7339,7 @@
         async function addDiscountCode() {
             const code = document.getElementById('discountCodeInput').value.trim().toUpperCase();
             const percent = parseFloat(document.getElementById('discountPercentInput').value);
+            const type = document.getElementById('discountTypeInput').value;
 
             if (!code || isNaN(percent)) {
                 alert('Please fill in the code and its percentage.');
@@ -7353,8 +7354,8 @@
                 return;
             }
 
-            await fns.addDoc(fns.collection(db, 'discountCodes'), { code, percent });
-            logAction('Discount code added', `${code} — ${percent}%`);
+            await fns.addDoc(fns.collection(db, 'discountCodes'), { code, percent, type });
+            logAction('Discount code added', `${code} — ${percent}% off ${type}`);
 
             document.getElementById('discountCodeInput').value = '';
             document.getElementById('discountPercentInput').value = '';
@@ -7375,7 +7376,7 @@
                     <div class="team-avatar"><i class="fas fa-percent"></i></div>
                     <div class="team-info">
                         <div class="team-name">${d.code}</div>
-                        <div class="team-role">${d.percent}% discount</div>
+                        <div class="team-role">${d.percent}% off ${d.type === 'fee' ? 'service fee' : 'margin'}</div>
                     </div>
                     <div class="team-actions">
                         <button class="btn btn-secondary" onclick="openEditDiscountModal('${d.id}')" title="Edit">
@@ -7394,6 +7395,7 @@
             if (!d) return;
             document.getElementById('editDiscountCode').value = d.code;
             document.getElementById('editDiscountPercent').value = d.percent;
+            document.getElementById('editDiscountType').value = d.type || 'margin';
             document.getElementById('editDiscountModalOverlay').dataset.discountId = id;
             document.getElementById('editDiscountModalOverlay').classList.add('active');
         }
@@ -7412,14 +7414,15 @@
 
             const code = document.getElementById('editDiscountCode').value.trim().toUpperCase();
             const percent = parseFloat(document.getElementById('editDiscountPercent').value);
+            const type = document.getElementById('editDiscountType').value;
 
             if (!code || isNaN(percent) || percent < 0 || percent > 100) {
                 alert('Please enter a valid code and a percentage between 0 and 100.');
                 return;
             }
 
-            await fns.updateDoc(fns.doc(db, 'discountCodes', id), { code, percent });
-            logAction('Discount code updated', `${code} — ${percent}%`);
+            await fns.updateDoc(fns.doc(db, 'discountCodes', id), { code, percent, type });
+            logAction('Discount code updated', `${code} — ${percent}% off ${type}`);
             closeEditDiscountModal();
         }
 
