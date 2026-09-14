@@ -2844,7 +2844,7 @@
             <div id="auditLogList"></div>
         </div>
 
-        <div class="app-version">GEBLL v-0.43</div>
+        <div class="app-version">GEBLL v-0.44</div>
     </div>
 
 
@@ -6471,7 +6471,7 @@
                 const dayLines = sortLinesInOrder(monthLines.filter(l => l.dateKey === dk));
                 const day = aggregateLines(dayLines);
                 const periodKey = dk.slice(0, 7);
-                const cols = `1.5fr 1.5fr ${showRevenue ? '0.8fr ' : ''}0.5fr 0.7fr auto`;
+                const cols = `1.5fr 1.5fr ${showRevenue ? '0.8fr ' : ''}0.5fr 0.7fr auto auto`;
 
                 const linesHtml = dayLines.map(l => {
                     const revenue = calcLineRevenue(l);
@@ -6491,6 +6491,9 @@
                             <div class="${indexClass}">${indexText}</div>
                             <button class="btn btn-secondary" style="padding:4px 8px;" onclick="openEditTransactionModal('${l.id}')" title="Edit">
                                 <i class="fas fa-pen"></i>
+                            </button>
+                            <button class="btn btn-danger" style="padding:4px 8px;" onclick="deleteTransaction('${l.id}')" title="Delete">
+                                <i class="fas fa-trash"></i>
                             </button>
                         </div>
                     `;
@@ -6903,7 +6906,7 @@
 
             const linesEl = document.getElementById('rvDayDetailLines');
             const showRevenue = canSeeRevenue();
-            const cols = `1.5fr 1.5fr ${showRevenue ? '0.8fr ' : ''}0.5fr 0.7fr auto`;
+            const cols = `1.5fr 1.5fr ${showRevenue ? '0.8fr ' : ''}0.5fr 0.7fr auto auto`;
 
             linesEl.innerHTML = lines.length === 0
                 ? `<p style="color:#999; font-size:13px;">No transactions found.</p>`
@@ -6928,6 +6931,9 @@
                             <div class="${indexClass}">${indexText}</div>
                             <button class="btn btn-secondary" style="padding:4px 8px;" onclick="openEditTransactionModal('${l.id}')" title="Edit transaction">
                                 <i class="fas fa-pen"></i>
+                            </button>
+                            <button class="btn btn-danger" style="padding:4px 8px;" onclick="deleteTransaction('${l.id}')" title="Delete transaction">
+                                <i class="fas fa-trash"></i>
                             </button>
                         </div>
                     `;
@@ -6971,6 +6977,33 @@
 
         function closeEditTxModalOutside(e) {
             if (e.target.id === 'editTxModalOverlay') closeEditTxModal();
+        }
+
+        // Deletes a single transaction, whether it was imported or entered by hand.
+        async function deleteTransaction(lineId) {
+            const l = state.resultLines.find(x => x.id === lineId);
+            if (!l) return;
+
+            const recvAmount = l.receivedAmount ?? l.amount ?? 0;
+            const recvCcy = l.receivedCcy || l.ccy || '';
+            if (!confirm(`Delete this transaction (${Number(recvAmount).toFixed(2)} ${recvCcy} on ${l.dateKey})?`)) return;
+
+            await fns.deleteDoc(fns.doc(db, 'resultLines', lineId));
+            await clearValidationForDate(l.memberId, l.dateKey);
+
+            const m = assigneeMap[l.memberId];
+            await logAction('Transaction deleted', `${l.dateKey} — ${Number(recvAmount).toFixed(2)} ${recvCcy} for ${m ? m.name : l.memberId}`);
+
+            if (document.getElementById('resultsValidation').classList.contains('active')) {
+                if (rvSelectedDateKey === l.dateKey) {
+                    rvSelectedDateKey = null;
+                    toggleRvDayDetail(l.memberId, l.dateKey);
+                }
+                renderRvDailyList();
+            }
+            if (document.getElementById('results').classList.contains('active')) {
+                renderResults();
+            }
         }
 
         async function saveEditTransaction() {
