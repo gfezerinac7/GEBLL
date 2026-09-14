@@ -8,7 +8,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
-        import { getFirestore, collection, onSnapshot, addDoc, deleteDoc, doc, updateDoc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+        import { getFirestore, collection, onSnapshot, addDoc, deleteDoc, doc, updateDoc, setDoc, getDoc, writeBatch } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
         import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword, sendPasswordResetEmail, updatePassword } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
         import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-messaging.js";
 
@@ -31,7 +31,7 @@
         const secondaryAuth = getAuth(secondaryApp);
 
         window.firebaseDB = db;
-        window.firebaseFns = { collection, onSnapshot, addDoc, deleteDoc, doc, updateDoc, setDoc, getDoc };
+        window.firebaseFns = { collection, onSnapshot, addDoc, deleteDoc, doc, updateDoc, setDoc, getDoc, writeBatch };
         window.firebaseAuth = auth;
         window.firebaseAuthFns = { signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword, sendPasswordResetEmail, updatePassword };
         window.firebaseSecondaryAuth = secondaryAuth;
@@ -2844,7 +2844,7 @@
             <div id="auditLogList"></div>
         </div>
 
-        <div class="app-version">GEBLL v-0.41</div>
+        <div class="app-version">GEBLL v-0.43</div>
     </div>
 
 
@@ -6157,7 +6157,7 @@
                 ? `Results — ${a.dateKey} ${shift ? shift.start + '-' + shift.end : ''} ${loc ? '(' + loc.name + ')' : ''}`
                 : `Results — ${fallbackDateKey} (original shift no longer found)`;
 
-            currentResultLines = linesForThisAssignment.map(l => ({
+            currentResultLines = sortLinesInOrder(linesForThisAssignment).map(l => ({
                 receivedCcy: l.receivedCcy || l.ccy || '',
                 receivedAmount: l.receivedAmount ?? l.amount ?? 0,
                 deliveredCcy: l.deliveredCcy || '',
@@ -6357,6 +6357,18 @@
         }
 
         // Aggregates a set of result lines into the metrics used everywhere.
+        // Keeps transactions in the order they actually happened: imported rows
+        // follow their position in the spreadsheet, manually entered ones follow
+        // the time they were saved.
+        function sortLinesInOrder(lines) {
+            return [...lines].sort((a, b) => {
+                if (a.rowOrder != null && b.rowOrder != null) return a.rowOrder - b.rowOrder;
+                if (a.rowOrder != null) return -1;
+                if (b.rowOrder != null) return 1;
+                return (a.createdAt || '').localeCompare(b.createdAt || '');
+            });
+        }
+
         function aggregateLines(lines) {
             const transactions = lines.length;
             const turnover = lines.reduce((sum, l) => sum + calcLineTurnover(l), 0);
@@ -6456,7 +6468,7 @@
             }
 
             dailyList.innerHTML = dayKeys.map(dk => {
-                const dayLines = monthLines.filter(l => l.dateKey === dk);
+                const dayLines = sortLinesInOrder(monthLines.filter(l => l.dateKey === dk));
                 const day = aggregateLines(dayLines);
                 const periodKey = dk.slice(0, 7);
                 const cols = `1.5fr 1.5fr ${showRevenue ? '0.8fr ' : ''}0.5fr 0.7fr auto`;
@@ -6632,6 +6644,7 @@
                         const bbg = ['yes', 'y', '1', 'true', 'x'].includes(bbgRaw);
 
                         valid.push({
+                            rowOrder: rowNum,
                             memberId: member.id,
                             memberName: member.name,
                             dateKey,
@@ -6692,43 +6705,73 @@
             if (!confirm(`Import ${pendingImportRows.length} transaction(s)? This will replace existing records for ${combos.length} employee/date combination(s).`)) return;
 
             const confirmBtn = document.getElementById('importConfirmBtn');
+            const previewEl = document.getElementById('importPreview');
             confirmBtn.disabled = true;
-            confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Importing...';
+
+            // Firestore allows up to 500 operations per batch, so the work is
+            // grouped into batches instead of written one document at a time.
+            const BATCH_LIMIT = 450;
+
+            const setProgress = (text) => {
+                confirmBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ${text}`;
+            };
 
             try {
-                // Clear what is already recorded for the employee/date pairs in the file.
+                // 1. Collect everything that has to be deleted first.
+                const toDelete = [];
                 for (const combo of combos) {
                     const [memberId, dateKey] = combo.split('|');
-                    const existing = state.resultLines.filter(l => l.memberId === memberId && l.dateKey === dateKey);
-                    for (const l of existing) {
-                        await fns.deleteDoc(fns.doc(db, 'resultLines', l.id));
-                    }
-                    await clearValidationForDate(memberId, dateKey);
+                    state.resultLines
+                        .filter(l => l.memberId === memberId && l.dateKey === dateKey)
+                        .forEach(l => toDelete.push(fns.doc(db, 'resultLines', l.id)));
+
+                    const validation = (state.resultValidations || [])
+                        .find(v => v.memberId === memberId && v.dateKey === dateKey);
+                    if (validation) toDelete.push(fns.doc(db, 'resultValidations', validation.id));
                 }
 
-                for (const r of pendingImportRows) {
-                    await fns.addDoc(fns.collection(db, 'resultLines'), {
-                        assignmentId: null,
-                        memberId: r.memberId,
-                        dateKey: r.dateKey,
-                        receivedCcy: r.receivedCcy,
-                        receivedAmount: r.receivedAmount,
-                        deliveredCcy: r.deliveredCcy,
-                        deliveredAmount: r.deliveredAmount,
-                        discount: r.discount,
-                        discountCode: r.discountCode,
-                        discountType: r.discountType,
-                        bbg: r.bbg,
-                        imported: true,
-                        createdAt: new Date().toISOString()
+                // 2. Delete in batches.
+                for (let i = 0; i < toDelete.length; i += BATCH_LIMIT) {
+                    setProgress(`Clearing old records… ${Math.min(i + BATCH_LIMIT, toDelete.length)}/${toDelete.length}`);
+                    const batch = fns.writeBatch(db);
+                    toDelete.slice(i, i + BATCH_LIMIT).forEach(ref => batch.delete(ref));
+                    await batch.commit();
+                }
+
+                // 3. Write the new transactions in batches.
+                const total = pendingImportRows.length;
+                for (let i = 0; i < total; i += BATCH_LIMIT) {
+                    const slice = pendingImportRows.slice(i, i + BATCH_LIMIT);
+                    setProgress(`Importing… ${Math.min(i + BATCH_LIMIT, total)}/${total}`);
+
+                    const batch = fns.writeBatch(db);
+                    slice.forEach(r => {
+                        const ref = fns.doc(fns.collection(db, 'resultLines'));
+                        batch.set(ref, {
+                            assignmentId: null,
+                            memberId: r.memberId,
+                            dateKey: r.dateKey,
+                            receivedCcy: r.receivedCcy,
+                            receivedAmount: r.receivedAmount,
+                            deliveredCcy: r.deliveredCcy,
+                            deliveredAmount: r.deliveredAmount,
+                            discount: r.discount,
+                            discountCode: r.discountCode,
+                            discountType: r.discountType,
+                            bbg: r.bbg,
+                            imported: true,
+                            rowOrder: r.rowOrder,
+                            createdAt: new Date().toISOString()
+                        });
                     });
+                    await batch.commit();
                 }
 
-                await logAction('Transactions imported', `${pendingImportRows.length} transaction(s) across ${combos.length} employee/date combination(s)`);
+                await logAction('Transactions imported', `${total} transaction(s) across ${combos.length} employee/date combination(s)`);
 
-                alert(`Imported ${pendingImportRows.length} transaction(s).`);
+                alert(`Imported ${total} transaction(s).`);
                 document.getElementById('importFileInput').value = '';
-                document.getElementById('importPreview').innerHTML = '';
+                previewEl.innerHTML = '';
                 pendingImportRows = [];
                 confirmBtn.classList.add('app-hidden');
                 renderRvDailyList();
@@ -6854,7 +6897,7 @@
             }
             rvSelectedDateKey = dateKey;
 
-            const lines = state.resultLines.filter(l => l.memberId === memberId && l.dateKey === dateKey);
+            const lines = sortLinesInOrder(state.resultLines.filter(l => l.memberId === memberId && l.dateKey === dateKey));
             const periodKey = dateKey.slice(0, 7);
             document.getElementById('rvDayDetailTitle').textContent = `Transactions for ${dateKey}`;
 
