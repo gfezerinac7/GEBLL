@@ -6,6 +6,8 @@
     <title>GEBLL</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
         import { getFirestore, collection, onSnapshot, addDoc, deleteDoc, doc, updateDoc, setDoc, getDoc, writeBatch } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
@@ -1845,14 +1847,22 @@
                     <label>Rotation start date (first day of the 6-on block)</label>
                     <input type="date" id="memberRotationAnchor">
                 </div>
-                <div class="form-row">
+                <div class="form-group">
+                    <label>Vacation days for this year</label>
+                    <input type="number" id="memberVacationDays" value="25" min="0" max="30">
+                </div>
+                <div class="form-group" id="memberSalaryWrap">
+                    <label>Monthly salary</label>
+                    <input type="number" id="memberSalary" step="0.01" min="0" placeholder="0.00">
+                </div>
+                <div class="form-row app-hidden" id="memberRatesWrap">
                     <div class="form-group">
-                        <label>Vacation days for this year</label>
-                        <input type="number" id="memberVacationDays" value="25" min="0" max="30">
+                        <label>Rate week (per hour)</label>
+                        <input type="number" id="memberRateWeek" step="0.01" min="0" placeholder="0.00">
                     </div>
                     <div class="form-group">
-                        <label>Monthly salary</label>
-                        <input type="number" id="memberSalary" step="0.01" min="0" placeholder="0.00">
+                        <label>Rate weekend (per hour)</label>
+                        <input type="number" id="memberRateWeekend" step="0.01" min="0" placeholder="0.00">
                     </div>
                 </div>
                 <button class="btn" onclick="addTeamMember()">
@@ -1907,9 +1917,19 @@
                     <label>Vacation days for this year</label>
                     <input type="number" id="editMemberVacationDays" min="0" max="30">
                 </div>
-                <div class="form-group">
+                <div class="form-group" id="editMemberSalaryWrap">
                     <label>Monthly salary</label>
                     <input type="number" id="editMemberSalary" step="0.01" min="0">
+                </div>
+                <div class="form-row app-hidden" id="editMemberRatesWrap">
+                    <div class="form-group">
+                        <label>Rate week (per hour)</label>
+                        <input type="number" id="editMemberRateWeek" step="0.01" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label>Rate weekend (per hour)</label>
+                        <input type="number" id="editMemberRateWeekend" step="0.01" min="0">
+                    </div>
                 </div>
                 <button class="btn" style="width:100%; justify-content:center;" onclick="saveEditMember()">
                     <i class="fas fa-check"></i>
@@ -2353,7 +2373,106 @@
             </div>
 
             <div id="mgmtReports" class="app-hidden">
-                <p style="color:#999; font-size:13px;">Reports are coming in the next update.</p>
+                <div class="form-section">
+                    <div class="section-title">
+                        <i class="fas fa-calendar"></i>
+                        Report period
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Month</label>
+                            <select id="reportMonthSelect"></select>
+                        </div>
+                        <div class="form-group">
+                            <label>Year</label>
+                            <select id="reportYearSelect"></select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <div class="section-title">
+                        <i class="fas fa-user"></i>
+                        Individual results
+                    </div>
+                    <p style="font-size:12px; color:#999; margin-bottom:12px;">
+                        A full breakdown for one member: monthly totals, achievement, bonus and daily figures.
+                    </p>
+                    <div class="form-group">
+                        <label>Team member</label>
+                        <select id="reportMemberSelect"></select>
+                    </div>
+                    <button class="btn" onclick="generateIndividualReport()">
+                        <i class="fas fa-file-pdf"></i>
+                        Generate PDF
+                    </button>
+                </div>
+
+                <div class="form-section">
+                    <div class="section-title">
+                        <i class="fas fa-ranking-star"></i>
+                        Results by advisor
+                    </div>
+                    <p style="font-size:12px; color:#999; margin-bottom:12px;">
+                        Every member compared side by side, with a chart of transactions, turnover, average, achievement and BBG.
+                    </p>
+                    <button class="btn" onclick="generateAdvisorReport()">
+                        <i class="fas fa-file-pdf"></i>
+                        Generate PDF
+                    </button>
+                </div>
+
+                <div class="form-section">
+                    <div class="section-title">
+                        <i class="fas fa-clock"></i>
+                        Hours worked (hourly staff)
+                    </div>
+                    <p style="font-size:12px; color:#999; margin-bottom:12px;">
+                        Gross hours per day and total, for members on an hourly contract.
+                    </p>
+                    <div class="form-group">
+                        <label>Period</label>
+                        <select id="hoursPeriodMode" onchange="toggleHoursPeriodMode()">
+                            <option value="month">Calendar month (uses the period above)</option>
+                            <option value="custom">Custom date range</option>
+                        </select>
+                    </div>
+                    <div class="form-row app-hidden" id="hoursCustomRange">
+                        <div class="form-group">
+                            <label>From</label>
+                            <input type="date" id="hoursFromDate">
+                        </div>
+                        <div class="form-group">
+                            <label>To</label>
+                            <input type="date" id="hoursToDate">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="module-check" style="width:fit-content;">
+                            <input type="checkbox" id="hoursShowPay">
+                            Include pay (uses each member's week / weekend rates)
+                        </label>
+                    </div>
+                    <button class="btn" onclick="generateHoursReport()">
+                        <i class="fas fa-file-pdf"></i>
+                        Generate PDF
+                    </button>
+                </div>
+
+                <div class="form-section">
+                    <div class="section-title">
+                        <i class="fas fa-table"></i>
+                        Global rota
+                    </div>
+                    <p style="font-size:12px; color:#999; margin-bottom:12px;">
+                        Grid of the whole month: members across the top, dates down the side.
+                        Sick leave is highlighted in red.
+                    </p>
+                    <button class="btn" onclick="generateRotaReport()">
+                        <i class="fas fa-file-pdf"></i>
+                        Generate PDF
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -2973,7 +3092,7 @@
             <div id="auditLogList"></div>
         </div>
 
-        <div class="app-version">GEBLL v-0.45</div>
+        <div class="app-version">GEBLL v-0.47</div>
     </div>
 
 
@@ -3626,6 +3745,10 @@
             const val = document.getElementById('memberRotation').value;
             document.getElementById('newRotationAnchorWrap').style.display =
                 (val === 'A' || val === 'B' || val === 'C') ? 'block' : 'none';
+
+            const isHourly = val === 'hourly';
+            document.getElementById('memberSalaryWrap').classList.toggle('app-hidden', isHourly);
+            document.getElementById('memberRatesWrap').classList.toggle('app-hidden', !isHourly);
         }
 
         async function addTeamMember() {
@@ -3637,6 +3760,8 @@
             const rotationAnchor = document.getElementById('memberRotationAnchor').value;
             const vacationDays = parseInt(document.getElementById('memberVacationDays').value, 10) || 0;
             const salary = parseFloat(document.getElementById('memberSalary').value) || 0;
+            const rateWeek = parseFloat(document.getElementById('memberRateWeek').value) || 0;
+            const rateWeekend = parseFloat(document.getElementById('memberRateWeekend').value) || 0;
 
             if (!name) {
                 alert('Please enter a name');
@@ -3669,6 +3794,8 @@
                     rotationAnchor: rotationAnchor || null,
                     vacationDaysAllotted: vacationDays,
                     salary,
+                    rateWeek,
+                    rateWeekend,
                     mustChangePassword: true,
                     joinDate: new Date().toLocaleDateString('en-US')
                 });
@@ -3688,6 +3815,8 @@
             document.getElementById('memberRotationAnchor').value = '';
             document.getElementById('memberVacationDays').value = '25';
             document.getElementById('memberSalary').value = '';
+            document.getElementById('memberRateWeek').value = '';
+            document.getElementById('memberRateWeekend').value = '';
             document.getElementById('newRotationAnchorWrap').style.display = 'none';
         }
 
@@ -3896,6 +4025,8 @@
             document.getElementById('editMemberRotationAnchor').value = member.rotationAnchor || '';
             document.getElementById('editMemberVacationDays').value = member.vacationDaysAllotted ?? 25;
             document.getElementById('editMemberSalary').value = member.salary ?? '';
+            document.getElementById('editMemberRateWeek').value = member.rateWeek ?? '';
+            document.getElementById('editMemberRateWeekend').value = member.rateWeekend ?? '';
             toggleEditRotationAnchorField();
 
             document.getElementById('editMemberModalOverlay').dataset.memberId = memberId;
@@ -3906,6 +4037,10 @@
             const val = document.getElementById('editMemberRotation').value;
             document.getElementById('editRotationAnchorWrap').style.display =
                 (val === 'A' || val === 'B' || val === 'C') ? 'block' : 'none';
+
+            const isHourly = val === 'hourly';
+            document.getElementById('editMemberSalaryWrap').classList.toggle('app-hidden', isHourly);
+            document.getElementById('editMemberRatesWrap').classList.toggle('app-hidden', !isHourly);
         }
 
         function closeEditMemberModal() {
@@ -3927,6 +4062,8 @@
             const rotationAnchor = document.getElementById('editMemberRotationAnchor').value;
             const vacationDays = parseInt(document.getElementById('editMemberVacationDays').value, 10) || 0;
             const salary = parseFloat(document.getElementById('editMemberSalary').value) || 0;
+            const rateWeek = parseFloat(document.getElementById('editMemberRateWeek').value) || 0;
+            const rateWeekend = parseFloat(document.getElementById('editMemberRateWeekend').value) || 0;
 
             if (!name) {
                 alert('Please enter a name');
@@ -3944,7 +4081,9 @@
                 rotation,
                 rotationAnchor: rotationAnchor || null,
                 vacationDaysAllotted: vacationDays,
-                salary
+                salary,
+                rateWeek,
+                rateWeekend
             });
             logAction('Team member updated', name);
 
@@ -8141,6 +8280,7 @@
             document.getElementById('mgmtWpResults').classList.toggle('app-hidden', tab !== 'wpResults');
             document.getElementById('mgmtReports').classList.toggle('app-hidden', tab !== 'reports');
             if (tab === 'wpResults') renderWpResults();
+            if (tab === 'reports') initReportsTab();
         }
 
         function initManagement() {
@@ -8161,6 +8301,7 @@
             }
 
             renderWpResults();
+            initReportsTab();
         }
 
         function getWpPeriodKey() {
@@ -8216,6 +8357,449 @@
                     </span>
                 </div>
             `).join('');
+        }
+
+
+        // ===== MANAGEMENT — REPORTS =====
+
+        function initReportsTab() {
+            const monthSelect = document.getElementById('reportMonthSelect');
+            const yearSelect = document.getElementById('reportYearSelect');
+            const memberSelect = document.getElementById('reportMemberSelect');
+
+            if (monthSelect && !monthSelect.dataset.initialized) {
+                const names = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+                monthSelect.innerHTML = names.map((n, i) => `<option value="${i + 1}">${n}</option>`).join('');
+                monthSelect.value = new Date().getMonth() + 1;
+                monthSelect.dataset.initialized = 'true';
+            }
+            if (yearSelect && !yearSelect.dataset.initialized) {
+                const y = new Date().getFullYear();
+                yearSelect.innerHTML = [y - 1, y, y + 1].map(yy => `<option value="${yy}">${yy}</option>`).join('');
+                yearSelect.value = y;
+                yearSelect.dataset.initialized = 'true';
+            }
+            if (memberSelect) {
+                const current = memberSelect.value;
+                memberSelect.innerHTML = state.team
+                    .slice()
+                    .sort((a, b) => a.name.localeCompare(b.name))
+                    .map(m => `<option value="${m.id}">${m.name}</option>`).join('');
+                if (current && state.team.some(m => m.id === current)) memberSelect.value = current;
+            }
+        }
+
+        function getReportPeriodKey() {
+            const m = document.getElementById('reportMonthSelect').value.padStart(2, '0');
+            const y = document.getElementById('reportYearSelect').value;
+            return `${y}-${m}`;
+        }
+
+        function getReportPeriodLabel() {
+            const periodKey = getReportPeriodKey();
+            const [y, m] = periodKey.split('-').map(Number);
+            return new Date(y, m - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+        }
+
+        function newPdfDoc(orientation) {
+            const { jsPDF } = window.jspdf;
+            return new jsPDF({ orientation: orientation || 'portrait', unit: 'mm', format: 'a4' });
+        }
+
+        function addPdfHeader(doc, title, subtitle) {
+            doc.setFontSize(18);
+            doc.setTextColor(30, 41, 59);
+            doc.text('GEBLL', 14, 18);
+            doc.setFontSize(13);
+            doc.text(title, 14, 27);
+            doc.setFontSize(10);
+            doc.setTextColor(120, 120, 120);
+            doc.text(subtitle, 14, 34);
+            doc.setDrawColor(220, 220, 220);
+            doc.line(14, 38, doc.internal.pageSize.getWidth() - 14, 38);
+            doc.setTextColor(0, 0, 0);
+            return 46;
+        }
+
+        function generateIndividualReport() {
+            const memberId = document.getElementById('reportMemberSelect').value;
+            const member = state.team.find(m => m.id === memberId);
+            if (!member) { alert('Select a team member.'); return; }
+
+            const periodKey = getReportPeriodKey();
+            const showRevenue = canSeeRevenue();
+            const lines = state.resultLines.filter(l => l.memberId === memberId && l.dateKey.slice(0, 7) === periodKey);
+
+            if (lines.length === 0) { alert('No results recorded for this member in that period.'); return; }
+
+            const month = aggregateLines(lines);
+            const bonus = calcBonus(month, periodKey, member);
+            const cfg = getBonusConfigForPeriod(periodKey);
+
+            const doc = newPdfDoc();
+            let y = addPdfHeader(doc, `Individual results — ${member.name}`, getReportPeriodLabel());
+
+            const summaryRows = [
+                ['Transactions', String(month.transactions)],
+                ['Turnover', month.turnover.toFixed(2)],
+                ['Average', month.average.toFixed(2)],
+                ['BBG', String(month.bbg)],
+                ['Index', calcMonthIndex(month, periodKey)]
+            ];
+            if (showRevenue) {
+                summaryRows.splice(3, 0, ['Revenue', month.revenue.toFixed(2)]);
+                summaryRows.push(['Revenue per transaction', month.revenuePerTx.toFixed(2)]);
+            }
+
+            doc.autoTable({
+                startY: y,
+                head: [['Metric', 'Value']],
+                body: summaryRows,
+                theme: 'striped',
+                headStyles: { fillColor: [37, 99, 235] },
+                margin: { left: 14, right: 14 }
+            });
+            y = doc.lastAutoTable.finalY + 8;
+
+            if (cfg && cfg.targets) {
+                const active = BONUS_METRICS.filter(m => cfg.targets[m.key] && cfg.targets[m.key].enabled);
+                if (active.length > 0) {
+                    const achRows = active.map(m => {
+                        const target = Number(cfg.targets[m.key].value) || 0;
+                        const actual = month[m.key] || 0;
+                        const pct = target > 0 ? (actual / target) * 100 : 0;
+                        return [m.label, target.toFixed(2), actual.toFixed(2), pct.toFixed(0) + '%'];
+                    });
+                    doc.autoTable({
+                        startY: y,
+                        head: [['Target', 'Goal', 'Actual', 'Achievement']],
+                        body: achRows,
+                        theme: 'striped',
+                        headStyles: { fillColor: [5, 150, 105] },
+                        margin: { left: 14, right: 14 }
+                    });
+                    y = doc.lastAutoTable.finalY + 8;
+                }
+            }
+
+            if (bonus) {
+                doc.autoTable({
+                    startY: y,
+                    head: [['Bonus', 'Amount']],
+                    body: [
+                        ['Targets bonus', bonus.mainBonus.toFixed(2)],
+                        ['BBG bonus', bonus.bbgBonus.toFixed(2)],
+                        ['Total', bonus.total.toFixed(2)]
+                    ],
+                    theme: 'striped',
+                    headStyles: { fillColor: [180, 83, 9] },
+                    margin: { left: 14, right: 14 }
+                });
+                y = doc.lastAutoTable.finalY + 8;
+            }
+
+            const dayKeys = [...new Set(lines.map(l => l.dateKey))].sort();
+            const dailyRows = dayKeys.map(dk => {
+                const d = aggregateLines(lines.filter(l => l.dateKey === dk));
+                const row = [dk, String(d.transactions), d.turnover.toFixed(2), d.average.toFixed(2)];
+                if (showRevenue) row.push(d.revenue.toFixed(2));
+                row.push(String(d.bbg));
+                return row;
+            });
+            const dailyHead = ['Date', 'Txns', 'Turnover', 'Average'];
+            if (showRevenue) dailyHead.push('Revenue');
+            dailyHead.push('BBG');
+
+            doc.autoTable({
+                startY: y,
+                head: [dailyHead],
+                body: dailyRows,
+                theme: 'grid',
+                headStyles: { fillColor: [37, 99, 235] },
+                styles: { fontSize: 8 },
+                margin: { left: 14, right: 14 }
+            });
+
+            doc.save(`GEBLL_${member.name.replace(/\s+/g, '_')}_${periodKey}.pdf`);
+            logAction('Report generated', `Individual results — ${member.name}, ${periodKey}`);
+        }
+
+        function generateAdvisorReport() {
+            const periodKey = getReportPeriodKey();
+            const showRevenue = canSeeRevenue();
+            const periodLines = state.resultLines.filter(l => l.dateKey.slice(0, 7) === periodKey);
+
+            if (periodLines.length === 0) { alert('No results recorded in that period.'); return; }
+
+            const memberIds = [...new Set(periodLines.map(l => l.memberId))];
+            const rows = memberIds.map(id => {
+                const m = state.team.find(x => x.id === id);
+                const agg = aggregateLines(periodLines.filter(l => l.memberId === id));
+                const ach = calcAchievement(agg, periodKey);
+                return {
+                    name: m ? m.name : 'Unknown',
+                    agg,
+                    pct: typeof ach === 'number' ? ach : null
+                };
+            }).sort((a, b) => b.agg.turnover - a.agg.turnover);
+
+            const doc = newPdfDoc('landscape');
+            let y = addPdfHeader(doc, 'Results by advisor', getReportPeriodLabel());
+
+            const head = ['Advisor', 'Txns', 'Turnover', 'Average'];
+            if (showRevenue) head.push('Revenue');
+            head.push('BBG', 'Achievement');
+
+            const body = rows.map(r => {
+                const row = [r.name, String(r.agg.transactions), r.agg.turnover.toFixed(2), r.agg.average.toFixed(2)];
+                if (showRevenue) row.push(r.agg.revenue.toFixed(2));
+                row.push(String(r.agg.bbg), r.pct != null ? r.pct.toFixed(0) + '%' : '—');
+                return row;
+            });
+
+            doc.autoTable({
+                startY: y,
+                head: [head],
+                body,
+                theme: 'striped',
+                headStyles: { fillColor: [37, 99, 235] },
+                margin: { left: 14, right: 14 }
+            });
+            y = doc.lastAutoTable.finalY + 10;
+
+            // Simple horizontal bar chart of turnover per advisor.
+            const pageWidth = doc.internal.pageSize.getWidth();
+            const chartWidth = pageWidth - 80;
+            const maxTurnover = Math.max(...rows.map(r => r.agg.turnover), 1);
+
+            if (y > doc.internal.pageSize.getHeight() - 60) { doc.addPage(); y = 20; }
+
+            doc.setFontSize(11);
+            doc.text('Turnover comparison', 14, y);
+            y += 6;
+
+            rows.forEach(r => {
+                if (y > doc.internal.pageSize.getHeight() - 20) { doc.addPage(); y = 20; }
+                const barWidth = (r.agg.turnover / maxTurnover) * chartWidth;
+                doc.setFontSize(8);
+                doc.setTextColor(60, 60, 60);
+                doc.text(r.name.substring(0, 22), 14, y + 3.5);
+                doc.setFillColor(37, 99, 235);
+                doc.rect(60, y, barWidth, 5, 'F');
+                doc.setTextColor(100, 100, 100);
+                doc.text(r.agg.turnover.toFixed(0), 62 + barWidth, y + 3.5);
+                y += 8;
+            });
+
+            doc.save(`GEBLL_advisors_${periodKey}.pdf`);
+            logAction('Report generated', `Results by advisor, ${periodKey}`);
+        }
+
+        function toggleHoursPeriodMode() {
+            const mode = document.getElementById('hoursPeriodMode').value;
+            document.getElementById('hoursCustomRange').classList.toggle('app-hidden', mode !== 'custom');
+        }
+
+        function generateHoursReport() {
+            const mode = document.getElementById('hoursPeriodMode').value;
+            const showPay = document.getElementById('hoursShowPay').checked;
+
+            let fromKey, toKey, periodLabel, fileSuffix;
+
+            if (mode === 'custom') {
+                fromKey = document.getElementById('hoursFromDate').value;
+                toKey = document.getElementById('hoursToDate').value;
+                if (!fromKey || !toKey) { alert('Please pick both dates for the custom range.'); return; }
+                if (toKey < fromKey) { alert('The end date must be on or after the start date.'); return; }
+                periodLabel = `${fromKey} to ${toKey}`;
+                fileSuffix = `${fromKey}_${toKey}`;
+            } else {
+                const periodKey = getReportPeriodKey();
+                const [y, m] = periodKey.split('-').map(Number);
+                const daysInMonth = new Date(y, m, 0).getDate();
+                fromKey = `${periodKey}-01`;
+                toKey = `${periodKey}-${String(daysInMonth).padStart(2, '0')}`;
+                periodLabel = getReportPeriodLabel();
+                fileSuffix = periodKey;
+            }
+
+            const hourlyMembers = state.team.filter(m => m.rotation === 'hourly');
+            if (hourlyMembers.length === 0) { alert('No members are set to an hourly contract.'); return; }
+
+            const doc = newPdfDoc();
+            let y = addPdfHeader(doc, 'Hours worked — hourly staff', periodLabel);
+
+            let anyData = false;
+            let grandHours = 0;
+            let grandPay = 0;
+
+            hourlyMembers.forEach(member => {
+                const assignments = state.assignments
+                    .filter(a => a.memberId === member.id && a.dateKey >= fromKey && a.dateKey <= toKey)
+                    .sort((a, b) => a.dateKey.localeCompare(b.dateKey));
+
+                if (assignments.length === 0) return;
+                anyData = true;
+
+                const byDate = {};
+                assignments.forEach(a => {
+                    const shift = state.shifts.find(s => s.id === a.shiftId);
+                    if (!shift) return;
+                    if (!byDate[a.dateKey]) byDate[a.dateKey] = { minutes: 0, shifts: [] };
+                    byDate[a.dateKey].minutes += shift.grossMinutes || 0;
+                    byDate[a.dateKey].shifts.push(`${shift.start}-${shift.end}`);
+                });
+
+                const rateWeek = member.rateWeek || 0;
+                const rateWeekend = member.rateWeekend || 0;
+
+                let totalMinutes = 0;
+                let totalPay = 0;
+
+                const rows = Object.keys(byDate).sort().map(dk => {
+                    const day = byDate[dk];
+                    const hours = day.minutes / 60;
+                    const dayOfWeek = dateKeyToDate(dk).getDay(); // 0 = Sunday, 6 = Saturday
+                    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+                    const rate = isWeekend ? rateWeekend : rateWeek;
+                    const pay = hours * rate;
+
+                    totalMinutes += day.minutes;
+                    totalPay += pay;
+
+                    const row = [
+                        `${dk} ${isWeekend ? '(WE)' : ''}`.trim(),
+                        day.shifts.join(', '),
+                        hours.toFixed(2)
+                    ];
+                    if (showPay) {
+                        row.push(rate.toFixed(2));
+                        row.push(pay.toFixed(2));
+                    }
+                    return row;
+                });
+
+                grandHours += totalMinutes / 60;
+                grandPay += totalPay;
+
+                if (y > doc.internal.pageSize.getHeight() - 50) { doc.addPage(); y = 20; }
+
+                doc.setFontSize(12);
+                doc.setTextColor(30, 41, 59);
+                doc.text(member.name, 14, y);
+                y += 4;
+
+                const head = ['Date', 'Shifts', 'Hours'];
+                const footRow = ['Total', '', (totalMinutes / 60).toFixed(2)];
+                if (showPay) {
+                    head.push('Rate', 'Pay');
+                    footRow.push('', totalPay.toFixed(2));
+                }
+
+                doc.autoTable({
+                    startY: y,
+                    head: [head],
+                    body: rows,
+                    foot: [footRow],
+                    theme: 'striped',
+                    headStyles: { fillColor: [37, 99, 235] },
+                    footStyles: { fillColor: [226, 232, 240], textColor: [30, 41, 59], fontStyle: 'bold' },
+                    styles: { fontSize: 9 },
+                    margin: { left: 14, right: 14 }
+                });
+                y = doc.lastAutoTable.finalY + 10;
+            });
+
+            if (!anyData) { alert('No shifts recorded for hourly staff in that period.'); return; }
+
+            if (y > doc.internal.pageSize.getHeight() - 30) { doc.addPage(); y = 20; }
+            doc.setFontSize(11);
+            doc.setTextColor(30, 41, 59);
+            doc.text(`Grand total: ${grandHours.toFixed(2)} hours${showPay ? ` — ${grandPay.toFixed(2)} pay` : ''}`, 14, y);
+
+            doc.save(`GEBLL_hours_${fileSuffix}.pdf`);
+            logAction('Report generated', `Hours worked, ${periodLabel}${showPay ? ' (with pay)' : ''}`);
+        }
+
+        function generateRotaReport() {
+            const periodKey = getReportPeriodKey();
+            const [year, month] = periodKey.split('-').map(Number);
+            const daysInMonth = new Date(year, month, 0).getDate();
+
+            const members = state.team.slice().sort((a, b) => a.name.localeCompare(b.name));
+            if (members.length === 0) { alert('No team members yet.'); return; }
+
+            const doc = newPdfDoc('landscape');
+            const y = addPdfHeader(doc, 'Global rota', getReportPeriodLabel());
+
+            const head = [['Date'].concat(members.map(m => m.name.split(' ')[0].substring(0, 10)))];
+            const body = [];
+            const sickCells = [];
+
+            for (let d = 1; d <= daysInMonth; d++) {
+                const date = new Date(year, month - 1, d);
+                const dateKey = toDateKey(date);
+                const row = [`${String(d).padStart(2, '0')} ${date.toLocaleDateString('en-US', { weekday: 'short' })}`];
+
+                members.forEach((m, colIdx) => {
+                    const dayAssignments = state.assignments.filter(a => a.memberId === m.id && a.dateKey === dateKey);
+
+                    if (dayAssignments.length > 0) {
+                        const shifts = dayAssignments
+                            .map(a => state.shifts.find(s => s.id === a.shiftId))
+                            .filter(Boolean)
+                            .sort((a, b) => a.start.localeCompare(b.start));
+
+                        if (shifts.length > 0) {
+                            row.push(`${shifts[0].start}-${shifts[shifts.length - 1].end}`);
+                        } else {
+                            row.push('');
+                        }
+
+                        if (dayAssignments.some(a => a.sickLeave)) {
+                            sickCells.push({ row: d - 1, col: colIdx + 1 });
+                        }
+                        return;
+                    }
+
+                    if (isOnApprovedVacation(m.id, dateKey)) { row.push('Holiday'); return; }
+
+                    const working = isWorkingDayForMember(m, date);
+                    if (working === false) { row.push('Off'); return; }
+
+                    // Hourly staff with no shift: leave the cell blank.
+                    row.push('');
+                });
+
+                body.push(row);
+            }
+
+            doc.autoTable({
+                startY: y,
+                head,
+                body,
+                theme: 'grid',
+                headStyles: { fillColor: [37, 99, 235], fontSize: 7 },
+                styles: { fontSize: 6.5, cellPadding: 1.2, halign: 'center' },
+                columnStyles: { 0: { halign: 'left', fontStyle: 'bold' } },
+                margin: { left: 8, right: 8 },
+                didParseCell: (data) => {
+                    if (data.section !== 'body') return;
+                    const isSick = sickCells.some(s => s.row === data.row.index && s.col === data.column.index);
+                    if (isSick) {
+                        data.cell.styles.fillColor = [254, 202, 202];
+                        data.cell.styles.textColor = [153, 27, 27];
+                    } else if (data.cell.raw === 'Off') {
+                        data.cell.styles.textColor = [150, 150, 150];
+                    } else if (data.cell.raw === 'Holiday') {
+                        data.cell.styles.fillColor = [254, 243, 199];
+                        data.cell.styles.textColor = [146, 64, 14];
+                    }
+                }
+            });
+
+            doc.save(`GEBLL_rota_${periodKey}.pdf`);
+            logAction('Report generated', `Global rota, ${periodKey}`);
         }
 
 
