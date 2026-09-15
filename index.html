@@ -2531,8 +2531,18 @@
                     </div>
                     <p style="font-size:12px; color:#999; margin-bottom:12px;">
                         Grid of the whole month: members across the top, dates down the side.
-                        Sick leave is highlighted in red.
+                        Sick leave is highlighted in red, long-term leave in purple.
                     </p>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Month</label>
+                            <select id="rotaMonthSelect"></select>
+                        </div>
+                        <div class="form-group">
+                            <label>Year</label>
+                            <select id="rotaYearSelect"></select>
+                        </div>
+                    </div>
                     <button class="btn" onclick="generateRotaReport()">
                         <i class="fas fa-file-pdf"></i>
                         Generate PDF
@@ -3076,11 +3086,11 @@
                     BBG bonus tiers
                 </div>
                 <p style="font-size:12px; color:#999; margin-bottom:14px;">
-                    A separate payment based on how many BBG were sold. This amount is added on top of the bonus above.
+                    A rate paid for each BBG sold, once the member reaches the given count. Added on top of the bonus above.
                 </p>
                 <div class="results-entry-row results-entry-header" style="grid-template-columns: 1fr 1fr auto;">
                     <div>From (BBG count)</div>
-                    <div>Amount</div>
+                    <div>Rate per BBG</div>
                     <div></div>
                 </div>
                 <div class="results-entry-row" style="grid-template-columns: 1fr 1fr auto;">
@@ -3157,7 +3167,7 @@
             <div id="auditLogList"></div>
         </div>
 
-        <div class="app-version">GEBLL v-0.49</div>
+        <div class="app-version">GEBLL v-0.50</div>
     </div>
 
 
@@ -6930,21 +6940,21 @@
             const bonus = calcBonus(month, currentMonthKey, currentMember);
             if (bonus && (bonus.total > 0 || bonus.breakdown.length > 0)) {
                 const overallPct = typeof bonus.achievement === 'number'
-                    ? `${bonus.achievement.toFixed(0)}%`
+                    ? `${bonus.achievement.toFixed(2)}%`
                     : '—';
 
                 html += `<div class="section-title"><i class="fas fa-sack-dollar"></i> Bonus</div>
                     <div class="results-summary-card" style="grid-template-columns: repeat(3, 1fr); background: linear-gradient(135deg, #b45309 0%, #92400e 100%);">
                         <div class="vb-stat">
-                            <div class="vb-number">${bonus.mainBonus.toFixed(0)}</div>
-                            <div class="vb-label">Targets bonus</div>
+                            <div class="vb-number">${bonus.mainBonus.toFixed(2)}</div>
+                            <div class="vb-label">Average bonus</div>
                         </div>
                         <div class="vb-stat">
-                            <div class="vb-number">${bonus.bbgBonus.toFixed(0)}</div>
+                            <div class="vb-number">${bonus.bbgBonus.toFixed(2)}</div>
                             <div class="vb-label">BBG bonus</div>
                         </div>
                         <div class="vb-stat">
-                            <div class="vb-number">${bonus.total.toFixed(0)}</div>
+                            <div class="vb-number">${bonus.total.toFixed(2)}</div>
                             <div class="vb-label">Total bonus</div>
                         </div>
                     </div>`;
@@ -6952,7 +6962,7 @@
                 if (bonus.breakdown.length > 0) {
                     html += `<p style="font-size:12px; color:#666; margin:-10px 0 18px;">
                         Overall achievement: ${overallPct} —
-                        ${bonus.breakdown.map(b => `${b.label}${b.pct != null ? ' (' + b.pct.toFixed(0) + '%)' : ''}: ${b.amount.toFixed(0)}`).join(' • ')}
+                        ${bonus.breakdown.map(b => `${b.label}${b.pct != null ? ' (' + b.pct.toFixed(2) + '%)' : ''}: ${b.amount.toFixed(2)}`).join(' • ')}
                     </p>`;
                 }
             }
@@ -7105,12 +7115,14 @@
             }
 
             const bbgTier = findTier(cfg.bbgTiers, monthAgg.bbg || 0);
-            const bbgBonus = bbgTier ? (Number(bbgTier.value) || 0) : 0;
+            const bbgRate = bbgTier ? (Number(bbgTier.value) || 0) : 0;
+            const bbgBonus = bbgRate * (monthAgg.bbg || 0);
             if (bbgBonus > 0) breakdown.push({ label: 'BBG', pct: null, amount: bbgBonus });
 
             return {
                 achievement,
                 mainBonus,
+                bbgRate,
                 bbgBonus,
                 total: mainBonus + bbgBonus,
                 breakdown
@@ -8358,7 +8370,7 @@
             list.innerHTML = currentBbgTiers.map((t, idx) => `
                 <div class="results-line-item" style="grid-template-columns: 1fr 1fr auto;">
                     <div>From ${t.from} BBG</div>
-                    <div>${t.value}</div>
+                    <div>${t.value} per BBG</div>
                     <button class="btn btn-danger" style="padding:4px 8px;" onclick="removeBbgTier(${idx})">
                         <i class="fas fa-trash"></i>
                     </button>
@@ -8571,6 +8583,21 @@
                 yearSelect.value = y;
                 yearSelect.dataset.initialized = 'true';
             }
+            const rotaMonth = document.getElementById('rotaMonthSelect');
+            const rotaYear = document.getElementById('rotaYearSelect');
+            if (rotaMonth && !rotaMonth.dataset.initialized) {
+                const names = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+                rotaMonth.innerHTML = names.map((n, i) => `<option value="${i + 1}">${n}</option>`).join('');
+                rotaMonth.value = new Date().getMonth() + 1;
+                rotaMonth.dataset.initialized = 'true';
+            }
+            if (rotaYear && !rotaYear.dataset.initialized) {
+                const y = new Date().getFullYear();
+                rotaYear.innerHTML = [y - 1, y, y + 1].map(yy => `<option value="${yy}">${yy}</option>`).join('');
+                rotaYear.value = y;
+                rotaYear.dataset.initialized = 'true';
+            }
+
             if (memberSelect) {
                 const current = memberSelect.value;
                 memberSelect.innerHTML = state.team
@@ -8637,11 +8664,11 @@
 
             doc.autoTable({
                 startY: y,
-                head: [['Metric', 'Value']],
+                head: [['KPIs', 'Value']],
                 body: summaryRows,
                 theme: 'striped',
-                headStyles: { fillColor: [37, 99, 235], fontSize: 8 },
-                styles: { fontSize: 8, cellPadding: 1.5 },
+                headStyles: { fillColor: [37, 99, 235], fontSize: 8, halign: 'center' },
+                styles: { fontSize: 8, cellPadding: 1.2, halign: 'center' },
                 margin: { left: 14, right: 14 }
             });
             y = doc.lastAutoTable.finalY + 8;
@@ -8653,15 +8680,15 @@
                         const target = Number(cfg.targets[m.key].value) || 0;
                         const actual = month[m.key] || 0;
                         const pct = target > 0 ? (actual / target) * 100 : 0;
-                        return [m.label, target.toFixed(2), actual.toFixed(2), pct.toFixed(0) + '%'];
+                        return [m.label, target.toFixed(2), actual.toFixed(2), pct.toFixed(2) + '%'];
                     });
                     doc.autoTable({
                         startY: y,
                         head: [['Target', 'Goal', 'Actual', 'Achievement']],
                         body: achRows,
                         theme: 'striped',
-                        headStyles: { fillColor: [5, 150, 105], fontSize: 8 },
-                        styles: { fontSize: 8, cellPadding: 1.5 },
+                        headStyles: { fillColor: [5, 150, 105], fontSize: 8, halign: 'center' },
+                        styles: { fontSize: 8, cellPadding: 1.2, halign: 'center' },
                         margin: { left: 14, right: 14 }
                     });
                     y = doc.lastAutoTable.finalY + 8;
@@ -8673,13 +8700,13 @@
                     startY: y,
                     head: [['Bonus', 'Amount']],
                     body: [
-                        ['Targets bonus', bonus.mainBonus.toFixed(2)],
-                        ['BBG bonus', bonus.bbgBonus.toFixed(2)],
+                        ['Average Bonus', bonus.mainBonus.toFixed(2)],
+                        ['BBG Bonus', bonus.bbgBonus.toFixed(2)],
                         ['Total', bonus.total.toFixed(2)]
                     ],
                     theme: 'striped',
-                    headStyles: { fillColor: [180, 83, 9], fontSize: 8 },
-                    styles: { fontSize: 8, cellPadding: 1.5 },
+                    headStyles: { fillColor: [180, 83, 9], fontSize: 8, halign: 'center' },
+                    styles: { fontSize: 8, cellPadding: 1.2, halign: 'center' },
                     margin: { left: 14, right: 14 }
                 });
                 y = doc.lastAutoTable.finalY + 8;
@@ -8688,22 +8715,17 @@
             const dayKeys = [...new Set(lines.map(l => l.dateKey))].sort();
             const dailyRows = dayKeys.map(dk => {
                 const d = aggregateLines(lines.filter(l => l.dateKey === dk));
-                const row = [dk, String(d.transactions), d.turnover.toFixed(2), d.average.toFixed(2)];
-                if (showRevenue) row.push(d.revenue.toFixed(2));
-                row.push(String(d.bbg));
-                return row;
+                return [dk, String(d.transactions), d.turnover.toFixed(2), d.average.toFixed(2), String(d.bbg)];
             });
-            const dailyHead = ['Date', 'Txns', 'Turnover', 'Average'];
-            if (showRevenue) dailyHead.push('Revenue');
-            dailyHead.push('BBG');
+            const dailyHead = ['Date', 'Txns', 'Turnover', 'Average', 'BBG'];
 
             doc.autoTable({
                 startY: y,
                 head: [dailyHead],
                 body: dailyRows,
                 theme: 'grid',
-                headStyles: { fillColor: [37, 99, 235], fontSize: 7 },
-                styles: { fontSize: 7, cellPadding: 1.2 },
+                headStyles: { fillColor: [37, 99, 235], fontSize: 7, halign: 'center' },
+                styles: { fontSize: 7, cellPadding: 1, halign: 'center' },
                 margin: { left: 14, right: 14 }
             });
 
@@ -8727,11 +8749,14 @@
                 const ach = calcAchievement(agg, periodKey);
                 const bonus = calcBonus(agg, periodKey, m);
                 const bbgTier = cfg ? findTier(cfg.bbgTiers, agg.bbg || 0) : null;
+                // The percentage defined by the tier the member actually reached.
+                const achievedTier = (cfg && typeof ach === 'number') ? findTier(cfg.tiers, ach) : null;
 
                 return {
                     name: m ? m.name : 'Unknown',
                     agg,
                     pct: typeof ach === 'number' ? ach : null,
+                    tierPct: achievedTier ? Number(achievedTier.from) : null,
                     bonus,
                     bbgRate: bbgTier ? Number(bbgTier.value) || 0 : 0
                 };
@@ -8751,15 +8776,15 @@
             const body = rows.map(r => [
                 r.name,
                 String(r.agg.transactions),
-                r.agg.turnover.toFixed(0),
-                avgTarget ? Number(avgTarget).toFixed(0) : '—',
-                r.agg.average.toFixed(0),
-                r.pct != null ? r.pct.toFixed(0) + '%' : '—',
-                r.bonus ? r.bonus.mainBonus.toFixed(0) : '0',
+                r.agg.turnover.toFixed(2),
+                avgTarget ? Number(avgTarget).toFixed(2) : '—',
+                r.agg.average.toFixed(2),
+                r.tierPct != null ? r.tierPct.toFixed(2) + '%' : '—',
+                r.bonus ? r.bonus.mainBonus.toFixed(2) : '0.00',
                 String(r.agg.bbg),
-                r.bbgRate.toFixed(0),
-                r.bonus ? r.bonus.bbgBonus.toFixed(0) : '0',
-                r.bonus ? r.bonus.total.toFixed(0) : '0'
+                r.bbgRate.toFixed(2),
+                r.bonus ? r.bonus.bbgBonus.toFixed(2) : '0.00',
+                r.bonus ? r.bonus.total.toFixed(2) : '0.00'
             ]);
 
             doc.autoTable({
@@ -8767,9 +8792,8 @@
                 head: [head],
                 body,
                 theme: 'grid',
-                headStyles: { fillColor: [37, 99, 235], fontSize: 8 },
-                styles: { fontSize: 8, cellPadding: 1.8 },
-                columnStyles: { 0: { halign: 'left' } },
+                headStyles: { fillColor: [37, 99, 235], fontSize: 8, halign: 'center' },
+                styles: { fontSize: 8, cellPadding: 1.2, halign: 'center' },
                 margin: { left: 10, right: 10 },
                 didParseCell: (data) => {
                     if (data.section !== 'body') return;
@@ -8851,7 +8875,7 @@
                     if (!shift) return;
                     if (!byDate[a.dateKey]) byDate[a.dateKey] = { minutes: 0, shifts: [] };
                     byDate[a.dateKey].minutes += shift.grossMinutes || 0;
-                    byDate[a.dateKey].shifts.push(`${shift.start}-${shift.end}`);
+                    byDate[a.dateKey].shifts.push(shift);
                 });
 
                 const rateWeek = member.rateWeek || 0;
@@ -8871,9 +8895,14 @@
                     totalMinutes += day.minutes;
                     totalPay += pay;
 
+                    const ordered = day.shifts.slice().sort((a, b) => a.start.localeCompare(b.start));
+                    const span = ordered.length
+                        ? `${ordered[0].start}-${ordered[ordered.length - 1].end}`
+                        : '';
+
                     const row = [
                         `${dk} ${isWeekend ? '(WE)' : ''}`.trim(),
-                        day.shifts.join(', '),
+                        span,
                         hours.toFixed(2)
                     ];
                     if (showPay) {
@@ -8904,9 +8933,9 @@
                     body: rows,
                     foot: [footRow],
                     theme: 'striped',
-                    headStyles: { fillColor: [37, 99, 235], fontSize: 7 },
-                    footStyles: { fillColor: [226, 232, 240], textColor: [30, 41, 59], fontStyle: 'bold', fontSize: 7 },
-                    styles: { fontSize: 7, cellPadding: 1.2 },
+                    headStyles: { fillColor: [37, 99, 235], fontSize: 7, halign: 'center' },
+                    footStyles: { fillColor: [226, 232, 240], textColor: [30, 41, 59], fontStyle: 'bold', fontSize: 7, halign: 'center' },
+                    styles: { fontSize: 7, cellPadding: 1, halign: 'center' },
                     margin: { left: 14, right: 14 }
                 });
                 y = doc.lastAutoTable.finalY + 6;
@@ -8923,7 +8952,9 @@
         }
 
         function generateRotaReport() {
-            const periodKey = getReportPeriodKey();
+            const rm = document.getElementById('rotaMonthSelect').value.padStart(2, '0');
+            const ry = document.getElementById('rotaYearSelect').value;
+            const periodKey = `${ry}-${rm}`;
             const [year, month] = periodKey.split('-').map(Number);
             const daysInMonth = new Date(year, month, 0).getDate();
 
@@ -8931,9 +8962,10 @@
             if (members.length === 0) { alert('No team members yet.'); return; }
 
             const doc = newPdfDoc('landscape');
-            const y = addPdfHeader(doc, 'Global rota', getReportPeriodLabel());
+            const periodLabel = new Date(year, month - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+            const y = addPdfHeader(doc, 'Global rota', periodLabel);
 
-            const head = [['Date'].concat(members.map(m => m.name.split(' ')[0].substring(0, 10)))];
+            const head = [['DOW', 'Date'].concat(members.map(m => m.name.split(' ')[0].substring(0, 10)))];
             const body = [];
             const sickCells = [];
             const leaveCells = [];
@@ -8941,7 +8973,12 @@
             for (let d = 1; d <= daysInMonth; d++) {
                 const date = new Date(year, month - 1, d);
                 const dateKey = toDateKey(date);
-                const row = [`${String(d).padStart(2, '0')} ${date.toLocaleDateString('en-US', { weekday: 'short' })}`];
+                const dd = String(d).padStart(2, '0');
+                const mm = String(month).padStart(2, '0');
+                const row = [
+                    date.toLocaleDateString('en-US', { weekday: 'short' }),
+                    `${dd}${mm}${year}`
+                ];
 
                 members.forEach((m, colIdx) => {
                     const dayAssignments = state.assignments.filter(a => a.memberId === m.id && a.dateKey === dateKey);
@@ -8959,7 +8996,7 @@
                         }
 
                         if (dayAssignments.some(a => a.sickLeave)) {
-                            sickCells.push({ row: d - 1, col: colIdx + 1 });
+                            sickCells.push({ row: d - 1, col: colIdx + 2 });
                         }
                         return;
                     }
@@ -8971,7 +9008,7 @@
                             : leave.type === 'sick' ? 'Sick leave'
                             : leave.type === 'unpaid' ? 'Unpaid'
                             : 'Leave');
-                        leaveCells.push({ row: d - 1, col: colIdx + 1 });
+                        leaveCells.push({ row: d - 1, col: colIdx + 2 });
                         return;
                     }
 
@@ -8992,9 +9029,9 @@
                 head,
                 body,
                 theme: 'grid',
-                headStyles: { fillColor: [37, 99, 235], fontSize: 7 },
+                headStyles: { fillColor: [37, 99, 235], fontSize: 7, halign: 'center' },
                 styles: { fontSize: 6.5, cellPadding: 1.2, halign: 'center' },
-                columnStyles: { 0: { halign: 'left', fontStyle: 'bold' } },
+                columnStyles: { 0: { fontStyle: 'bold' }, 1: { fontStyle: 'bold' } },
                 margin: { left: 8, right: 8 },
                 didParseCell: (data) => {
                     if (data.section !== 'body') return;
