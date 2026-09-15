@@ -1883,6 +1883,57 @@
                 Team Members
             </div>
             <div id="teamList"></div>
+
+            <div class="form-section" style="margin-top:24px;">
+                <div class="section-title">
+                    <i class="fas fa-user-clock"></i>
+                    Register long-term leave
+                </div>
+                <p style="font-size:12px; color:#999; margin-bottom:12px;">
+                    For extended absences such as maternity or parental leave. These are recorded directly,
+                    without a request, and appear on the global rota.
+                </p>
+                <div class="form-group">
+                    <label>Team member</label>
+                    <select id="leaveMemberSelect"></select>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Type</label>
+                        <select id="leaveTypeSelect">
+                            <option value="maternity">Maternity leave</option>
+                            <option value="paternity">Paternity leave</option>
+                            <option value="sick">Long-term sick leave</option>
+                            <option value="unpaid">Unpaid leave</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Note (optional)</label>
+                        <input type="text" id="leaveNote" placeholder="Reference or comment">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>From</label>
+                        <input type="date" id="leaveFromDate">
+                    </div>
+                    <div class="form-group">
+                        <label>To</label>
+                        <input type="date" id="leaveToDate">
+                    </div>
+                </div>
+                <button class="btn" onclick="addLongTermLeave()">
+                    <i class="fas fa-plus"></i>
+                    Register leave
+                </button>
+            </div>
+
+            <div class="section-title">
+                <i class="fas fa-calendar-xmark"></i>
+                Registered leaves
+            </div>
+            <div id="longTermLeaveList"></div>
         </div>
 
         <div id="editMemberModalOverlay" class="modal-overlay" onclick="closeEditMemberModalOutside(event)">
@@ -3106,7 +3157,7 @@
             <div id="auditLogList"></div>
         </div>
 
-        <div class="app-version">GEBLL v-0.48</div>
+        <div class="app-version">GEBLL v-0.49</div>
     </div>
 
 
@@ -3151,7 +3202,8 @@
             currencies: [],
             discountCodes: [],
             appConfig: null,
-            bonusConfigs: []
+            bonusConfigs: [],
+            longTermLeaves: []
         };
 
         let scheduleView = 'daily';
@@ -3296,6 +3348,7 @@
                 });
                 currentMember = state.team.find(m => m.authUid === currentUser.uid) || null;
                 renderTeam();
+                renderLongTermLeaves();
                 populateAssigneeSelects();
                 applyRolePermissions();
                 renderSchedule();
@@ -3412,13 +3465,19 @@
                 if (document.getElementById('ccySettings').classList.contains('active')) loadBaseCcySettings();
             });
 
+            const longTermLeavesCol = fns.collection(db, 'longTermLeaves');
+            const unsubLongTermLeaves = fns.onSnapshot(longTermLeavesCol, (snapshot) => {
+                state.longTermLeaves = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                if (document.getElementById('team').classList.contains('active')) renderLongTermLeaves();
+            });
+
             const bonusConfigsCol = fns.collection(db, 'bonusConfigs');
             const unsubBonusConfigs = fns.onSnapshot(bonusConfigsCol, (snapshot) => {
                 state.bonusConfigs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
                 if (document.getElementById('bonusSettings').classList.contains('active')) loadBonusConfig();
             });
 
-            unsubscribers = [unsubTasks, unsubProjects, unsubTeam, unsubRoles, unsubLocations, unsubShifts, unsubAssignments, unsubSwapRequests, unsubNotifications, unsubVacationRequests, unsubDayOffSwapRequests, unsubResultLines, unsubResultValidations, unsubRescheduleRequests, unsubAuditLog, unsubCurrencies, unsubDiscountCodes, unsubAppConfig, unsubBonusConfigs];
+            unsubscribers = [unsubTasks, unsubProjects, unsubTeam, unsubRoles, unsubLocations, unsubShifts, unsubAssignments, unsubSwapRequests, unsubNotifications, unsubVacationRequests, unsubDayOffSwapRequests, unsubResultLines, unsubResultValidations, unsubRescheduleRequests, unsubAuditLog, unsubCurrencies, unsubDiscountCodes, unsubAppConfig, unsubBonusConfigs, unsubLongTermLeaves];
         }
 
         async function ensureDefaultRoles() {
@@ -4026,6 +4085,100 @@
                     `;
                 }).join('');
             }
+        }
+
+        function populateLeaveMemberSelect() {
+            const sel = document.getElementById('leaveMemberSelect');
+            if (!sel) return;
+            const current = sel.value;
+            sel.innerHTML = state.team
+                .slice()
+                .sort((a, b) => a.name.localeCompare(b.name))
+                .map(m => `<option value="${m.id}">${m.name}</option>`).join('');
+            if (current && state.team.some(m => m.id === current)) sel.value = current;
+        }
+
+        const LEAVE_TYPE_LABELS = {
+            maternity: 'Maternity leave',
+            paternity: 'Paternity leave',
+            sick: 'Long-term sick leave',
+            unpaid: 'Unpaid leave',
+            other: 'Leave'
+        };
+
+        async function addLongTermLeave() {
+            const memberId = document.getElementById('leaveMemberSelect').value;
+            const type = document.getElementById('leaveTypeSelect').value;
+            const note = document.getElementById('leaveNote').value.trim();
+            const fromKey = document.getElementById('leaveFromDate').value;
+            const toKey = document.getElementById('leaveToDate').value;
+
+            if (!memberId || !fromKey || !toKey) {
+                alert('Please pick the member and both dates.');
+                return;
+            }
+            if (toKey < fromKey) {
+                alert('The end date must be on or after the start date.');
+                return;
+            }
+
+            await fns.addDoc(fns.collection(db, 'longTermLeaves'), {
+                memberId, type, note, fromKey, toKey,
+                createdAt: new Date().toISOString()
+            });
+
+            const m = assigneeMap[memberId];
+            await logAction('Long-term leave registered', `${LEAVE_TYPE_LABELS[type]} for ${m ? m.name : memberId}: ${fromKey} to ${toKey}`);
+
+            document.getElementById('leaveNote').value = '';
+            document.getElementById('leaveFromDate').value = '';
+            document.getElementById('leaveToDate').value = '';
+        }
+
+        function renderLongTermLeaves() {
+            populateLeaveMemberSelect();
+            const list = document.getElementById('longTermLeaveList');
+            if (!list) return;
+
+            if (state.longTermLeaves.length === 0) {
+                list.innerHTML = `<div class="empty-state"><i class="fas fa-calendar-xmark"></i><p>No long-term leaves registered.</p></div>`;
+                return;
+            }
+
+            const sorted = [...state.longTermLeaves].sort((a, b) => b.fromKey.localeCompare(a.fromKey));
+            list.innerHTML = sorted.map(l => {
+                const m = assigneeMap[l.memberId];
+                return `
+                    <div class="team-member">
+                        <div class="team-avatar"><i class="fas fa-user-clock"></i></div>
+                        <div class="team-info">
+                            <div class="team-name">${m ? m.name : 'Unknown'}</div>
+                            <div class="team-role">${LEAVE_TYPE_LABELS[l.type] || 'Leave'} • ${l.fromKey} → ${l.toKey}${l.note ? ' • ' + l.note : ''}</div>
+                        </div>
+                        <div class="team-actions">
+                            <button class="btn btn-danger" onclick="deleteLongTermLeave('${l.id}')" title="Delete">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function deleteLongTermLeave(id) {
+            const l = state.longTermLeaves.find(x => x.id === id);
+            if (!l) return;
+            const m = assigneeMap[l.memberId];
+            if (!confirm(`Delete this leave for ${m ? m.name : 'this member'}?`)) return;
+            await fns.deleteDoc(fns.doc(db, 'longTermLeaves', id));
+            await logAction('Long-term leave deleted', `${m ? m.name : l.memberId}: ${l.fromKey} to ${l.toKey}`);
+        }
+
+        // True when the member is on a registered long-term leave that day.
+        function getLongTermLeaveForDate(memberId, dateKey) {
+            return state.longTermLeaves.find(l =>
+                l.memberId === memberId && dateKey >= l.fromKey && dateKey <= l.toKey
+            ) || null;
         }
 
         function openEditMemberModal(memberId) {
@@ -4638,6 +4791,8 @@
 
         function getRotationStatusLabel(member, date) {
             const dateKey = toDateKey(date);
+            const leave = getLongTermLeaveForDate(member.id, dateKey);
+            if (leave) return LEAVE_TYPE_LABELS[leave.type] || 'On leave';
             if (isOnApprovedVacation(member.id, dateKey)) return 'Holidays';
 
             const working = isWorkingDayForMember(member, date);
@@ -4980,7 +5135,7 @@
             listEl.innerHTML = state.team.map(m => {
                 const statusLabel = getRotationStatusLabel(m, dateObj);
                 const isOff = statusLabel === 'Day off (rotation)';
-                const isHolidays = statusLabel === 'Holidays';
+                const isHolidays = statusLabel === 'Holidays' || Object.values(LEAVE_TYPE_LABELS).includes(statusLabel);
                 const isSelected = m.id === selectedAssignMemberId;
                 const statusClass = isHolidays ? 'holidays' : (isOff ? 'off' : 'working');
                 return `
@@ -5051,6 +5206,14 @@
 
             if (!memberId) {
                 warningEl.textContent = 'Select a team member.';
+                warningEl.style.display = 'block';
+                return;
+            }
+
+            const activeLeave = getLongTermLeaveForDate(memberId, pendingAssign.dateKey);
+            if (activeLeave) {
+                const m = assigneeMap[memberId];
+                warningEl.textContent = `${m ? m.name : 'This member'} is on ${LEAVE_TYPE_LABELS[activeLeave.type] || 'leave'} on ${pendingAssign.dateKey} and cannot be assigned a shift.`;
                 warningEl.style.display = 'block';
                 return;
             }
@@ -8470,7 +8633,6 @@
             ];
             if (showRevenue) {
                 summaryRows.splice(3, 0, ['Revenue', month.revenue.toFixed(2)]);
-                summaryRows.push(['Revenue per transaction', month.revenuePerTx.toFixed(2)]);
             }
 
             doc.autoTable({
@@ -8578,28 +8740,27 @@
             const doc = newPdfDoc('landscape');
             const y = addPdfHeader(doc, '', getReportPeriodLabel());
 
-            const head = ['Advisor', 'Txns', 'Turnover', 'Average'];
-            if (showRevenue) head.push('Revenue');
-            head.push('BBG', 'Bonus %', 'Bonus', 'BBG rate', 'BBG bonus', 'Total bonus');
+            const avgTarget = (cfg && cfg.targets && cfg.targets.average && cfg.targets.average.value) || 0;
 
-            const body = rows.map(r => {
-                const row = [
-                    r.name,
-                    String(r.agg.transactions),
-                    r.agg.turnover.toFixed(0),
-                    r.agg.average.toFixed(0)
-                ];
-                if (showRevenue) row.push(r.agg.revenue.toFixed(0));
-                row.push(
-                    String(r.agg.bbg),
-                    r.pct != null ? r.pct.toFixed(0) + '%' : '—',
-                    r.bonus ? r.bonus.mainBonus.toFixed(0) : '0',
-                    r.bbgRate.toFixed(0),
-                    r.bonus ? r.bonus.bbgBonus.toFixed(0) : '0',
-                    r.bonus ? r.bonus.total.toFixed(0) : '0'
-                );
-                return row;
-            });
+            const head = [
+                'Advisor', 'Txns', 'Turnover', 'Target Average', 'Average',
+                'Bonus Average %', 'Bonus Average kr.',
+                'BBG', 'Rate per BBG', 'Bonus BBG', 'Total bonus'
+            ];
+
+            const body = rows.map(r => [
+                r.name,
+                String(r.agg.transactions),
+                r.agg.turnover.toFixed(0),
+                avgTarget ? Number(avgTarget).toFixed(0) : '—',
+                r.agg.average.toFixed(0),
+                r.pct != null ? r.pct.toFixed(0) + '%' : '—',
+                r.bonus ? r.bonus.mainBonus.toFixed(0) : '0',
+                String(r.agg.bbg),
+                r.bbgRate.toFixed(0),
+                r.bonus ? r.bonus.bbgBonus.toFixed(0) : '0',
+                r.bonus ? r.bonus.total.toFixed(0) : '0'
+            ]);
 
             doc.autoTable({
                 startY: y,
@@ -8669,8 +8830,20 @@
                     .filter(a => a.memberId === member.id && a.dateKey >= fromKey && a.dateKey <= toKey)
                     .sort((a, b) => a.dateKey.localeCompare(b.dateKey));
 
-                if (assignments.length === 0) return;
                 anyData = true;
+
+                if (assignments.length === 0) {
+                    doc.setFontSize(10);
+                    doc.setTextColor(30, 41, 59);
+                    doc.text(member.name, 14, y);
+                    y += 5;
+                    doc.setFontSize(8);
+                    doc.setTextColor(150, 150, 150);
+                    doc.text('No shifts in this period.', 14, y);
+                    doc.setTextColor(0, 0, 0);
+                    y += 8;
+                    return;
+                }
 
                 const byDate = {};
                 assignments.forEach(a => {
@@ -8739,7 +8912,7 @@
                 y = doc.lastAutoTable.finalY + 6;
             });
 
-            if (!anyData) { alert('No shifts recorded for hourly staff in that period.'); return; }
+            if (!anyData) { alert('No hourly staff found.'); return; }
 
             doc.setFontSize(10);
             doc.setTextColor(30, 41, 59);
@@ -8763,6 +8936,7 @@
             const head = [['Date'].concat(members.map(m => m.name.split(' ')[0].substring(0, 10)))];
             const body = [];
             const sickCells = [];
+            const leaveCells = [];
 
             for (let d = 1; d <= daysInMonth; d++) {
                 const date = new Date(year, month - 1, d);
@@ -8790,6 +8964,17 @@
                         return;
                     }
 
+                    const leave = getLongTermLeaveForDate(m.id, dateKey);
+                    if (leave) {
+                        row.push(LEAVE_TYPE_LABELS[leave.type] === 'Maternity leave' ? 'Maternity'
+                            : leave.type === 'paternity' ? 'Paternity'
+                            : leave.type === 'sick' ? 'Sick leave'
+                            : leave.type === 'unpaid' ? 'Unpaid'
+                            : 'Leave');
+                        leaveCells.push({ row: d - 1, col: colIdx + 1 });
+                        return;
+                    }
+
                     if (isOnApprovedVacation(m.id, dateKey)) { row.push('Holiday'); return; }
 
                     const working = isWorkingDayForMember(m, date);
@@ -8813,6 +8998,12 @@
                 margin: { left: 8, right: 8 },
                 didParseCell: (data) => {
                     if (data.section !== 'body') return;
+                    const isLeave = leaveCells.some(s => s.row === data.row.index && s.col === data.column.index);
+                    if (isLeave) {
+                        data.cell.styles.fillColor = [233, 213, 255];
+                        data.cell.styles.textColor = [107, 33, 168];
+                        return;
+                    }
                     const isSick = sickCells.some(s => s.row === data.row.index && s.col === data.column.index);
                     if (isSick) {
                         data.cell.styles.fillColor = [254, 202, 202];
