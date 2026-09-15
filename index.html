@@ -3167,7 +3167,7 @@
             <div id="auditLogList"></div>
         </div>
 
-        <div class="app-version">GEBLL v-0.50</div>
+        <div class="app-version">GEBLL v-0.51</div>
     </div>
 
 
@@ -8749,13 +8749,23 @@
                 const ach = calcAchievement(agg, periodKey);
                 const bonus = calcBonus(agg, periodKey, m);
                 const bbgTier = cfg ? findTier(cfg.bbgTiers, agg.bbg || 0) : null;
+
+                // Overall achievement works for both bonus modes: a single number
+                // when combined, or the weighted roll-up of each target when independent.
+                let overallPct = null;
+                if (typeof ach === 'number') {
+                    overallPct = ach;
+                } else if (Array.isArray(ach) && ach.length > 0) {
+                    overallPct = ach.reduce((sum, a) => sum + a.pct * ((a.weight || 0) / 100), 0);
+                }
+
                 // The percentage defined by the tier the member actually reached.
-                const achievedTier = (cfg && typeof ach === 'number') ? findTier(cfg.tiers, ach) : null;
+                const achievedTier = (cfg && overallPct != null) ? findTier(cfg.tiers, overallPct) : null;
 
                 return {
                     name: m ? m.name : 'Unknown',
                     agg,
-                    pct: typeof ach === 'number' ? ach : null,
+                    pct: overallPct,
                     tierPct: achievedTier ? Number(achievedTier.from) : null,
                     bonus,
                     bbgRate: bbgTier ? Number(bbgTier.value) || 0 : 0
@@ -8977,7 +8987,7 @@
                 const mm = String(month).padStart(2, '0');
                 const row = [
                     date.toLocaleDateString('en-US', { weekday: 'short' }),
-                    `${dd}${mm}${year}`
+                    `${dd}/${mm}/${year}`
                 ];
 
                 members.forEach((m, colIdx) => {
@@ -9046,7 +9056,8 @@
                         data.cell.styles.fillColor = [254, 202, 202];
                         data.cell.styles.textColor = [153, 27, 27];
                     } else if (data.cell.raw === 'Off') {
-                        data.cell.styles.textColor = [150, 150, 150];
+                        data.cell.styles.fillColor = [220, 252, 231];
+                        data.cell.styles.textColor = [22, 101, 52];
                     } else if (data.cell.raw === 'Holiday') {
                         data.cell.styles.fillColor = [254, 243, 199];
                         data.cell.styles.textColor = [146, 64, 14];
