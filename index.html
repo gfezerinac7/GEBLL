@@ -1852,6 +1852,10 @@
                     <input type="number" id="memberVacationDays" value="25" min="0" max="30">
                 </div>
                 <div class="form-group">
+                    <label>Employment start date</label>
+                    <input type="date" id="memberStartDate">
+                </div>
+                <div class="form-group">
                     <label>Pay type</label>
                     <select id="memberPayType" onchange="toggleRotationAnchorField()">
                         <option value="salary">Monthly salary</option>
@@ -1974,6 +1978,10 @@
                 <div class="form-group">
                     <label>Vacation days for this year</label>
                     <input type="number" id="editMemberVacationDays" min="0" max="30">
+                </div>
+                <div class="form-group">
+                    <label>Employment start date</label>
+                    <input type="date" id="editMemberStartDate">
                 </div>
                 <div class="form-group">
                     <label>Pay type</label>
@@ -3167,7 +3175,7 @@
             <div id="auditLogList"></div>
         </div>
 
-        <div class="app-version">GEBLL v-0.51</div>
+        <div class="app-version">GEBLL v-0.52</div>
     </div>
 
 
@@ -3830,6 +3838,7 @@
                 (val === 'A' || val === 'B' || val === 'C') ? 'block' : 'none';
 
             const payType = document.getElementById('memberPayType').value;
+            const startDate = document.getElementById('memberStartDate').value;
             const isHourlyPay = payType === 'hourly';
             document.getElementById('memberSalaryWrap').classList.toggle('app-hidden', isHourlyPay);
             document.getElementById('memberRatesWrap').classList.toggle('app-hidden', !isHourlyPay);
@@ -3847,6 +3856,7 @@
             const rateWeek = parseFloat(document.getElementById('memberRateWeek').value) || 0;
             const rateWeekend = parseFloat(document.getElementById('memberRateWeekend').value) || 0;
             const payType = document.getElementById('memberPayType').value;
+            const startDate = document.getElementById('memberStartDate').value;
 
             if (!name) {
                 alert('Please enter a name');
@@ -3882,6 +3892,7 @@
                     rateWeek,
                     rateWeekend,
                     payType,
+                    startDate: startDate || null,
                     mustChangePassword: true,
                     joinDate: new Date().toLocaleDateString('en-US')
                 });
@@ -3904,6 +3915,7 @@
             document.getElementById('memberRateWeek').value = '';
             document.getElementById('memberRateWeekend').value = '';
             document.getElementById('memberPayType').value = 'salary';
+            document.getElementById('memberStartDate').value = '';
             document.getElementById('newRotationAnchorWrap').style.display = 'none';
         }
 
@@ -4209,6 +4221,7 @@
             document.getElementById('editMemberRateWeek').value = member.rateWeek ?? '';
             document.getElementById('editMemberRateWeekend').value = member.rateWeekend ?? '';
             document.getElementById('editMemberPayType').value = member.payType || (member.rotation === 'hourly' ? 'hourly' : 'salary');
+            document.getElementById('editMemberStartDate').value = member.startDate || '';
             toggleEditRotationAnchorField();
 
             document.getElementById('editMemberModalOverlay').dataset.memberId = memberId;
@@ -4221,6 +4234,7 @@
                 (val === 'A' || val === 'B' || val === 'C') ? 'block' : 'none';
 
             const payType = document.getElementById('editMemberPayType').value;
+            const startDate = document.getElementById('editMemberStartDate').value;
             const isHourlyPay = payType === 'hourly';
             document.getElementById('editMemberSalaryWrap').classList.toggle('app-hidden', isHourlyPay);
             document.getElementById('editMemberRatesWrap').classList.toggle('app-hidden', !isHourlyPay);
@@ -4248,6 +4262,7 @@
             const rateWeek = parseFloat(document.getElementById('editMemberRateWeek').value) || 0;
             const rateWeekend = parseFloat(document.getElementById('editMemberRateWeekend').value) || 0;
             const payType = document.getElementById('editMemberPayType').value;
+            const startDate = document.getElementById('editMemberStartDate').value;
 
             if (!name) {
                 alert('Please enter a name');
@@ -4268,7 +4283,8 @@
                 salary,
                 rateWeek,
                 rateWeekend,
-                payType
+                payType,
+                startDate: startDate || null
             });
             logAction('Team member updated', name);
 
@@ -6010,6 +6026,21 @@
 
         // Pay type is independent of rotation: someone can follow a 6x3 rota
         // and still be paid by the hour.
+        // Orders members by how long they have been employed (earliest first).
+        // Admins are always pushed to the end, whatever their start date.
+        function sortBySeniority(members) {
+            return [...members].sort((a, b) => {
+                const aAdmin = a.role === 'Admin';
+                const bAdmin = b.role === 'Admin';
+                if (aAdmin !== bAdmin) return aAdmin ? 1 : -1;
+
+                const aDate = a.startDate || '9999-12-31';
+                const bDate = b.startDate || '9999-12-31';
+                if (aDate !== bDate) return aDate.localeCompare(bDate);
+                return a.name.localeCompare(b.name);
+            });
+        }
+
         function getPayType(member) {
             if (!member) return 'salary';
             if (member.payType) return member.payType;
@@ -8544,7 +8575,12 @@
                 </div>
             `;
 
-            const memberIds = [...new Set(periodLines.map(l => l.memberId))];
+            // Admins are left out of the advisor comparison.
+            const memberIds = [...new Set(periodLines.map(l => l.memberId))]
+                .filter(id => {
+                    const m = state.team.find(x => x.id === id);
+                    return m && m.role !== 'Admin';
+                });
             const rows = memberIds.map(id => {
                 const m = state.team.find(x => x.id === id);
                 const agg = aggregateLines(periodLines.filter(l => l.memberId === id));
@@ -8742,7 +8778,12 @@
 
             const cfg = getBonusConfigForPeriod(periodKey);
 
-            const memberIds = [...new Set(periodLines.map(l => l.memberId))];
+            // Admins are left out of the advisor comparison.
+            const memberIds = [...new Set(periodLines.map(l => l.memberId))]
+                .filter(id => {
+                    const m = state.team.find(x => x.id === id);
+                    return m && m.role !== 'Admin';
+                });
             const rows = memberIds.map(id => {
                 const m = state.team.find(x => x.id === id);
                 const agg = aggregateLines(periodLines.filter(l => l.memberId === id));
@@ -8768,9 +8809,15 @@
                     pct: overallPct,
                     tierPct: achievedTier ? Number(achievedTier.from) : null,
                     bonus,
-                    bbgRate: bbgTier ? Number(bbgTier.value) || 0 : 0
+                    bbgRate: bbgTier ? Number(bbgTier.value) || 0 : 0,
+                    startDate: m ? (m.startDate || '9999-12-31') : '9999-12-31'
                 };
-            }).sort((a, b) => b.agg.turnover - a.agg.turnover);
+            }).sort((a, b) => {
+                if (a.startDate !== b.startDate) return a.startDate.localeCompare(b.startDate);
+                return a.name.localeCompare(b.name);
+            });
+
+            if (rows.length === 0) { alert('No advisor results recorded in that period.'); return; }
 
             const doc = newPdfDoc('landscape');
             const y = addPdfHeader(doc, '', getReportPeriodLabel());
@@ -8968,7 +9015,7 @@
             const [year, month] = periodKey.split('-').map(Number);
             const daysInMonth = new Date(year, month, 0).getDate();
 
-            const members = state.team.slice().sort((a, b) => a.name.localeCompare(b.name));
+            const members = sortBySeniority(state.team);
             if (members.length === 0) { alert('No team members yet.'); return; }
 
             const doc = newPdfDoc('landscape');
