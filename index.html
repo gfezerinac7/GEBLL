@@ -1851,6 +1851,13 @@
                     <label>Vacation days for this year</label>
                     <input type="number" id="memberVacationDays" value="25" min="0" max="30">
                 </div>
+                <div class="form-group">
+                    <label>Pay type</label>
+                    <select id="memberPayType" onchange="toggleRotationAnchorField()">
+                        <option value="salary">Monthly salary</option>
+                        <option value="hourly">Hourly rates</option>
+                    </select>
+                </div>
                 <div class="form-group" id="memberSalaryWrap">
                     <label>Monthly salary</label>
                     <input type="number" id="memberSalary" step="0.01" min="0" placeholder="0.00">
@@ -1916,6 +1923,13 @@
                 <div class="form-group">
                     <label>Vacation days for this year</label>
                     <input type="number" id="editMemberVacationDays" min="0" max="30">
+                </div>
+                <div class="form-group">
+                    <label>Pay type</label>
+                    <select id="editMemberPayType" onchange="toggleEditRotationAnchorField()">
+                        <option value="salary">Monthly salary</option>
+                        <option value="hourly">Hourly rates</option>
+                    </select>
                 </div>
                 <div class="form-group" id="editMemberSalaryWrap">
                     <label>Monthly salary</label>
@@ -3092,7 +3106,7 @@
             <div id="auditLogList"></div>
         </div>
 
-        <div class="app-version">GEBLL v-0.47</div>
+        <div class="app-version">GEBLL v-0.48</div>
     </div>
 
 
@@ -3746,9 +3760,10 @@
             document.getElementById('newRotationAnchorWrap').style.display =
                 (val === 'A' || val === 'B' || val === 'C') ? 'block' : 'none';
 
-            const isHourly = val === 'hourly';
-            document.getElementById('memberSalaryWrap').classList.toggle('app-hidden', isHourly);
-            document.getElementById('memberRatesWrap').classList.toggle('app-hidden', !isHourly);
+            const payType = document.getElementById('memberPayType').value;
+            const isHourlyPay = payType === 'hourly';
+            document.getElementById('memberSalaryWrap').classList.toggle('app-hidden', isHourlyPay);
+            document.getElementById('memberRatesWrap').classList.toggle('app-hidden', !isHourlyPay);
         }
 
         async function addTeamMember() {
@@ -3762,6 +3777,7 @@
             const salary = parseFloat(document.getElementById('memberSalary').value) || 0;
             const rateWeek = parseFloat(document.getElementById('memberRateWeek').value) || 0;
             const rateWeekend = parseFloat(document.getElementById('memberRateWeekend').value) || 0;
+            const payType = document.getElementById('memberPayType').value;
 
             if (!name) {
                 alert('Please enter a name');
@@ -3796,6 +3812,7 @@
                     salary,
                     rateWeek,
                     rateWeekend,
+                    payType,
                     mustChangePassword: true,
                     joinDate: new Date().toLocaleDateString('en-US')
                 });
@@ -3817,6 +3834,7 @@
             document.getElementById('memberSalary').value = '';
             document.getElementById('memberRateWeek').value = '';
             document.getElementById('memberRateWeekend').value = '';
+            document.getElementById('memberPayType').value = 'salary';
             document.getElementById('newRotationAnchorWrap').style.display = 'none';
         }
 
@@ -4027,6 +4045,7 @@
             document.getElementById('editMemberSalary').value = member.salary ?? '';
             document.getElementById('editMemberRateWeek').value = member.rateWeek ?? '';
             document.getElementById('editMemberRateWeekend').value = member.rateWeekend ?? '';
+            document.getElementById('editMemberPayType').value = member.payType || (member.rotation === 'hourly' ? 'hourly' : 'salary');
             toggleEditRotationAnchorField();
 
             document.getElementById('editMemberModalOverlay').dataset.memberId = memberId;
@@ -4038,9 +4057,10 @@
             document.getElementById('editRotationAnchorWrap').style.display =
                 (val === 'A' || val === 'B' || val === 'C') ? 'block' : 'none';
 
-            const isHourly = val === 'hourly';
-            document.getElementById('editMemberSalaryWrap').classList.toggle('app-hidden', isHourly);
-            document.getElementById('editMemberRatesWrap').classList.toggle('app-hidden', !isHourly);
+            const payType = document.getElementById('editMemberPayType').value;
+            const isHourlyPay = payType === 'hourly';
+            document.getElementById('editMemberSalaryWrap').classList.toggle('app-hidden', isHourlyPay);
+            document.getElementById('editMemberRatesWrap').classList.toggle('app-hidden', !isHourlyPay);
         }
 
         function closeEditMemberModal() {
@@ -4064,6 +4084,7 @@
             const salary = parseFloat(document.getElementById('editMemberSalary').value) || 0;
             const rateWeek = parseFloat(document.getElementById('editMemberRateWeek').value) || 0;
             const rateWeekend = parseFloat(document.getElementById('editMemberRateWeekend').value) || 0;
+            const payType = document.getElementById('editMemberPayType').value;
 
             if (!name) {
                 alert('Please enter a name');
@@ -4083,7 +4104,8 @@
                 vacationDaysAllotted: vacationDays,
                 salary,
                 rateWeek,
-                rateWeekend
+                rateWeekend,
+                payType
             });
             logAction('Team member updated', name);
 
@@ -5813,14 +5835,21 @@
             return count;
         }
 
+        // Pay type is independent of rotation: someone can follow a 6x3 rota
+        // and still be paid by the hour.
+        function getPayType(member) {
+            if (!member) return 'salary';
+            if (member.payType) return member.payType;
+            return member.rotation === 'hourly' ? 'hourly' : 'salary';
+        }
+
         function isEligibleForVacation(member) {
             if (!member) return false;
-            return member.rotation === 'A' || member.rotation === 'B' || member.rotation === 'C' ||
-                member.rotation === 'none' || !member.rotation;
+            return getPayType(member) === 'salary';
         }
 
         function isEligibleForTimeOff(member) {
-            return member && member.rotation === 'hourly';
+            return member && getPayType(member) === 'hourly';
         }
 
         function getApprovedVacationDaysUsed(memberId, year) {
@@ -8407,18 +8436,11 @@
         }
 
         function addPdfHeader(doc, title, subtitle) {
-            doc.setFontSize(18);
+            doc.setFontSize(11);
             doc.setTextColor(30, 41, 59);
-            doc.text('GEBLL', 14, 18);
-            doc.setFontSize(13);
-            doc.text(title, 14, 27);
-            doc.setFontSize(10);
-            doc.setTextColor(120, 120, 120);
-            doc.text(subtitle, 14, 34);
-            doc.setDrawColor(220, 220, 220);
-            doc.line(14, 38, doc.internal.pageSize.getWidth() - 14, 38);
+            doc.text(subtitle, 14, 14);
             doc.setTextColor(0, 0, 0);
-            return 46;
+            return 20;
         }
 
         function generateIndividualReport() {
@@ -8456,7 +8478,8 @@
                 head: [['Metric', 'Value']],
                 body: summaryRows,
                 theme: 'striped',
-                headStyles: { fillColor: [37, 99, 235] },
+                headStyles: { fillColor: [37, 99, 235], fontSize: 8 },
+                styles: { fontSize: 8, cellPadding: 1.5 },
                 margin: { left: 14, right: 14 }
             });
             y = doc.lastAutoTable.finalY + 8;
@@ -8475,7 +8498,8 @@
                         head: [['Target', 'Goal', 'Actual', 'Achievement']],
                         body: achRows,
                         theme: 'striped',
-                        headStyles: { fillColor: [5, 150, 105] },
+                        headStyles: { fillColor: [5, 150, 105], fontSize: 8 },
+                        styles: { fontSize: 8, cellPadding: 1.5 },
                         margin: { left: 14, right: 14 }
                     });
                     y = doc.lastAutoTable.finalY + 8;
@@ -8492,7 +8516,8 @@
                         ['Total', bonus.total.toFixed(2)]
                     ],
                     theme: 'striped',
-                    headStyles: { fillColor: [180, 83, 9] },
+                    headStyles: { fillColor: [180, 83, 9], fontSize: 8 },
+                    styles: { fontSize: 8, cellPadding: 1.5 },
                     margin: { left: 14, right: 14 }
                 });
                 y = doc.lastAutoTable.finalY + 8;
@@ -8515,8 +8540,8 @@
                 head: [dailyHead],
                 body: dailyRows,
                 theme: 'grid',
-                headStyles: { fillColor: [37, 99, 235] },
-                styles: { fontSize: 8 },
+                headStyles: { fillColor: [37, 99, 235], fontSize: 7 },
+                styles: { fontSize: 7, cellPadding: 1.2 },
                 margin: { left: 14, right: 14 }
             });
 
@@ -8531,29 +8556,48 @@
 
             if (periodLines.length === 0) { alert('No results recorded in that period.'); return; }
 
+            const cfg = getBonusConfigForPeriod(periodKey);
+
             const memberIds = [...new Set(periodLines.map(l => l.memberId))];
             const rows = memberIds.map(id => {
                 const m = state.team.find(x => x.id === id);
                 const agg = aggregateLines(periodLines.filter(l => l.memberId === id));
                 const ach = calcAchievement(agg, periodKey);
+                const bonus = calcBonus(agg, periodKey, m);
+                const bbgTier = cfg ? findTier(cfg.bbgTiers, agg.bbg || 0) : null;
+
                 return {
                     name: m ? m.name : 'Unknown',
                     agg,
-                    pct: typeof ach === 'number' ? ach : null
+                    pct: typeof ach === 'number' ? ach : null,
+                    bonus,
+                    bbgRate: bbgTier ? Number(bbgTier.value) || 0 : 0
                 };
             }).sort((a, b) => b.agg.turnover - a.agg.turnover);
 
             const doc = newPdfDoc('landscape');
-            let y = addPdfHeader(doc, 'Results by advisor', getReportPeriodLabel());
+            const y = addPdfHeader(doc, '', getReportPeriodLabel());
 
             const head = ['Advisor', 'Txns', 'Turnover', 'Average'];
             if (showRevenue) head.push('Revenue');
-            head.push('BBG', 'Achievement');
+            head.push('BBG', 'Bonus %', 'Bonus', 'BBG rate', 'BBG bonus', 'Total bonus');
 
             const body = rows.map(r => {
-                const row = [r.name, String(r.agg.transactions), r.agg.turnover.toFixed(2), r.agg.average.toFixed(2)];
-                if (showRevenue) row.push(r.agg.revenue.toFixed(2));
-                row.push(String(r.agg.bbg), r.pct != null ? r.pct.toFixed(0) + '%' : '—');
+                const row = [
+                    r.name,
+                    String(r.agg.transactions),
+                    r.agg.turnover.toFixed(0),
+                    r.agg.average.toFixed(0)
+                ];
+                if (showRevenue) row.push(r.agg.revenue.toFixed(0));
+                row.push(
+                    String(r.agg.bbg),
+                    r.pct != null ? r.pct.toFixed(0) + '%' : '—',
+                    r.bonus ? r.bonus.mainBonus.toFixed(0) : '0',
+                    r.bbgRate.toFixed(0),
+                    r.bonus ? r.bonus.bbgBonus.toFixed(0) : '0',
+                    r.bonus ? r.bonus.total.toFixed(0) : '0'
+                );
                 return row;
             });
 
@@ -8561,34 +8605,21 @@
                 startY: y,
                 head: [head],
                 body,
-                theme: 'striped',
-                headStyles: { fillColor: [37, 99, 235] },
-                margin: { left: 14, right: 14 }
-            });
-            y = doc.lastAutoTable.finalY + 10;
-
-            // Simple horizontal bar chart of turnover per advisor.
-            const pageWidth = doc.internal.pageSize.getWidth();
-            const chartWidth = pageWidth - 80;
-            const maxTurnover = Math.max(...rows.map(r => r.agg.turnover), 1);
-
-            if (y > doc.internal.pageSize.getHeight() - 60) { doc.addPage(); y = 20; }
-
-            doc.setFontSize(11);
-            doc.text('Turnover comparison', 14, y);
-            y += 6;
-
-            rows.forEach(r => {
-                if (y > doc.internal.pageSize.getHeight() - 20) { doc.addPage(); y = 20; }
-                const barWidth = (r.agg.turnover / maxTurnover) * chartWidth;
-                doc.setFontSize(8);
-                doc.setTextColor(60, 60, 60);
-                doc.text(r.name.substring(0, 22), 14, y + 3.5);
-                doc.setFillColor(37, 99, 235);
-                doc.rect(60, y, barWidth, 5, 'F');
-                doc.setTextColor(100, 100, 100);
-                doc.text(r.agg.turnover.toFixed(0), 62 + barWidth, y + 3.5);
-                y += 8;
+                theme: 'grid',
+                headStyles: { fillColor: [37, 99, 235], fontSize: 8 },
+                styles: { fontSize: 8, cellPadding: 1.8 },
+                columnStyles: { 0: { halign: 'left' } },
+                margin: { left: 10, right: 10 },
+                didParseCell: (data) => {
+                    if (data.section !== 'body') return;
+                    const r = rows[data.row.index];
+                    // Anyone who hit their full target is highlighted in green.
+                    if (r && r.pct != null && r.pct >= 100) {
+                        data.cell.styles.fillColor = [220, 252, 231];
+                        data.cell.styles.textColor = [22, 101, 52];
+                        data.cell.styles.fontStyle = 'bold';
+                    }
+                }
             });
 
             doc.save(`GEBLL_advisors_${periodKey}.pdf`);
@@ -8623,7 +8654,7 @@
                 fileSuffix = periodKey;
             }
 
-            const hourlyMembers = state.team.filter(m => m.rotation === 'hourly');
+            const hourlyMembers = state.team.filter(m => getPayType(m) === 'hourly');
             if (hourlyMembers.length === 0) { alert('No members are set to an hourly contract.'); return; }
 
             const doc = newPdfDoc();
@@ -8682,9 +8713,7 @@
                 grandHours += totalMinutes / 60;
                 grandPay += totalPay;
 
-                if (y > doc.internal.pageSize.getHeight() - 50) { doc.addPage(); y = 20; }
-
-                doc.setFontSize(12);
+                doc.setFontSize(10);
                 doc.setTextColor(30, 41, 59);
                 doc.text(member.name, 14, y);
                 y += 4;
@@ -8702,18 +8731,17 @@
                     body: rows,
                     foot: [footRow],
                     theme: 'striped',
-                    headStyles: { fillColor: [37, 99, 235] },
-                    footStyles: { fillColor: [226, 232, 240], textColor: [30, 41, 59], fontStyle: 'bold' },
-                    styles: { fontSize: 9 },
+                    headStyles: { fillColor: [37, 99, 235], fontSize: 7 },
+                    footStyles: { fillColor: [226, 232, 240], textColor: [30, 41, 59], fontStyle: 'bold', fontSize: 7 },
+                    styles: { fontSize: 7, cellPadding: 1.2 },
                     margin: { left: 14, right: 14 }
                 });
-                y = doc.lastAutoTable.finalY + 10;
+                y = doc.lastAutoTable.finalY + 6;
             });
 
             if (!anyData) { alert('No shifts recorded for hourly staff in that period.'); return; }
 
-            if (y > doc.internal.pageSize.getHeight() - 30) { doc.addPage(); y = 20; }
-            doc.setFontSize(11);
+            doc.setFontSize(10);
             doc.setTextColor(30, 41, 59);
             doc.text(`Grand total: ${grandHours.toFixed(2)} hours${showPay ? ` — ${grandPay.toFixed(2)} pay` : ''}`, 14, y);
 
