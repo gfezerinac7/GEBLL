@@ -1615,6 +1615,10 @@
                 <i class="fas fa-folder"></i>
                 Projects
             </button>
+            <button class="tab-btn" data-module="management" onclick="switchTab('management')">
+                <i class="fas fa-briefcase"></i>
+                Management
+            </button>
             <button class="tab-btn" data-module="settings" onclick="switchTab('settings')">
                 <i class="fas fa-gear"></i>
                 Settings
@@ -1841,9 +1845,15 @@
                     <label>Rotation start date (first day of the 6-on block)</label>
                     <input type="date" id="memberRotationAnchor">
                 </div>
-                <div class="form-group">
-                    <label>Vacation days for this year</label>
-                    <input type="number" id="memberVacationDays" value="25" min="0" max="30">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Vacation days for this year</label>
+                        <input type="number" id="memberVacationDays" value="25" min="0" max="30">
+                    </div>
+                    <div class="form-group">
+                        <label>Monthly salary</label>
+                        <input type="number" id="memberSalary" step="0.01" min="0" placeholder="0.00">
+                    </div>
                 </div>
                 <button class="btn" onclick="addTeamMember()">
                     <i class="fas fa-user-plus"></i>
@@ -1896,6 +1906,10 @@
                 <div class="form-group">
                     <label>Vacation days for this year</label>
                     <input type="number" id="editMemberVacationDays" min="0" max="30">
+                </div>
+                <div class="form-group">
+                    <label>Monthly salary</label>
+                    <input type="number" id="editMemberSalary" step="0.01" min="0">
                 </div>
                 <button class="btn" style="width:100%; justify-content:center;" onclick="saveEditMember()">
                     <i class="fas fa-check"></i>
@@ -2302,6 +2316,47 @@
             </div>
         </div>
 
+        <!-- TAB MANAGEMENT -->
+        <div id="management" class="content">
+            <div class="settings-subtabs" style="background:#f8fafc; border-radius:10px; margin-bottom:18px;">
+                <button class="subtab-btn active" data-mgmttab="wpResults" onclick="switchManagementTab('wpResults')">
+                    <i class="fas fa-chart-column"></i> WP Results
+                </button>
+                <button class="subtab-btn" data-mgmttab="reports" onclick="switchManagementTab('reports')">
+                    <i class="fas fa-file-pdf"></i> Reports
+                </button>
+            </div>
+
+            <div id="mgmtWpResults">
+                <div class="form-section">
+                    <div class="section-title">
+                        <i class="fas fa-calendar"></i>
+                        Period
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Month</label>
+                            <select id="wpMonthSelect" onchange="renderWpResults()"></select>
+                        </div>
+                        <div class="form-group">
+                            <label>Year</label>
+                            <select id="wpYearSelect" onchange="renderWpResults()"></select>
+                        </div>
+                    </div>
+                </div>
+                <div id="wpResultsSummary"></div>
+                <div class="section-title">
+                    <i class="fas fa-users"></i>
+                    By member
+                </div>
+                <div id="wpResultsByMember"></div>
+            </div>
+
+            <div id="mgmtReports" class="app-hidden">
+                <p style="color:#999; font-size:13px;">Reports are coming in the next update.</p>
+            </div>
+        </div>
+
         <!-- TAB RESULTS -->
         <div id="results" class="content">
             <div id="resultsSummaryCard"></div>
@@ -2389,6 +2444,7 @@
                         <label class="module-check"><input type="checkbox" value="inbox"> Inbox</label>
                         <label class="module-check"><input type="checkbox" value="vacation"> Vacation</label>
                         <label class="module-check"><input type="checkbox" value="results"> Results</label>
+                        <label class="module-check"><input type="checkbox" value="management"> Management</label>
                         <label class="module-check"><input type="checkbox" value="resultsValidation"> Results Validation</label>
                         <label class="module-check"><input type="checkbox" value="ccySettings"> CCY Settings</label>
                         <label class="module-check"><input type="checkbox" value="bonusSettings"> Bonus Settings</label>
@@ -2470,6 +2526,56 @@
                     <span id="rvDayDetailTitle">Lines</span>
                 </div>
                 <div id="rvDayDetailLines"></div>
+                <button class="btn" style="margin-top:10px;" onclick="openAddTransactionModal()">
+                    <i class="fas fa-plus"></i>
+                    Add transaction
+                </button>
+            </div>
+        </div>
+
+        <div id="addTxModalOverlay" class="modal-overlay" onclick="closeAddTxModalOutside(event)">
+            <div class="modal-box">
+                <div class="modal-header">
+                    <div class="section-title" style="margin-bottom:0;">
+                        <i class="fas fa-plus"></i>
+                        <span id="addTxModalTitle">Add Transaction</span>
+                    </div>
+                    <button class="modal-close" onclick="closeAddTxModal()"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Received currency</label>
+                        <select id="addTxReceivedCcy"></select>
+                    </div>
+                    <div class="form-group">
+                        <label>Received amount</label>
+                        <input type="number" id="addTxReceivedAmount" step="0.01" min="0">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Delivered currency</label>
+                        <select id="addTxDeliveredCcy"></select>
+                    </div>
+                    <div class="form-group">
+                        <label>Delivered amount</label>
+                        <input type="number" id="addTxDeliveredAmount" step="0.01" min="0">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Discount code</label>
+                    <select id="addTxDiscountCode"></select>
+                </div>
+                <div class="form-group">
+                    <label class="module-check" style="width:fit-content;">
+                        <input type="checkbox" id="addTxBbg">
+                        BBG sold
+                    </label>
+                </div>
+                <button class="btn" style="width:100%; justify-content:center;" onclick="saveAddTransaction()">
+                    <i class="fas fa-check"></i>
+                    Add transaction
+                </button>
             </div>
         </div>
 
@@ -2780,6 +2886,29 @@
                 <div id="bonusTierList" style="margin-top:12px;"></div>
             </div>
 
+            <div class="form-section">
+                <div class="section-title">
+                    <i class="fas fa-gift"></i>
+                    BBG bonus tiers
+                </div>
+                <p style="font-size:12px; color:#999; margin-bottom:14px;">
+                    A separate payment based on how many BBG were sold. This amount is added on top of the bonus above.
+                </p>
+                <div class="results-entry-row results-entry-header" style="grid-template-columns: 1fr 1fr auto;">
+                    <div>From (BBG count)</div>
+                    <div>Amount</div>
+                    <div></div>
+                </div>
+                <div class="results-entry-row" style="grid-template-columns: 1fr 1fr auto;">
+                    <input type="number" id="bbgTierFromInput" step="1" min="0" placeholder="10">
+                    <input type="number" id="bbgTierValueInput" step="0.01" min="0" placeholder="250">
+                    <button class="btn" style="padding:8px 12px;" onclick="addBbgTier()">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </div>
+                <div id="bbgTierList" style="margin-top:12px;"></div>
+            </div>
+
             <button class="btn" style="width:100%; justify-content:center;" onclick="saveBonusConfig()">
                 <i class="fas fa-check"></i>
                 Save bonus settings for this month
@@ -2844,7 +2973,7 @@
             <div id="auditLogList"></div>
         </div>
 
-        <div class="app-version">GEBLL v-0.44</div>
+        <div class="app-version">GEBLL v-0.45</div>
     </div>
 
 
@@ -2862,6 +2991,7 @@
             { key: 'inbox', label: 'Inbox' },
             { key: 'vacation', label: 'Vacation' },
             { key: 'results', label: 'Results' },
+            { key: 'management', label: 'Management' },
             { key: 'resultsValidation', label: 'Results Validation' },
             { key: 'ccySettings', label: 'CCY Settings' },
             { key: 'bonusSettings', label: 'Bonus Settings' },
@@ -3161,7 +3291,7 @@
         async function ensureDefaultRoles() {
             const defaults = [
                 { name: 'Admin', modules: ['tasks', 'projects', 'team', 'locations', 'shifts', 'schedule', 'myrota', 'rotas', 'inbox', 'vacation', 'results', 'ccySettings', 'bonusSettings', 'resultsValidation', 'swapHistory', 'auditLog', 'roles'], protected: true },
-                { name: 'Lead', modules: ['tasks', 'projects', 'team', 'locations', 'shifts', 'schedule', 'myrota', 'rotas', 'inbox', 'vacation', 'results', 'resultsValidation', 'swapHistory'], protected: false },
+                { name: 'Lead', modules: ['tasks', 'projects', 'team', 'locations', 'shifts', 'schedule', 'myrota', 'rotas', 'inbox', 'vacation', 'results', 'management', 'resultsValidation', 'swapHistory'], protected: false },
                 { name: 'Member', modules: ['myrota', 'rotas', 'inbox', 'vacation', 'results'], protected: false }
             ];
             for (const d of defaults) {
@@ -3254,6 +3384,7 @@
             if (tab === 'schedule') renderSchedule();
             if (tab === 'vacation') renderVacation();
             if (tab === 'results') renderResults();
+            if (tab === 'management') initManagement();
         }
 
         function switchSettingsSubtab(sub) {
@@ -3345,6 +3476,7 @@
             if (tab === 'schedule') renderSchedule();
             if (tab === 'vacation') renderVacation();
             if (tab === 'results') renderResults();
+            if (tab === 'management') initManagement();
         }
 
         function addTask() {
@@ -3504,6 +3636,7 @@
             const rotation = document.getElementById('memberRotation').value;
             const rotationAnchor = document.getElementById('memberRotationAnchor').value;
             const vacationDays = parseInt(document.getElementById('memberVacationDays').value, 10) || 0;
+            const salary = parseFloat(document.getElementById('memberSalary').value) || 0;
 
             if (!name) {
                 alert('Please enter a name');
@@ -3535,6 +3668,7 @@
                     rotation,
                     rotationAnchor: rotationAnchor || null,
                     vacationDaysAllotted: vacationDays,
+                    salary,
                     mustChangePassword: true,
                     joinDate: new Date().toLocaleDateString('en-US')
                 });
@@ -3553,6 +3687,7 @@
             document.getElementById('memberRotation').value = 'none';
             document.getElementById('memberRotationAnchor').value = '';
             document.getElementById('memberVacationDays').value = '25';
+            document.getElementById('memberSalary').value = '';
             document.getElementById('newRotationAnchorWrap').style.display = 'none';
         }
 
@@ -3760,6 +3895,7 @@
             document.getElementById('editMemberRotation').value = member.rotation || 'none';
             document.getElementById('editMemberRotationAnchor').value = member.rotationAnchor || '';
             document.getElementById('editMemberVacationDays').value = member.vacationDaysAllotted ?? 25;
+            document.getElementById('editMemberSalary').value = member.salary ?? '';
             toggleEditRotationAnchorField();
 
             document.getElementById('editMemberModalOverlay').dataset.memberId = memberId;
@@ -3790,6 +3926,7 @@
             const rotation = document.getElementById('editMemberRotation').value;
             const rotationAnchor = document.getElementById('editMemberRotationAnchor').value;
             const vacationDays = parseInt(document.getElementById('editMemberVacationDays').value, 10) || 0;
+            const salary = parseFloat(document.getElementById('editMemberSalary').value) || 0;
 
             if (!name) {
                 alert('Please enter a name');
@@ -3806,7 +3943,8 @@
                 role,
                 rotation,
                 rotationAnchor: rotationAnchor || null,
-                vacationDaysAllotted: vacationDays
+                vacationDaysAllotted: vacationDays,
+                salary
             });
             logAction('Team member updated', name);
 
@@ -6458,6 +6596,36 @@
                     }).join('') + `</div>`;
             }
 
+            const bonus = calcBonus(month, currentMonthKey, currentMember);
+            if (bonus && (bonus.total > 0 || bonus.breakdown.length > 0)) {
+                const overallPct = typeof bonus.achievement === 'number'
+                    ? `${bonus.achievement.toFixed(0)}%`
+                    : '—';
+
+                html += `<div class="section-title"><i class="fas fa-sack-dollar"></i> Bonus</div>
+                    <div class="results-summary-card" style="grid-template-columns: repeat(3, 1fr); background: linear-gradient(135deg, #b45309 0%, #92400e 100%);">
+                        <div class="vb-stat">
+                            <div class="vb-number">${bonus.mainBonus.toFixed(0)}</div>
+                            <div class="vb-label">Targets bonus</div>
+                        </div>
+                        <div class="vb-stat">
+                            <div class="vb-number">${bonus.bbgBonus.toFixed(0)}</div>
+                            <div class="vb-label">BBG bonus</div>
+                        </div>
+                        <div class="vb-stat">
+                            <div class="vb-number">${bonus.total.toFixed(0)}</div>
+                            <div class="vb-label">Total bonus</div>
+                        </div>
+                    </div>`;
+
+                if (bonus.breakdown.length > 0) {
+                    html += `<p style="font-size:12px; color:#666; margin:-10px 0 18px;">
+                        Overall achievement: ${overallPct} —
+                        ${bonus.breakdown.map(b => `${b.label}${b.pct != null ? ' (' + b.pct.toFixed(0) + '%)' : ''}: ${b.amount.toFixed(0)}`).join(' • ')}
+                    </p>`;
+                }
+            }
+
             summaryCard.innerHTML = html;
 
             const dayKeys = [...new Set(monthLines.map(l => l.dateKey))].sort().reverse();
@@ -6526,6 +6694,98 @@
 
         // Monthly index: same weighting as the per-transaction index,
         // but using the month's accumulated average and revenue per transaction.
+        // ===== BONUS CALCULATION =====
+
+        // Overall achievement as a percentage, using each ticked target's weight.
+        function calcAchievement(monthAgg, periodKey) {
+            const cfg = getBonusConfigForPeriod(periodKey);
+            if (!cfg || !cfg.targets) return null;
+
+            const active = BONUS_METRICS.filter(m => cfg.targets[m.key] && cfg.targets[m.key].enabled);
+            if (active.length === 0) return null;
+
+            if (cfg.mode === 'independent') {
+                // Each target is judged on its own.
+                return active.map(m => {
+                    const t = cfg.targets[m.key];
+                    const target = Number(t.value) || 0;
+                    const actual = monthAgg[m.key] || 0;
+                    return {
+                        key: m.key,
+                        label: m.label,
+                        pct: target > 0 ? (actual / target) * 100 : 0,
+                        weight: Number(t.weight) || 0
+                    };
+                });
+            }
+
+            // Combined: weighted sum of each target's achievement.
+            let total = 0;
+            active.forEach(m => {
+                const t = cfg.targets[m.key];
+                const target = Number(t.value) || 0;
+                const actual = monthAgg[m.key] || 0;
+                const pct = target > 0 ? (actual / target) : 0;
+                total += pct * ((Number(t.weight) || 0) / 100);
+            });
+            return total * 100;
+        }
+
+        // Finds the highest tier the given achievement percentage reaches.
+        function findTier(tiers, pct) {
+            if (!tiers || tiers.length === 0) return null;
+            const sorted = [...tiers].sort((a, b) => a.from - b.from);
+            let match = null;
+            for (const t of sorted) {
+                if (pct >= t.from) match = t;
+            }
+            return match;
+        }
+
+        function tierPayout(tier, salary) {
+            if (!tier) return 0;
+            if (tier.type === 'percent') return (salary || 0) * (Number(tier.value) || 0) / 100;
+            return Number(tier.value) || 0;
+        }
+
+        // Full bonus for a member in a period: target-based bonus + BBG bonus.
+        function calcBonus(monthAgg, periodKey, member) {
+            const cfg = getBonusConfigForPeriod(periodKey);
+            if (!cfg) return null;
+
+            const salary = (member && member.salary) || 0;
+            let mainBonus = 0;
+            let breakdown = [];
+
+            const achievement = calcAchievement(monthAgg, periodKey);
+
+            if (cfg.mode === 'independent' && Array.isArray(achievement)) {
+                achievement.forEach(a => {
+                    const tier = findTier(cfg.tiers, a.pct);
+                    const payout = tierPayout(tier, salary);
+                    if (payout > 0) breakdown.push({ label: a.label, pct: a.pct, amount: payout });
+                    mainBonus += payout;
+                });
+            } else if (typeof achievement === 'number') {
+                const tier = findTier(cfg.tiers, achievement);
+                const payout = tierPayout(tier, salary);
+                mainBonus = payout;
+                if (payout > 0) breakdown.push({ label: 'Targets', pct: achievement, amount: payout });
+            }
+
+            const bbgTier = findTier(cfg.bbgTiers, monthAgg.bbg || 0);
+            const bbgBonus = bbgTier ? (Number(bbgTier.value) || 0) : 0;
+            if (bbgBonus > 0) breakdown.push({ label: 'BBG', pct: null, amount: bbgBonus });
+
+            return {
+                achievement,
+                mainBonus,
+                bbgBonus,
+                total: mainBonus + bbgBonus,
+                breakdown
+            };
+        }
+
         function calcMonthIndex(monthAgg, periodKey) {
             const cfg = getBonusConfigForPeriod(periodKey);
             if (!cfg || !cfg.targets) return '—';
@@ -6977,6 +7237,101 @@
 
         function closeEditTxModalOutside(e) {
             if (e.target.id === 'editTxModalOverlay') closeEditTxModal();
+        }
+
+        // Lets a Lead/Admin add a transaction to a day that is being reviewed.
+        function openAddTransactionModal() {
+            const memberId = document.getElementById('rvMemberSelect').value;
+            if (!memberId || !rvSelectedDateKey) {
+                alert('Open a day first to add a transaction to it.');
+                return;
+            }
+            if (state.currencies.length === 0) {
+                alert('No currencies configured yet.');
+                return;
+            }
+
+            const m = assigneeMap[memberId];
+            document.getElementById('addTxModalTitle').textContent =
+                `Add transaction — ${m ? m.name : ''} ${rvSelectedDateKey}`;
+
+            const sorted = [...state.currencies].sort((a, b) => a.iso.localeCompare(b.iso));
+            const options = sorted.map(c => `<option value="${c.iso}">${c.iso}</option>`).join('');
+            const recv = document.getElementById('addTxReceivedCcy');
+            recv.innerHTML = options;
+            const base = getBaseCurrency();
+            if (base && sorted.some(c => c.iso === base)) recv.value = base;
+            document.getElementById('addTxDeliveredCcy').innerHTML = options;
+
+            const codes = [...state.discountCodes].sort((a, b) => a.code.localeCompare(b.code));
+            document.getElementById('addTxDiscountCode').innerHTML = '<option value="">No discount</option>' +
+                codes.map(d => `<option value="${d.code}" data-percent="${d.percent}" data-type="${d.type || 'margin'}">${d.code} (${d.percent}% ${d.type === 'fee' ? 'off fee' : 'off margin'})</option>`).join('');
+
+            document.getElementById('addTxReceivedAmount').value = '';
+            document.getElementById('addTxDeliveredAmount').value = '';
+            document.getElementById('addTxBbg').checked = false;
+
+            document.getElementById('addTxModalOverlay').dataset.memberId = memberId;
+            document.getElementById('addTxModalOverlay').dataset.dateKey = rvSelectedDateKey;
+            document.getElementById('addTxModalOverlay').classList.add('active');
+        }
+
+        function closeAddTxModal() {
+            document.getElementById('addTxModalOverlay').classList.remove('active');
+        }
+
+        function closeAddTxModalOutside(e) {
+            if (e.target.id === 'addTxModalOverlay') closeAddTxModal();
+        }
+
+        async function saveAddTransaction() {
+            const overlay = document.getElementById('addTxModalOverlay');
+            const memberId = overlay.dataset.memberId;
+            const dateKey = overlay.dataset.dateKey;
+            if (!memberId || !dateKey) return;
+
+            const receivedCcy = document.getElementById('addTxReceivedCcy').value;
+            const receivedAmount = parseFloat(document.getElementById('addTxReceivedAmount').value);
+            const deliveredCcy = document.getElementById('addTxDeliveredCcy').value;
+            const deliveredAmount = parseFloat(document.getElementById('addTxDeliveredAmount').value);
+            const discountSelect = document.getElementById('addTxDiscountCode');
+            const discountCode = discountSelect.value;
+            const discount = discountCode
+                ? parseFloat(discountSelect.options[discountSelect.selectedIndex].dataset.percent) || 0
+                : 0;
+            const discountType = discountCode
+                ? (discountSelect.options[discountSelect.selectedIndex].dataset.type || 'margin')
+                : 'margin';
+            const bbg = document.getElementById('addTxBbg').checked;
+
+            if (!receivedCcy || !deliveredCcy || isNaN(receivedAmount) || isNaN(deliveredAmount)) {
+                alert('Please fill in both currencies and both amounts.');
+                return;
+            }
+            if (receivedCcy === deliveredCcy) {
+                alert('Received and delivered currency cannot be the same.');
+                return;
+            }
+
+            await fns.addDoc(fns.collection(db, 'resultLines'), {
+                assignmentId: null,
+                memberId,
+                dateKey,
+                receivedCcy, receivedAmount,
+                deliveredCcy, deliveredAmount,
+                discount, discountCode, discountType,
+                bbg,
+                createdAt: new Date().toISOString()
+            });
+
+            await clearValidationForDate(memberId, dateKey);
+            const m = assigneeMap[memberId];
+            await logAction('Transaction added', `${dateKey} — ${receivedAmount} ${receivedCcy} for ${m ? m.name : memberId}`);
+
+            closeAddTxModal();
+            rvSelectedDateKey = null;
+            toggleRvDayDetail(memberId, dateKey);
+            renderRvDailyList();
         }
 
         // Deletes a single transaction, whether it was imported or entered by hand.
@@ -7513,6 +7868,7 @@
         // ===== BONUS SETTINGS =====
 
         let currentBonusTiers = [];
+        let currentBbgTiers = [];
 
         function initBonusSettings() {
             const monthSelect = document.getElementById('bonusMonthSelect');
@@ -7568,7 +7924,9 @@
 
             document.getElementById('bonusModeSelect').value = (cfg && cfg.mode) || 'combined';
             currentBonusTiers = (cfg && cfg.tiers) ? [...cfg.tiers] : [];
+            currentBbgTiers = (cfg && cfg.bbgTiers) ? [...cfg.bbgTiers] : [];
             renderBonusTiers();
+            renderBbgTiers();
             updateBonusWeightSummary();
             updateIndexWeightSummary();
         }
@@ -7633,6 +7991,48 @@
         function removeBonusTier(index) {
             currentBonusTiers.splice(index, 1);
             renderBonusTiers();
+        }
+
+        function addBbgTier() {
+            const from = parseInt(document.getElementById('bbgTierFromInput').value, 10);
+            const value = parseFloat(document.getElementById('bbgTierValueInput').value);
+
+            if (isNaN(from) || isNaN(value)) {
+                alert('Please fill in the BBG count and the amount.');
+                return;
+            }
+
+            currentBbgTiers.push({ from, value });
+            currentBbgTiers.sort((a, b) => a.from - b.from);
+
+            document.getElementById('bbgTierFromInput').value = '';
+            document.getElementById('bbgTierValueInput').value = '';
+            renderBbgTiers();
+        }
+
+        function removeBbgTier(index) {
+            currentBbgTiers.splice(index, 1);
+            renderBbgTiers();
+        }
+
+        function renderBbgTiers() {
+            const list = document.getElementById('bbgTierList');
+            if (!list) return;
+
+            if (currentBbgTiers.length === 0) {
+                list.innerHTML = `<p style="color:#999; font-size:13px;">No BBG tiers defined yet.</p>`;
+                return;
+            }
+
+            list.innerHTML = currentBbgTiers.map((t, idx) => `
+                <div class="results-line-item" style="grid-template-columns: 1fr 1fr auto;">
+                    <div>From ${t.from} BBG</div>
+                    <div>${t.value}</div>
+                    <button class="btn btn-danger" style="padding:4px 8px;" onclick="removeBbgTier(${idx})">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            `).join('');
         }
 
         function renderBonusTiers() {
@@ -7718,6 +8118,7 @@
                 targets,
                 mode,
                 tiers: currentBonusTiers,
+                bbgTiers: currentBbgTiers,
                 indexWeights: { average: indexAvgWeight, revenuePerTx: indexRptWeight }
             };
 
@@ -7730,6 +8131,93 @@
             logAction('Bonus settings saved', `Period ${periodKey}, mode ${mode}, ${currentBonusTiers.length} tier(s)`);
             alert('Bonus settings saved for ' + periodKey + '.');
         }
+
+        // ===== MANAGEMENT — WP RESULTS =====
+
+        function switchManagementTab(tab) {
+            document.querySelectorAll('[data-mgmttab]').forEach(b => b.classList.remove('active'));
+            const btn = document.querySelector(`[data-mgmttab="${tab}"]`);
+            if (btn) btn.classList.add('active');
+            document.getElementById('mgmtWpResults').classList.toggle('app-hidden', tab !== 'wpResults');
+            document.getElementById('mgmtReports').classList.toggle('app-hidden', tab !== 'reports');
+            if (tab === 'wpResults') renderWpResults();
+        }
+
+        function initManagement() {
+            const monthSelect = document.getElementById('wpMonthSelect');
+            const yearSelect = document.getElementById('wpYearSelect');
+
+            if (monthSelect && !monthSelect.dataset.initialized) {
+                const names = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+                monthSelect.innerHTML = names.map((n, i) => `<option value="${i + 1}">${n}</option>`).join('');
+                monthSelect.value = new Date().getMonth() + 1;
+                monthSelect.dataset.initialized = 'true';
+            }
+            if (yearSelect && !yearSelect.dataset.initialized) {
+                const y = new Date().getFullYear();
+                yearSelect.innerHTML = [y - 1, y, y + 1].map(yy => `<option value="${yy}">${yy}</option>`).join('');
+                yearSelect.value = y;
+                yearSelect.dataset.initialized = 'true';
+            }
+
+            renderWpResults();
+        }
+
+        function getWpPeriodKey() {
+            const m = document.getElementById('wpMonthSelect').value.padStart(2, '0');
+            const y = document.getElementById('wpYearSelect').value;
+            return `${y}-${m}`;
+        }
+
+        function renderWpResults() {
+            const summaryEl = document.getElementById('wpResultsSummary');
+            const byMemberEl = document.getElementById('wpResultsByMember');
+            if (!summaryEl || !byMemberEl) return;
+
+            const periodKey = getWpPeriodKey();
+            const showRevenue = canSeeRevenue();
+            const periodLines = state.resultLines.filter(l => l.dateKey.slice(0, 7) === periodKey);
+
+            if (periodLines.length === 0) {
+                summaryEl.innerHTML = `<div class="empty-state"><i class="fas fa-chart-column"></i><p>No results recorded for this period.</p></div>`;
+                byMemberEl.innerHTML = '';
+                return;
+            }
+
+            const total = aggregateLines(periodLines);
+            const cols = showRevenue ? 6 : 5;
+
+            summaryEl.innerHTML = `
+                <div class="section-title"><i class="fas fa-layer-group"></i> Workplace total</div>
+                <div class="results-summary-card" style="grid-template-columns: repeat(${cols}, 1fr);">
+                    <div class="vb-stat"><div class="vb-number">${total.transactions}</div><div class="vb-label">Txns</div></div>
+                    <div class="vb-stat"><div class="vb-number">${total.turnover.toFixed(0)}</div><div class="vb-label">Turnover</div></div>
+                    <div class="vb-stat"><div class="vb-number">${total.average.toFixed(0)}</div><div class="vb-label">Average</div></div>
+                    ${showRevenue ? `<div class="vb-stat"><div class="vb-number">${total.revenue.toFixed(0)}</div><div class="vb-label">Revenue</div></div>` : ''}
+                    <div class="vb-stat"><div class="vb-number">${total.bbg}</div><div class="vb-label">BBG</div></div>
+                    <div class="vb-stat"><div class="vb-number">${calcMonthIndex(total, periodKey)}</div><div class="vb-label">Index</div></div>
+                </div>
+            `;
+
+            const memberIds = [...new Set(periodLines.map(l => l.memberId))];
+            const rows = memberIds.map(id => {
+                const m = state.team.find(x => x.id === id);
+                const agg = aggregateLines(periodLines.filter(l => l.memberId === id));
+                const achievement = calcAchievement(agg, periodKey);
+                const pct = typeof achievement === 'number' ? achievement : null;
+                return { id, name: m ? m.name : 'Unknown', agg, pct };
+            }).sort((a, b) => b.agg.turnover - a.agg.turnover);
+
+            byMemberEl.innerHTML = rows.map(r => `
+                <div class="results-day-item">
+                    <strong>${r.name}</strong>
+                    <span style="font-size:13px; color:#666;">
+                        ${r.agg.transactions} txns • ${r.agg.turnover.toFixed(0)} turnover • ${r.agg.average.toFixed(0)} avg${showRevenue ? ' • ' + r.agg.revenue.toFixed(0) + ' rev' : ''} • ${r.agg.bbg} BBG${r.pct != null ? ' • ' + r.pct.toFixed(0) + '%' : ''}
+                    </span>
+                </div>
+            `).join('');
+        }
+
 
     </script>
 </body>
