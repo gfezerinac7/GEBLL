@@ -1316,6 +1316,26 @@
             font-style: italic;
         }
 
+        .sg-add-btn {
+            width: 100%;
+            background: #f5f8ff;
+            border: 1px dashed #93b4f5;
+            border-radius: 6px;
+            color: #2563eb;
+            cursor: pointer;
+            font-size: 14px;
+            padding: 4px 0;
+            margin-top: 2px;
+        }
+
+        .sg-add-btn:hover {
+            background: #e8efff;
+        }
+
+        .sg-shift-item.clickable {
+            cursor: pointer;
+        }
+
         .sg-assign-btn {
             background: none;
             border: none;
@@ -1632,9 +1652,6 @@
 
         <!-- TAB SETTINGS (groups Shifts, Locations, Team, Roles) -->
         <div id="settingsSubtabsBar" class="settings-subtabs app-hidden">
-            <button class="subtab-btn" data-submodule="shifts" onclick="switchSettingsSubtab('shifts')">
-                <i class="fas fa-clock"></i> Shifts
-            </button>
             <button class="subtab-btn" data-submodule="locations" onclick="switchSettingsSubtab('locations')">
                 <i class="fas fa-map-marker-alt"></i> Locations
             </button>
@@ -2136,46 +2153,9 @@
             <div id="scheduleGridWrap" class="schedule-grid-wrap">
                 <div id="scheduleGrid" class="schedule-grid"></div>
             </div>
-
-            <div id="quickShiftWrap" style="margin-top:16px;">
-                <button class="btn" style="width:100%; justify-content:center;" onclick="openQuickShiftModal()">
-                    <i class="fas fa-plus"></i>
-                    Add shift
-                </button>
-            </div>
-        </div>
-
-        <div id="quickShiftModalOverlay" class="modal-overlay" onclick="closeQuickShiftModalOutside(event)">
-            <div class="modal-box">
-                <div class="modal-header">
-                    <div class="section-title" style="margin-bottom:0;">
-                        <i class="fas fa-plus-circle"></i>
-                        New Shift
-                    </div>
-                    <button class="modal-close" onclick="closeQuickShiftModal()"><i class="fas fa-times"></i></button>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Start Time</label>
-                        <input type="time" id="quickShiftStart">
-                    </div>
-                    <div class="form-group">
-                        <label>Duration</label>
-                        <div style="display:flex; gap:8px;">
-                            <input type="number" id="quickShiftDurationHours" min="0" max="23" placeholder="Hours" style="flex:1;">
-                            <input type="number" id="quickShiftDurationMinutes" min="0" max="59" placeholder="Minutes" style="flex:1;">
-                        </div>
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label>Location</label>
-                    <select id="quickShiftLocation"></select>
-                </div>
-                <button class="btn" id="quickShiftSaveBtn" style="width:100%; justify-content:center;" onclick="saveQuickShift()">
-                    <i class="fas fa-plus"></i>
-                    Add Shift
-                </button>
-            </div>
+            <p style="font-size:12px; color:#999; margin-top:10px;">
+                Tap <strong>+</strong> in a location/day to add a shift. Tap an existing shift to edit, publish or remove it.
+            </p>
         </div>
 
         <div id="publishUserModalOverlay" class="modal-overlay" onclick="closePublishByUserModalOutside(event)">
@@ -2206,15 +2186,33 @@
             <div class="modal-box">
                 <div class="modal-header">
                     <div class="section-title" style="margin-bottom:0;">
-                        <i class="fas fa-user-check"></i>
-                        Assign Member
+                        <i class="fas fa-clock"></i>
+                        <span id="assignModalTitle">New shift</span>
                     </div>
                     <button class="modal-close" onclick="closeAssignModal()"><i class="fas fa-times"></i></button>
                 </div>
                 <p id="assignModalSubtitle" style="color:#666; font-size:13px; margin-bottom:14px;"></p>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Start Time</label>
+                        <input type="time" id="assignStart" oninput="onAssignTimeChange('start')">
+                    </div>
+                    <div class="form-group">
+                        <label>End Time</label>
+                        <input type="time" id="assignEnd" oninput="onAssignTimeChange('end')">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Shift length</label>
+                    <div style="display:flex; gap:8px; align-items:center;">
+                        <input type="number" id="assignDurationHours" min="0" max="23" placeholder="Hours" style="flex:1;" oninput="onAssignDurationChange()">
+                        <input type="number" id="assignDurationMinutes" min="0" max="59" placeholder="Minutes" style="flex:1;" oninput="onAssignDurationChange()">
+                    </div>
+                    <p id="assignDurationInfo" style="font-size:12px; color:#666; margin:6px 0 0;"></p>
+                </div>
                 <div class="form-group">
                     <label>Team Member</label>
-                    <div id="assignMemberList" class="assign-member-list"></div>
+                    <select id="assignMemberSelect"></select>
                 </div>
                 <div class="form-group" id="sickLeaveWrap" style="display:none;">
                     <label class="module-check" style="width:fit-content;">
@@ -2223,17 +2221,17 @@
                     </label>
                 </div>
                 <p id="assignWarning" class="login-error" style="display:none;"></p>
-                <button class="btn" style="width:100%; justify-content:center;" onclick="confirmAssign()">
+                <button class="btn" id="assignSaveBtn" style="width:100%; justify-content:center;" onclick="confirmAssign()">
                     <i class="fas fa-check"></i>
-                    Assign
+                    Save shift
                 </button>
                 <button class="btn btn-success" id="publishSingleBtn" style="width:100%; justify-content:center; margin-top:8px; display:none;" onclick="togglePublishSingleAssignment()">
                     <i class="fas fa-eye"></i>
                     Publish this shift
                 </button>
                 <button class="btn btn-danger" id="unassignBtn" style="width:100%; justify-content:center; margin-top:8px; display:none;" onclick="confirmUnassign()">
-                    <i class="fas fa-user-minus"></i>
-                    Remove assignment
+                    <i class="fas fa-trash"></i>
+                    Remove shift
                 </button>
             </div>
         </div>
@@ -2681,7 +2679,6 @@
                         <label class="module-check"><input type="checkbox" value="projects"> Projects</label>
                         <label class="module-check"><input type="checkbox" value="team"> Team</label>
                         <label class="module-check"><input type="checkbox" value="locations"> Locations</label>
-                        <label class="module-check"><input type="checkbox" value="shifts"> Shifts</label>
                         <label class="module-check"><input type="checkbox" value="schedule"> Schedule</label>
                         <label class="module-check"><input type="checkbox" value="myrota"> Home</label>
                         <label class="module-check"><input type="checkbox" value="rotas"> Rotas</label>
@@ -2881,6 +2878,32 @@
                     </button>
                 </div>
 
+                <div class="form-section">
+                    <div class="section-title">
+                        <i class="fas fa-file-excel"></i>
+                        Upload rates and margins
+                    </div>
+                    <p style="font-size:12px; color:#666; margin-bottom:12px;">
+                        The template comes filled with the current currencies. Change the values and upload it:
+                        existing ISO codes are <strong>updated</strong>, new ones are <strong>added</strong>, and currencies missing from the file are left as they are.
+                    </p>
+                    <div class="form-group">
+                        <button class="btn btn-secondary" onclick="downloadCurrencyTemplate()">
+                            <i class="fas fa-download"></i>
+                            Download template
+                        </button>
+                    </div>
+                    <div class="form-group">
+                        <label>Select file</label>
+                        <input type="file" id="ccyImportFile" accept=".xlsx,.xls,.csv" onchange="previewCurrencyImport()">
+                    </div>
+                    <div id="ccyImportPreview"></div>
+                    <button class="btn app-hidden" id="ccyImportConfirmBtn" style="width:100%; justify-content:center;" onclick="confirmCurrencyImport()">
+                        <i class="fas fa-upload"></i>
+                        Apply changes
+                    </button>
+                </div>
+
                 <div class="section-title">
                     <i class="fas fa-coins"></i>
                     Currencies
@@ -2914,6 +2937,32 @@
                     <button class="btn" onclick="addDiscountCode()">
                         <i class="fas fa-plus"></i>
                         Add discount code
+                    </button>
+                </div>
+
+                <div class="form-section">
+                    <div class="section-title">
+                        <i class="fas fa-file-excel"></i>
+                        Upload discount codes
+                    </div>
+                    <p style="font-size:12px; color:#666; margin-bottom:12px;">
+                        The template comes filled with the current codes. "Applies to" must be <strong>margin</strong> or <strong>fee</strong>.
+                        Existing codes are <strong>updated</strong>, new ones are <strong>added</strong>, and codes missing from the file are left as they are.
+                    </p>
+                    <div class="form-group">
+                        <button class="btn btn-secondary" onclick="downloadDiscountTemplate()">
+                            <i class="fas fa-download"></i>
+                            Download template
+                        </button>
+                    </div>
+                    <div class="form-group">
+                        <label>Select file</label>
+                        <input type="file" id="discountImportFile" accept=".xlsx,.xls,.csv" onchange="previewDiscountImport()">
+                    </div>
+                    <div id="discountImportPreview"></div>
+                    <button class="btn app-hidden" id="discountImportConfirmBtn" style="width:100%; justify-content:center;" onclick="confirmDiscountImport()">
+                        <i class="fas fa-upload"></i>
+                        Apply changes
                     </button>
                 </div>
 
@@ -3217,7 +3266,7 @@
             <div id="auditLogList"></div>
         </div>
 
-        <div class="app-version">GEBLL v-0.53</div>
+        <div class="app-version">GEBLL v-0.54</div>
     </div>
 
 
@@ -3228,7 +3277,6 @@
             { key: 'projects', label: 'Projects' },
             { key: 'team', label: 'Team' },
             { key: 'locations', label: 'Locations' },
-            { key: 'shifts', label: 'Shifts' },
             { key: 'schedule', label: 'Schedule' },
             { key: 'myrota', label: 'Home' },
             { key: 'rotas', label: 'Rotas' },
@@ -3565,7 +3613,7 @@
             return state.roles.find(r => r.name === currentMember.role) || { name: currentMember.role, modules: [] };
         }
 
-        const SETTINGS_SUBMODULES = ['shifts', 'locations', 'team', 'roles', 'ccySettings', 'bonusSettings', 'resultsValidation', 'swapHistory', 'auditLog'];
+        const SETTINGS_SUBMODULES = ['locations', 'team', 'roles', 'ccySettings', 'bonusSettings', 'resultsValidation', 'swapHistory', 'auditLog'];
 
         function applyRolePermissions() {
             const role = getUserRole();
@@ -3585,7 +3633,10 @@
                 btn.style.display = visible ? '' : 'none';
             });
 
-            document.querySelectorAll('.subtab-btn').forEach(btn => {
+            // Only Settings sub-tabs carry data-submodule. Inner tab bars (Management →
+            // WP Results / Reports, CCY → Currencies / Discounts) have no such attribute
+            // and used to be hidden for every non-Admin role.
+            document.querySelectorAll('.subtab-btn[data-submodule]').forEach(btn => {
                 const sub = btn.getAttribute('data-submodule');
                 const visible = isAdmin || (role.modules || []).includes(sub);
                 btn.style.display = visible ? '' : 'none';
@@ -3606,7 +3657,7 @@
             }
         }
 
-        let lastSettingsSubtab = 'shifts';
+        let lastSettingsSubtab = 'locations';
 
         function updateTaskFabVisibility(tab) {
             const fab = document.getElementById('taskFab');
@@ -3645,7 +3696,7 @@
         function switchSettingsSubtab(sub) {
             lastSettingsSubtab = sub;
             document.querySelectorAll('.content').forEach(c => c.classList.remove('active'));
-            document.querySelectorAll('.subtab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.subtab-btn[data-submodule]').forEach(b => b.classList.remove('active'));
             document.getElementById(sub).classList.add('active');
             const subBtn = document.querySelector(`.subtab-btn[data-submodule="${sub}"]`);
             if (subBtn) subBtn.classList.add('active');
@@ -4579,47 +4630,6 @@
             document.getElementById('shiftDurationMinutes').value = '';
         }
 
-        function canManageShiftTemplates() {
-            const role = getUserRole();
-            return role.name === 'Admin' || (role.modules || []).includes('shifts');
-        }
-
-        function openQuickShiftModal() {
-            if (!canManageShiftTemplates()) return;
-
-            const select = document.getElementById('quickShiftLocation');
-            const current = select.value;
-            if (state.locations.length === 0) {
-                select.innerHTML = '<option value="">No locations yet — create one first</option>';
-            } else {
-                select.innerHTML = state.locations.map(l => `<option value="${l.id}">${l.name}</option>`).join('');
-                if (current && state.locations.some(l => l.id === current)) select.value = current;
-            }
-
-            document.getElementById('quickShiftStart').value = '';
-            document.getElementById('quickShiftDurationHours').value = '';
-            document.getElementById('quickShiftDurationMinutes').value = '';
-            document.getElementById('quickShiftModalOverlay').classList.add('active');
-        }
-
-        function closeQuickShiftModal() {
-            document.getElementById('quickShiftModalOverlay').classList.remove('active');
-        }
-
-        function closeQuickShiftModalOutside(e) {
-            if (e.target.id === 'quickShiftModalOverlay') closeQuickShiftModal();
-        }
-
-        function saveQuickShift() {
-            const start = document.getElementById('quickShiftStart').value;
-            const hours = parseInt(document.getElementById('quickShiftDurationHours').value, 10) || 0;
-            const minutes = parseInt(document.getElementById('quickShiftDurationMinutes').value, 10) || 0;
-            const locationId = document.getElementById('quickShiftLocation').value;
-
-            if (!createShiftTemplate(start, hours, minutes, locationId)) return;
-            closeQuickShiftModal();
-        }
-
         function deleteShift(id) {
             const shift = state.shifts.find(s => s.id === id);
             const loc = shift ? state.locations.find(l => l.id === shift.locationId) : null;
@@ -5117,9 +5127,6 @@
             const grid = document.getElementById('scheduleGrid');
             if (!grid) return;
 
-            const quickShiftWrap = document.getElementById('quickShiftWrap');
-            if (quickShiftWrap) quickShiftWrap.classList.toggle('app-hidden', !canManageShiftTemplates());
-
             const dates = getScheduleDates();
             updateScheduleRangeLabel(dates);
 
@@ -5133,95 +5140,51 @@
             grid.style.display = 'grid';
             grid.style.gridTemplateColumns = `140px repeat(${dates.length}, minmax(${isMonthly ? '130px' : '150px'}, 1fr))`;
 
+            const shiftById = {};
+            state.shifts.forEach(s => { shiftById[s.id] = s; });
+
+            // Group the assignments once: location → date → list.
+            const byLocDate = {};
+            state.assignments.forEach(a => {
+                const shift = shiftById[a.shiftId];
+                if (!shift) return;
+                const key = `${shift.locationId}|${a.dateKey}`;
+                if (!byLocDate[key]) byLocDate[key] = [];
+                byLocDate[key].push({ a, shift });
+            });
+
             let html = '<div class="sg-cell sg-header">Location</div>';
             dates.forEach(d => {
                 html += `<div class="sg-cell sg-header">${isMonthly ? d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' }) : formatDayLabel(d)}</div>`;
             });
 
+            // Only the shifts that exist on each day are shown, plus one + button
+            // per location/day. After saving, the new shift appears and the + stays
+            // underneath, ready for the next one.
             getOrderedLocations().forEach(loc => {
                 html += `<div class="sg-cell sg-loc-label">${loc.name}</div>`;
-                const locShifts = state.shifts
-                    .filter(s => s.locationId === loc.id)
-                    .sort((a, b) => a.start.localeCompare(b.start));
 
                 dates.forEach(d => {
                     const dateKey = toDateKey(d);
-                    if (locShifts.length === 0) {
-                        html += `<div class="sg-cell"><span class="sg-shift-empty">No shifts</span></div>`;
-                    } else {
-                        const assignedShifts = [];
-                        const unassignedShifts = [];
-                        locShifts.forEach(shift => {
-                            const assigns = getAssignmentsForShiftDate(shift.id, dateKey);
-                            if (assigns.length > 0) assignedShifts.push({ shift, assigns });
-                            else unassignedShifts.push(shift);
-                        });
+                    const items = (byLocDate[`${loc.id}|${dateKey}`] || [])
+                        .sort((x, y) => (x.shift.start + x.shift.end).localeCompare(y.shift.start + y.shift.end));
 
-                        let cellHtml = '<div class="sg-cell">';
-
-                        assignedShifts.forEach(({ shift, assigns }) => {
-                            assigns.forEach(a => {
-                                const m = assigneeMap[a.memberId];
-                                cellHtml += `
-                                    <div class="sg-shift-item ${a.published ? 'published' : 'draft'}">
-                                        <div class="sg-shift-time">${shift.start}-${shift.end}</div>
-                                        <div class="sg-shift-assignee" onclick="openAssignModal('${shift.id}','${dateKey}','${a.id}')" style="cursor:pointer;">
-                                            ${m ? m.name : 'Unknown'} ${a.sickLeave ? '(Sick)' : ''}
-                                        </div>
-                                    </div>
-                                `;
-                            });
-                        });
-
-                        if (assignedShifts.length > 0 && unassignedShifts.length > 0) {
-                            cellHtml += `<div class="sg-assigned-divider"></div>`;
-                        }
-
-                        const unassignedGroups = {};
-                        unassignedShifts.forEach(shift => {
-                            if (!unassignedGroups[shift.start]) unassignedGroups[shift.start] = [];
-                            unassignedGroups[shift.start].push(shift);
-                        });
-
-                        Object.keys(unassignedGroups).sort().forEach(startTime => {
-                            const shiftsAtTime = unassignedGroups[startTime];
-                            const groupKey = `${loc.id}_${dateKey}_${startTime}`;
-
-                            if (shiftsAtTime.length === 1) {
-                                const shift = shiftsAtTime[0];
-                                cellHtml += `
-                                    <div class="sg-shift-item">
-                                        <div class="sg-shift-time">${shift.start}-${shift.end}</div>
-                                        <button class="sg-assign-btn" onclick="openAssignModal('${shift.id}','${dateKey}')">
-                                            <i class="fas fa-plus"></i> Assign
-                                        </button>
-                                    </div>
-                                `;
-                            } else {
-                                cellHtml += `
-                                    <div class="sg-shift-group-header" onclick="toggleScheduleGroup('${groupKey}')">
-                                        <span>${startTime} (${shiftsAtTime.length} shifts)</span>
-                                        <i class="fas fa-chevron-down sg-group-chevron" id="chevron_${groupKey}"></i>
-                                    </div>
-                                    <div class="sg-shift-group-body app-hidden" id="group_${groupKey}">
-                                `;
-                                shiftsAtTime.forEach(shift => {
-                                    cellHtml += `
-                                        <div class="sg-shift-item">
-                                            <div class="sg-shift-time">${shift.start}-${shift.end}</div>
-                                            <button class="sg-assign-btn" onclick="openAssignModal('${shift.id}','${dateKey}')">
-                                                <i class="fas fa-plus"></i> Assign
-                                            </button>
-                                        </div>
-                                    `;
-                                });
-                                cellHtml += '</div>';
-                            }
-                        });
-
-                        cellHtml += '</div>';
-                        html += cellHtml;
-                    }
+                    let cellHtml = '<div class="sg-cell">';
+                    items.forEach(({ a, shift }) => {
+                        const m = assigneeMap[a.memberId];
+                        cellHtml += `
+                            <div class="sg-shift-item clickable ${a.published ? 'published' : 'draft'}" onclick="openAssignModal('${loc.id}','${dateKey}','${a.id}')">
+                                <div class="sg-shift-time">${shift.start}-${shift.end}</div>
+                                <div class="sg-shift-assignee">${m ? m.name : 'Unknown'} ${a.sickLeave ? '(Sick)' : ''}</div>
+                            </div>
+                        `;
+                    });
+                    cellHtml += `
+                        <button class="sg-add-btn" onclick="openAssignModal('${loc.id}','${dateKey}')" title="Add shift">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </div>`;
+                    html += cellHtml;
                 });
             });
 
@@ -5237,46 +5200,128 @@
             if (chevron) chevron.style.transform = isHidden ? 'rotate(180deg)' : 'rotate(0deg)';
         }
 
-        let selectedAssignMemberId = null;
+        let assignSaveInProgress = false;
+        // Times of the last saved shift, offered again for the next new shift.
+        let lastShiftTimes = { start: '', end: '' };
 
-        function openAssignModal(shiftId, dateKey, assignmentId) {
-            const shift = state.shifts.find(s => s.id === shiftId);
-            if (!shift) return;
-            const loc = state.locations.find(l => l.id === shift.locationId);
+        function timeToMinutes(t) {
+            const [h, m] = t.split(':').map(Number);
+            return h * 60 + m;
+        }
 
-            pendingAssign = { shiftId, dateKey, assignmentId: assignmentId || null };
-            selectedAssignMemberId = null;
+        function setAssignDurationFields(mins) {
+            document.getElementById('assignDurationHours').value = mins > 0 ? Math.floor(mins / 60) : '';
+            document.getElementById('assignDurationMinutes').value = mins > 0 ? mins % 60 : '';
+        }
 
-            document.getElementById('assignModalSubtitle').textContent =
-                `${loc ? loc.name : ''} — ${shift.start} to ${shift.end} on ${dateKey}`;
+        function getAssignDurationFields() {
+            const h = parseInt(document.getElementById('assignDurationHours').value, 10) || 0;
+            const m = parseInt(document.getElementById('assignDurationMinutes').value, 10) || 0;
+            return h * 60 + m;
+        }
 
+        function updateAssignDurationInfo() {
+            const start = document.getElementById('assignStart').value;
+            const end = document.getElementById('assignEnd').value;
+            const info = document.getElementById('assignDurationInfo');
+            if (!start || !end) { info.textContent = ''; return; }
+            const gross = calcGrossMinutes(start, end);
+            if (gross <= 0) { info.textContent = 'End time must be different from start time.'; return; }
+            const net = Math.max(gross - 30, 0);
+            info.textContent = `${formatMinutes(gross)} gross • ${formatMinutes(net)} net${timeToMinutes(end) < timeToMinutes(start) ? ' • ends the next day' : ''}`;
+        }
+
+        // Start or End changed. Changing Start keeps the length and moves End;
+        // changing End recalculates the length.
+        function onAssignTimeChange(which) {
+            const start = document.getElementById('assignStart').value;
+            const end = document.getElementById('assignEnd').value;
+            const duration = getAssignDurationFields();
+
+            if (which === 'start' && start && duration > 0) {
+                document.getElementById('assignEnd').value = calcEndTime(start, duration);
+            } else if (start && end) {
+                setAssignDurationFields(calcGrossMinutes(start, end));
+            }
+            updateAssignDurationInfo();
+        }
+
+        function onAssignDurationChange() {
+            const start = document.getElementById('assignStart').value;
+            const duration = getAssignDurationFields();
+            if (start && duration > 0) {
+                document.getElementById('assignEnd').value = calcEndTime(start, duration);
+            }
+            updateAssignDurationInfo();
+        }
+
+        // Members who can take a shift on this date. People on holidays or leave are
+        // left out; the rest are grouped so the best options come first.
+        function buildAssignMemberOptions(dateKey, selectedMemberId, excludeAssignmentId) {
             const dateObj = dateKeyToDate(dateKey);
-            const existing = assignmentId ? state.assignments.find(a => a.id === assignmentId) : null;
-            if (existing) selectedAssignMemberId = existing.memberId;
+            const leaveLabels = Object.values(LEAVE_TYPE_LABELS);
+            const groups = { available: [], working: [], dayOff: [], away: [] };
 
-            const listEl = document.getElementById('assignMemberList');
-            listEl.innerHTML = state.team.map(m => {
-                const statusLabel = getRotationStatusLabel(m, dateObj);
-                const isOff = statusLabel === 'Day off (rotation)';
-                const isHolidays = statusLabel === 'Holidays' || Object.values(LEAVE_TYPE_LABELS).includes(statusLabel);
-                const isSelected = m.id === selectedAssignMemberId;
-                const statusClass = isHolidays ? 'holidays' : (isOff ? 'off' : 'working');
-                return `
-                    <div class="assign-member-item ${isSelected ? 'selected' : ''} ${isHolidays ? 'disabled' : ''}" onclick="${isHolidays ? '' : `selectAssignMember('${m.id}')`}" data-member-id="${m.id}">
-                        <div>
-                            <div class="assign-member-name">${m.name}</div>
-                            <div class="assign-member-role">${m.role}</div>
-                        </div>
-                        ${statusLabel ? `<span class="assign-member-rotation ${statusClass}">${statusLabel}</span>` : ''}
-                    </div>
-                `;
-            }).join('') || '<p style="color:#999; font-size:13px;">No team members available.</p>';
+            [...state.team].sort((a, b) => a.name.localeCompare(b.name)).forEach(m => {
+                const status = getRotationStatusLabel(m, dateObj);
+                const isAway = status === 'Holidays' || leaveLabels.includes(status);
+                const dayMinutes = getMemberDayMinutes(m.id, dateKey, excludeAssignmentId);
+                const option = (extra) => `<option value="${m.id}" ${m.id === selectedMemberId ? 'selected' : ''}>${m.name}${extra ? ' — ' + extra : ''}</option>`;
+
+                if (isAway) {
+                    // Only listed when it is the member already on this shift.
+                    if (m.id === selectedMemberId) groups.away.push(option(status));
+                    return;
+                }
+                if (dayMinutes > 0) groups.working.push(option(`already ${formatMinutes(dayMinutes)} this day`));
+                else if (status === 'Day off (rotation)') groups.dayOff.push(option('day off'));
+                else groups.available.push(option(status === 'On rotation' ? '' : status || ''));
+            });
+
+            let html = `<option value="">Select a member…</option>`;
+            if (groups.available.length) html += `<optgroup label="Available">${groups.available.join('')}</optgroup>`;
+            if (groups.working.length) html += `<optgroup label="Already working this day">${groups.working.join('')}</optgroup>`;
+            if (groups.dayOff.length) html += `<optgroup label="Day off (rotation)">${groups.dayOff.join('')}</optgroup>`;
+            if (groups.away.length) html += `<optgroup label="On holidays / leave">${groups.away.join('')}</optgroup>`;
+            return html;
+        }
+
+        // Opens the shift pop-up. Without assignmentId it creates a new shift for
+        // that location and day; with it, the existing shift is edited.
+        function openAssignModal(locationId, dateKey, assignmentId) {
+            const existing = assignmentId ? state.assignments.find(a => a.id === assignmentId) : null;
+            const existingShift = existing ? state.shifts.find(s => s.id === existing.shiftId) : null;
+            if (assignmentId && (!existing || !existingShift)) return;
+
+            const locId = existingShift ? existingShift.locationId : locationId;
+            const loc = state.locations.find(l => l.id === locId);
+
+            pendingAssign = {
+                locationId: locId,
+                dateKey,
+                assignmentId: existing ? existing.id : null,
+                shiftId: existing ? existing.shiftId : null
+            };
+
+            document.getElementById('assignModalTitle').textContent = existing ? 'Edit shift' : 'New shift';
+            document.getElementById('assignModalSubtitle').textContent =
+                `${loc ? loc.name : ''} — ${dateKeyToDate(dateKey).toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
+
+            const start = existingShift ? existingShift.start : lastShiftTimes.start;
+            const end = existingShift ? existingShift.end : lastShiftTimes.end;
+            document.getElementById('assignStart').value = start || '';
+            document.getElementById('assignEnd').value = end || '';
+            setAssignDurationFields(start && end ? calcGrossMinutes(start, end) : 0);
+            updateAssignDurationInfo();
+
+            document.getElementById('assignMemberSelect').innerHTML =
+                buildAssignMemberOptions(dateKey, existing ? existing.memberId : null, existing ? existing.id : null);
 
             const unassignBtn = document.getElementById('unassignBtn');
-            unassignBtn.style.display = assignmentId ? 'block' : 'none';
+            unassignBtn.style.display = existing ? 'block' : 'none';
 
             const publishBtn = document.getElementById('publishSingleBtn');
-            if (assignmentId && existing) {
+            if (existing) {
                 publishBtn.style.display = 'block';
                 if (existing.published) {
                     publishBtn.innerHTML = '<i class="fas fa-eye-slash"></i> Unpublish this shift';
@@ -5294,23 +5339,11 @@
 
             const sickWrap = document.getElementById('sickLeaveWrap');
             const sickCheckbox = document.getElementById('assignSickLeave');
-            if (assignmentId) {
-                sickWrap.style.display = 'block';
-                sickCheckbox.checked = !!(existing && existing.sickLeave);
-            } else {
-                sickWrap.style.display = 'none';
-                sickCheckbox.checked = false;
-            }
+            sickWrap.style.display = existing ? 'block' : 'none';
+            sickCheckbox.checked = !!(existing && existing.sickLeave);
 
             document.getElementById('assignWarning').style.display = 'none';
             document.getElementById('assignModalOverlay').classList.add('active');
-        }
-
-        function selectAssignMember(memberId) {
-            selectedAssignMemberId = memberId;
-            document.querySelectorAll('.assign-member-item').forEach(el => {
-                el.classList.toggle('selected', el.dataset.memberId === memberId);
-            });
         }
 
         function closeAssignModal() {
@@ -5322,87 +5355,116 @@
             if (e.target.id === 'assignModalOverlay') closeAssignModal();
         }
 
+        // Shifts are still stored as time slots (start, end, location) so every
+        // existing assignment, rota, swap, report and result keeps working.
+        // The same slot is reused when one already exists with those times.
+        async function findOrCreateShiftSlot(start, end, locationId) {
+            const found = state.shifts.find(s => s.locationId === locationId && s.start === start && s.end === end);
+            if (found) return found;
+
+            const data = { start, end, locationId, grossMinutes: calcGrossMinutes(start, end) };
+            const ref = await fns.addDoc(fns.collection(db, 'shifts'), data);
+            const slot = { id: ref.id, ...data };
+            if (!state.shifts.some(s => s.id === ref.id)) state.shifts.push(slot);
+            return slot;
+        }
+
         async function confirmAssign() {
-            if (!pendingAssign) return;
-            const memberId = selectedAssignMemberId;
+            if (!pendingAssign || assignSaveInProgress) return;
             const warningEl = document.getElementById('assignWarning');
-
-            if (!memberId) {
-                warningEl.textContent = 'Select a team member.';
+            const showWarning = (text) => {
+                warningEl.textContent = text;
                 warningEl.style.display = 'block';
-                return;
-            }
+            };
 
-            const activeLeave = getLongTermLeaveForDate(memberId, pendingAssign.dateKey);
+            const start = document.getElementById('assignStart').value;
+            const end = document.getElementById('assignEnd').value;
+            const memberId = document.getElementById('assignMemberSelect').value;
+            const dateKey = pendingAssign.dateKey;
+
+            if (!start || !end) return showWarning('Fill in start and end time.');
+            const grossMinutes = calcGrossMinutes(start, end);
+            if (grossMinutes <= 0) return showWarning('End time must be different from start time.');
+            if (!memberId) return showWarning('Select a team member.');
+
+            const m = assigneeMap[memberId];
+            const activeLeave = getLongTermLeaveForDate(memberId, dateKey);
             if (activeLeave) {
-                const m = assigneeMap[memberId];
-                warningEl.textContent = `${m ? m.name : 'This member'} is on ${LEAVE_TYPE_LABELS[activeLeave.type] || 'leave'} on ${pendingAssign.dateKey} and cannot be assigned a shift.`;
-                warningEl.style.display = 'block';
-                return;
+                return showWarning(`${m ? m.name : 'This member'} is on ${LEAVE_TYPE_LABELS[activeLeave.type] || 'leave'} on ${dateKey} and cannot be assigned a shift.`);
+            }
+            if (isOnApprovedVacation(memberId, dateKey)) {
+                return showWarning(`${m ? m.name : 'This member'} is on approved holidays on ${dateKey} and cannot be assigned a shift.`);
             }
 
-            if (isOnApprovedVacation(memberId, pendingAssign.dateKey)) {
-                const m = assigneeMap[memberId];
-                warningEl.textContent = `${m ? m.name : 'This member'} is on approved holidays on ${pendingAssign.dateKey} and cannot be assigned a shift.`;
-                warningEl.style.display = 'block';
-                return;
-            }
-
-            const shift = state.shifts.find(s => s.id === pendingAssign.shiftId);
-            if (!shift) return;
-
-            const existingMinutes = getMemberDayMinutes(memberId, pendingAssign.dateKey, pendingAssign.assignmentId);
-            const totalMinutes = existingMinutes + shift.grossMinutes;
-            const netMinutes = totalMinutes - 30;
-
+            const existingMinutes = getMemberDayMinutes(memberId, dateKey, pendingAssign.assignmentId);
+            const netMinutes = existingMinutes + grossMinutes - 30;
             if (netMinutes > 475) {
-                const m = assigneeMap[memberId];
-                warningEl.textContent = `${m ? m.name : 'This member'} would have ${formatMinutes(netMinutes)} net on ${pendingAssign.dateKey}, exceeding the 7h55 daily limit.`;
-                warningEl.style.display = 'block';
-                return;
+                return showWarning(`${m ? m.name : 'This member'} would have ${formatMinutes(netMinutes)} net on ${dateKey}, exceeding the 7h55 daily limit.`);
             }
 
             const sickLeave = document.getElementById('assignSickLeave').checked;
-            const loc = state.locations.find(l => l.id === shift.locationId);
+            const loc = state.locations.find(l => l.id === pendingAssign.locationId);
             const locName = loc ? loc.name : '';
+            const saveBtn = document.getElementById('assignSaveBtn');
+            const saveBtnHtml = saveBtn.innerHTML;
 
-            if (pendingAssign.assignmentId) {
-                const existing = state.assignments.find(a => a.id === pendingAssign.assignmentId);
-                const previousMemberId = existing ? existing.memberId : null;
-                const wasPublished = existing ? !!existing.published : false;
+            assignSaveInProgress = true;
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving…';
 
-                await fns.updateDoc(fns.doc(db, 'assignments', pendingAssign.assignmentId), { memberId, sickLeave });
+            try {
+                const slot = await findOrCreateShiftSlot(start, end, pendingAssign.locationId);
+                const times = `${slot.start}-${slot.end}`;
 
-                if (previousMemberId && previousMemberId !== memberId) {
-                    const newM = assigneeMap[memberId];
-                    const oldM = assigneeMap[previousMemberId];
-                    // Only tell people about it if the rota was already public.
-                    if (wasPublished) {
-                        await createNotification(previousMemberId, `Your shift on ${pendingAssign.dateKey} (${shift.start}-${shift.end}, ${locName}) was reassigned to ${newM ? newM.name : 'another member'}.`);
-                        await createNotification(memberId, `You were assigned a shift on ${pendingAssign.dateKey} (${shift.start}-${shift.end}, ${locName}), previously held by ${oldM ? oldM.name : 'another member'}.`);
+                if (pendingAssign.assignmentId) {
+                    const existing = state.assignments.find(a => a.id === pendingAssign.assignmentId);
+                    const previousMemberId = existing ? existing.memberId : null;
+                    const wasPublished = existing ? !!existing.published : false;
+                    const previousShift = existing ? state.shifts.find(s => s.id === existing.shiftId) : null;
+                    const previousTimes = previousShift ? `${previousShift.start}-${previousShift.end}` : '';
+                    const timesChanged = previousTimes !== times;
+
+                    await fns.updateDoc(fns.doc(db, 'assignments', pendingAssign.assignmentId), {
+                        memberId, sickLeave, shiftId: slot.id
+                    });
+
+                    if (previousMemberId && previousMemberId !== memberId) {
+                        const oldM = assigneeMap[previousMemberId];
+                        // Only tell people about it if the rota was already public.
+                        if (wasPublished) {
+                            await createNotification(previousMemberId, `Your shift on ${dateKey} (${previousTimes}, ${locName}) was reassigned to ${m ? m.name : 'another member'}.`);
+                            await createNotification(memberId, `You were assigned a shift on ${dateKey} (${times}, ${locName}), previously held by ${oldM ? oldM.name : 'another member'}.`);
+                        }
+                        await logAction('Shift reassigned', `${dateKey} ${times} (${locName}): from ${oldM ? oldM.name : previousMemberId} to ${m ? m.name : memberId}`);
+                    } else {
+                        if (wasPublished) {
+                            const change = timesChanged ? ` Now ${times} (was ${previousTimes}).` : '';
+                            await createNotification(memberId, `Your shift on ${dateKey} (${times}, ${locName}) was updated.${change}${sickLeave ? ' Marked as Sick Leave.' : ''}`);
+                        }
+                        await logAction('Shift updated', `${dateKey} ${timesChanged ? previousTimes + ' → ' : ''}${times} (${locName}) for ${m ? m.name : memberId}${sickLeave ? ' — marked Sick Leave' : ''}`);
                     }
-                    await logAction('Shift reassigned', `${pendingAssign.dateKey} ${shift.start}-${shift.end} (${locName}): from ${oldM ? oldM.name : previousMemberId} to ${newM ? newM.name : memberId}`);
-                } else if (previousMemberId === memberId) {
-                    if (wasPublished) {
-                        await createNotification(memberId, `Your shift on ${pendingAssign.dateKey} (${shift.start}-${shift.end}, ${locName}) was updated.${sickLeave ? ' Marked as Sick Leave.' : ''}`);
-                    }
-                    await logAction('Shift updated', `${pendingAssign.dateKey} ${shift.start}-${shift.end} (${locName}) for ${assigneeMap[memberId] ? assigneeMap[memberId].name : memberId}${sickLeave ? ' — marked Sick Leave' : ''}`);
+                } else {
+                    await fns.addDoc(fns.collection(db, 'assignments'), {
+                        shiftId: slot.id,
+                        dateKey,
+                        memberId,
+                        sickLeave: false,
+                        published: false
+                    });
+                    lastShiftTimes = { start, end };
+                    // New shifts always start as a draft, so no notification here —
+                    // the member is told when the rota is published.
+                    await logAction('Shift assigned', `${dateKey} ${times} (${locName}) to ${m ? m.name : memberId}`);
                 }
-            } else {
-                await fns.addDoc(fns.collection(db, 'assignments'), {
-                    shiftId: pendingAssign.shiftId,
-                    dateKey: pendingAssign.dateKey,
-                    memberId,
-                    sickLeave: false,
-                    published: false
-                });
-                const newM = assigneeMap[memberId];
-                // New assignments always start as a draft, so no notification here —
-                // the member is told when the rota is published.
-                await logAction('Shift assigned', `${pendingAssign.dateKey} ${shift.start}-${shift.end} (${locName}) to ${newM ? newM.name : memberId}`);
-            }
 
-            closeAssignModal();
+                closeAssignModal();
+            } catch (err) {
+                showWarning('The shift could not be saved: ' + (err.message || err));
+            } finally {
+                assignSaveInProgress = false;
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = saveBtnHtml;
+            }
         }
 
         async function confirmUnassign() {
@@ -8439,6 +8501,257 @@
             logAction('Discount code deleted', d.code);
         }
 
+        // ===== CCY / DISCOUNT EXCEL UPLOAD =====
+
+        let pendingCurrencyImport = [];
+        let pendingDiscountImport = [];
+
+        // Header lookup that ignores case, spaces and symbols ("Margin (%)" = "margin").
+        function pickCell(row, names) {
+            const wanted = names.map(n => n.toLowerCase().replace(/[^a-z0-9]/g, ''));
+            for (const key of Object.keys(row)) {
+                const norm = key.toLowerCase().replace(/[^a-z0-9]/g, '');
+                if (wanted.includes(norm)) return row[key];
+            }
+            return '';
+        }
+
+        // Accepts 7.45, "7,45", "5%" and " 5 ".
+        function parseSheetNumber(value) {
+            if (typeof value === 'number') return value;
+            let str = String(value ?? '').trim().replace('%', '').replace(/\s/g, '');
+            if (str === '') return NaN;
+            if (str.includes(',') && !str.includes('.')) str = str.replace(',', '.');
+            else str = str.replace(/,/g, '');
+            return Number(str);
+        }
+
+        function readSheetFile(inputId, onRows, onError) {
+            const input = document.getElementById(inputId);
+            const file = input.files && input.files[0];
+            if (!file) { onRows(null); return; }
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const wb = XLSX.read(e.target.result, { type: 'array' });
+                    const sheet = wb.Sheets[wb.SheetNames[0]];
+                    onRows(XLSX.utils.sheet_to_json(sheet, { defval: '' }));
+                } catch (err) {
+                    onError(err);
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function renderSheetPreview(previewEl, errors, changes, noun) {
+            let html = '';
+            if (errors.length > 0) {
+                html += `<div class="inbox-item" style="border-left:3px solid #dc2626;">
+                    <strong style="font-size:13px; color:#dc2626;">${errors.length} row(s) will be skipped:</strong>
+                    <ul style="font-size:12px; color:#666; margin:6px 0 0 16px;">
+                        ${errors.slice(0, 15).map(er => `<li>${er}</li>`).join('')}
+                        ${errors.length > 15 ? `<li>…and ${errors.length - 15} more</li>` : ''}
+                    </ul>
+                </div>`;
+            }
+            const added = changes.filter(c => c.kind === 'add');
+            const updated = changes.filter(c => c.kind === 'update');
+            if (changes.length > 0) {
+                html += `<div class="inbox-item" style="border-left:3px solid #16a34a;">
+                    <strong style="font-size:13px;">${updated.length} ${noun}(s) to update • ${added.length} to add</strong>
+                    <ul style="font-size:12px; color:#666; margin:6px 0 0 16px;">
+                        ${changes.slice(0, 30).map(c => `<li>${c.summary}</li>`).join('')}
+                        ${changes.length > 30 ? `<li>…and ${changes.length - 30} more</li>` : ''}
+                    </ul>
+                </div>`;
+            } else if (errors.length === 0) {
+                html += `<p style="font-size:13px; color:#666;">Nothing to change — the file matches the current values.</p>`;
+            } else {
+                html += `<p style="font-size:13px; color:#dc2626;">No valid rows found.</p>`;
+            }
+            previewEl.innerHTML = html;
+        }
+
+        async function commitSheetChanges(collectionName, changes) {
+            const BATCH_LIMIT = 450;
+            for (let i = 0; i < changes.length; i += BATCH_LIMIT) {
+                const batch = fns.writeBatch(db);
+                changes.slice(i, i + BATCH_LIMIT).forEach(c => {
+                    if (c.kind === 'update') batch.update(fns.doc(db, collectionName, c.id), c.data);
+                    else batch.set(fns.doc(fns.collection(db, collectionName)), c.data);
+                });
+                await batch.commit();
+            }
+        }
+
+        function downloadCurrencyTemplate() {
+            const headers = ['ISO', 'Rate', 'Margin (%)'];
+            const sorted = [...state.currencies].sort((a, b) => a.iso.localeCompare(b.iso));
+            const rows = sorted.length > 0
+                ? sorted.map(c => [c.iso, c.rate, c.margin])
+                : [['EUR', 7.45, 3], ['USD', 6.9, 3]];
+            const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+            ws['!cols'] = [{ wch: 8 }, { wch: 12 }, { wch: 12 }];
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Currencies');
+            XLSX.writeFile(wb, 'GEBLL_currencies_template.xlsx');
+        }
+
+        function previewCurrencyImport() {
+            const previewEl = document.getElementById('ccyImportPreview');
+            const confirmBtn = document.getElementById('ccyImportConfirmBtn');
+            pendingCurrencyImport = [];
+            confirmBtn.classList.add('app-hidden');
+
+            readSheetFile('ccyImportFile', rows => {
+                if (!rows) { previewEl.innerHTML = ''; return; }
+                const errors = [];
+                const changes = [];
+                const seen = new Set();
+
+                rows.forEach((row, i) => {
+                    const rowNum = i + 2;
+                    const iso = String(pickCell(row, ['ISO', 'ISO code', 'Currency', 'CCY']) || '').trim().toUpperCase();
+                    const rateRaw = pickCell(row, ['Rate']);
+                    const marginRaw = pickCell(row, ['Margin (%)', 'Margin']);
+                    if (!iso && rateRaw === '' && marginRaw === '') return; // empty line
+
+                    const rate = parseSheetNumber(rateRaw);
+                    const margin = parseSheetNumber(marginRaw);
+                    if (!/^[A-Z]{2,5}$/.test(iso)) { errors.push(`Row ${rowNum}: "${iso}" is not a valid ISO code.`); return; }
+                    if (seen.has(iso)) { errors.push(`Row ${rowNum}: ${iso} appears more than once.`); return; }
+                    if (isNaN(rate) || rate <= 0) { errors.push(`Row ${rowNum}: rate for ${iso} must be a number above 0.`); return; }
+                    if (isNaN(margin) || margin < 0 || margin > 100) { errors.push(`Row ${rowNum}: margin for ${iso} must be between 0 and 100.`); return; }
+                    seen.add(iso);
+
+                    const existing = state.currencies.find(c => c.iso === iso);
+                    if (existing) {
+                        if (Number(existing.rate) === rate && Number(existing.margin) === margin) return;
+                        changes.push({ kind: 'update', id: existing.id, data: { rate, margin },
+                            summary: `${iso}: rate ${existing.rate} → ${rate}, margin ${existing.margin}% → ${margin}%` });
+                    } else {
+                        changes.push({ kind: 'add', data: { iso, rate, margin },
+                            summary: `${iso} (new): rate ${rate}, margin ${margin}%` });
+                    }
+                });
+
+                pendingCurrencyImport = changes;
+                renderSheetPreview(previewEl, errors, changes, 'currency');
+                if (changes.length > 0) confirmBtn.classList.remove('app-hidden');
+            }, err => {
+                previewEl.innerHTML = `<p style="font-size:13px; color:#dc2626;">Could not read the file: ${err.message}</p>`;
+            });
+        }
+
+        async function confirmCurrencyImport() {
+            if (pendingCurrencyImport.length === 0) return;
+            const confirmBtn = document.getElementById('ccyImportConfirmBtn');
+            const changes = pendingCurrencyImport;
+            confirmBtn.disabled = true;
+            confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving…';
+            try {
+                await commitSheetChanges('currencies', changes);
+                const added = changes.filter(c => c.kind === 'add').length;
+                await logAction('Currencies uploaded', `${changes.length - added} updated, ${added} added`);
+                pendingCurrencyImport = [];
+                document.getElementById('ccyImportFile').value = '';
+                document.getElementById('ccyImportPreview').innerHTML = '';
+                confirmBtn.classList.add('app-hidden');
+                alert(`Currencies saved: ${changes.length - added} updated, ${added} added.`);
+            } catch (err) {
+                alert('Upload failed: ' + (err.message || err));
+            } finally {
+                confirmBtn.disabled = false;
+                confirmBtn.innerHTML = '<i class="fas fa-upload"></i> Apply changes';
+            }
+        }
+
+        function downloadDiscountTemplate() {
+            const headers = ['Code', 'Discount (%)', 'Applies to'];
+            const sorted = [...state.discountCodes].sort((a, b) => a.code.localeCompare(b.code));
+            const rows = sorted.length > 0
+                ? sorted.map(d => [d.code, d.percent, d.type === 'fee' ? 'fee' : 'margin'])
+                : [['STAFF10', 10, 'margin'], ['NOFEE', 100, 'fee']];
+            const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+            ws['!cols'] = [{ wch: 14 }, { wch: 14 }, { wch: 12 }];
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Discounts');
+            XLSX.writeFile(wb, 'GEBLL_discounts_template.xlsx');
+        }
+
+        function previewDiscountImport() {
+            const previewEl = document.getElementById('discountImportPreview');
+            const confirmBtn = document.getElementById('discountImportConfirmBtn');
+            pendingDiscountImport = [];
+            confirmBtn.classList.add('app-hidden');
+
+            readSheetFile('discountImportFile', rows => {
+                if (!rows) { previewEl.innerHTML = ''; return; }
+                const errors = [];
+                const changes = [];
+                const seen = new Set();
+
+                rows.forEach((row, i) => {
+                    const rowNum = i + 2;
+                    const code = String(pickCell(row, ['Code', 'Discount code']) || '').trim().toUpperCase();
+                    const percentRaw = pickCell(row, ['Discount (%)', 'Discount', 'Percent', '%']);
+                    const typeRaw = String(pickCell(row, ['Applies to', 'Type']) || '').trim().toLowerCase();
+                    if (!code && percentRaw === '' && !typeRaw) return;
+
+                    const percent = parseSheetNumber(percentRaw);
+                    let type = null;
+                    if (!typeRaw || typeRaw.startsWith('margin')) type = 'margin';
+                    else if (typeRaw.includes('fee')) type = 'fee';
+
+                    if (!code) { errors.push(`Row ${rowNum}: code is empty.`); return; }
+                    if (seen.has(code)) { errors.push(`Row ${rowNum}: ${code} appears more than once.`); return; }
+                    if (isNaN(percent) || percent < 0 || percent > 100) { errors.push(`Row ${rowNum}: discount for ${code} must be between 0 and 100.`); return; }
+                    if (!type) { errors.push(`Row ${rowNum}: "Applies to" for ${code} must be margin or fee.`); return; }
+                    seen.add(code);
+
+                    const existing = state.discountCodes.find(d => d.code === code);
+                    const typeLabel = t => t === 'fee' ? 'fee' : 'margin';
+                    if (existing) {
+                        if (Number(existing.percent) === percent && typeLabel(existing.type) === type) return;
+                        changes.push({ kind: 'update', id: existing.id, data: { percent, type },
+                            summary: `${code}: ${existing.percent}% off ${typeLabel(existing.type)} → ${percent}% off ${type}` });
+                    } else {
+                        changes.push({ kind: 'add', data: { code, percent, type },
+                            summary: `${code} (new): ${percent}% off ${type}` });
+                    }
+                });
+
+                pendingDiscountImport = changes;
+                renderSheetPreview(previewEl, errors, changes, 'code');
+                if (changes.length > 0) confirmBtn.classList.remove('app-hidden');
+            }, err => {
+                previewEl.innerHTML = `<p style="font-size:13px; color:#dc2626;">Could not read the file: ${err.message}</p>`;
+            });
+        }
+
+        async function confirmDiscountImport() {
+            if (pendingDiscountImport.length === 0) return;
+            const confirmBtn = document.getElementById('discountImportConfirmBtn');
+            const changes = pendingDiscountImport;
+            confirmBtn.disabled = true;
+            confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving…';
+            try {
+                await commitSheetChanges('discountCodes', changes);
+                const added = changes.filter(c => c.kind === 'add').length;
+                await logAction('Discount codes uploaded', `${changes.length - added} updated, ${added} added`);
+                pendingDiscountImport = [];
+                document.getElementById('discountImportFile').value = '';
+                document.getElementById('discountImportPreview').innerHTML = '';
+                confirmBtn.classList.add('app-hidden');
+                alert(`Discount codes saved: ${changes.length - added} updated, ${added} added.`);
+            } catch (err) {
+                alert('Upload failed: ' + (err.message || err));
+            } finally {
+                confirmBtn.disabled = false;
+                confirmBtn.innerHTML = '<i class="fas fa-upload"></i> Apply changes';
+            }
+        }
+
         // ===== BONUS SETTINGS =====
 
         let currentBonusTiers = [];
@@ -8745,6 +9058,37 @@
             return `${y}-${m}`;
         }
 
+        // Every target with a value in Bonus Settings for the period, whether or not
+        // it is ticked to count towards the bonus. Revenue targets stay Admin-only.
+        function renderWpTargets(periodKey, showRevenue) {
+            const cfg = getBonusConfigForPeriod(periodKey);
+            const targets = (cfg && cfg.targets) || {};
+            const REVENUE_METRICS = ['revenue', 'revenuePerTx'];
+            const withValue = BONUS_METRICS.filter(m => {
+                const t = targets[m.key];
+                return t && t.value !== '' && t.value != null && !isNaN(Number(t.value)) &&
+                    (showRevenue || !REVENUE_METRICS.includes(m.key));
+            });
+
+            if (withValue.length === 0) {
+                return `<div class="section-title"><i class="fas fa-bullseye"></i> Targets</div>
+                    <p style="font-size:13px; color:#999; margin:-6px 0 18px;">No targets set in Bonus Settings for this period.</p>`;
+            }
+
+            return `<div class="section-title"><i class="fas fa-bullseye"></i> Targets</div>
+                <div class="results-summary-card" style="grid-template-columns: repeat(${Math.min(withValue.length, 4)}, 1fr); background: linear-gradient(135deg, #475569 0%, #334155 100%);">` +
+                withValue.map(m => {
+                    const t = targets[m.key];
+                    return `
+                        <div class="vb-stat">
+                            <div class="vb-number">${Number(t.value).toLocaleString()}</div>
+                            <div class="vb-label">${m.label}</div>
+                            <div class="vb-label" style="margin-top:4px; font-size:10px;">${t.enabled ? 'Counts for bonus' : 'Not in bonus'}</div>
+                        </div>
+                    `;
+                }).join('') + `</div>`;
+        }
+
         function renderWpResults() {
             const summaryEl = document.getElementById('wpResultsSummary');
             const byMemberEl = document.getElementById('wpResultsByMember');
@@ -8755,7 +9099,8 @@
             const periodLines = state.resultLines.filter(l => l.dateKey.slice(0, 7) === periodKey);
 
             if (periodLines.length === 0) {
-                summaryEl.innerHTML = `<div class="empty-state"><i class="fas fa-chart-column"></i><p>No results recorded for this period.</p></div>`;
+                summaryEl.innerHTML = `<div class="empty-state"><i class="fas fa-chart-column"></i><p>No results recorded for this period.</p></div>` +
+                    renderWpTargets(periodKey, showRevenue);
                 byMemberEl.innerHTML = '';
                 return;
             }
@@ -8773,7 +9118,7 @@
                     <div class="vb-stat"><div class="vb-number">${total.bbg}</div><div class="vb-label">BBG</div></div>
                     <div class="vb-stat"><div class="vb-number">${calcMonthIndex(total, periodKey)}</div><div class="vb-label">Index</div></div>
                 </div>
-            `;
+            ` + renderWpTargets(periodKey, showRevenue);
 
             // Admins are left out of the advisor comparison.
             const memberIds = [...new Set(periodLines.map(l => l.memberId))]
