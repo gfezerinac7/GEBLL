@@ -10,7 +10,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
-        import { getFirestore, collection, onSnapshot, addDoc, deleteDoc, doc, updateDoc, setDoc, getDoc, writeBatch } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+        import { getFirestore, collection, onSnapshot, addDoc, deleteDoc, doc, updateDoc, setDoc, getDoc, writeBatch, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
         import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword, sendPasswordResetEmail, updatePassword } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
         import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-messaging.js";
 
@@ -33,7 +33,7 @@
         const secondaryAuth = getAuth(secondaryApp);
 
         window.firebaseDB = db;
-        window.firebaseFns = { collection, onSnapshot, addDoc, deleteDoc, doc, updateDoc, setDoc, getDoc, writeBatch };
+        window.firebaseFns = { collection, onSnapshot, addDoc, deleteDoc, doc, updateDoc, setDoc, getDoc, writeBatch, query, where, getDocs };
         window.firebaseAuth = auth;
         window.firebaseAuthFns = { signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword, sendPasswordResetEmail, updatePassword };
         window.firebaseSecondaryAuth = secondaryAuth;
@@ -1130,16 +1130,18 @@
             .results-entry-row input:nth-child(3) { grid-area: discount; }
             .results-entry-row button { grid-area: addbtn; width: 100%; justify-content: center; }
 
+            /* Six-column grid: amounts on the first row, the small values on the
+               second, and every button gets its own slot so Edit is never hidden
+               underneath Delete. !important overrides the inline desktop columns. */
             .results-line-item {
-                grid-template-columns: 1fr 1fr;
-                grid-template-areas:
-                    "lamount lccy"
-                    "ldiscount ldelete";
+                grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+                grid-template-areas: none;
             }
-            .results-line-item > div:nth-child(1) { grid-area: lamount; }
-            .results-line-item > div:nth-child(2) { grid-area: lccy; }
-            .results-line-item > div:nth-child(3) { grid-area: ldiscount; }
-            .results-line-item > button { grid-area: ldelete; width: 100%; justify-content: center; }
+            .results-line-item > div { grid-column: span 2; }
+            .results-line-item > div:nth-child(1),
+            .results-line-item > div:nth-child(2) { grid-column: span 3; }
+            .results-line-item > button { grid-column: span 3; width: 100%; justify-content: center; }
+            .results-line-item > button:only-of-type { grid-column: 1 / -1; }
         }
 
         .results-totals-card {
@@ -2134,6 +2136,46 @@
             <div id="scheduleGridWrap" class="schedule-grid-wrap">
                 <div id="scheduleGrid" class="schedule-grid"></div>
             </div>
+
+            <div id="quickShiftWrap" style="margin-top:16px;">
+                <button class="btn" style="width:100%; justify-content:center;" onclick="openQuickShiftModal()">
+                    <i class="fas fa-plus"></i>
+                    Add shift
+                </button>
+            </div>
+        </div>
+
+        <div id="quickShiftModalOverlay" class="modal-overlay" onclick="closeQuickShiftModalOutside(event)">
+            <div class="modal-box">
+                <div class="modal-header">
+                    <div class="section-title" style="margin-bottom:0;">
+                        <i class="fas fa-plus-circle"></i>
+                        New Shift
+                    </div>
+                    <button class="modal-close" onclick="closeQuickShiftModal()"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Start Time</label>
+                        <input type="time" id="quickShiftStart">
+                    </div>
+                    <div class="form-group">
+                        <label>Duration</label>
+                        <div style="display:flex; gap:8px;">
+                            <input type="number" id="quickShiftDurationHours" min="0" max="23" placeholder="Hours" style="flex:1;">
+                            <input type="number" id="quickShiftDurationMinutes" min="0" max="59" placeholder="Minutes" style="flex:1;">
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Location</label>
+                    <select id="quickShiftLocation"></select>
+                </div>
+                <button class="btn" id="quickShiftSaveBtn" style="width:100%; justify-content:center;" onclick="saveQuickShift()">
+                    <i class="fas fa-plus"></i>
+                    Add Shift
+                </button>
+            </div>
         </div>
 
         <div id="publishUserModalOverlay" class="modal-overlay" onclick="closePublishByUserModalOutside(event)">
@@ -2352,7 +2394,7 @@
                         <i class="fas fa-chart-line"></i>
                         <span id="resultsModalTitle">Shift Results</span>
                     </div>
-                    <button class="modal-close" onclick="closeResultsModal()"><i class="fas fa-times"></i></button>
+                    <button class="modal-close" onclick="requestCloseResultsModal()"><i class="fas fa-times"></i></button>
                 </div>
 
                 <div class="form-section" style="margin-bottom:16px;">
@@ -2402,7 +2444,7 @@
                     <div class="vb-stat"><div class="vb-number" id="resultsTotalBbg">0</div><div class="vb-label">BBG</div></div>
                 </div>
 
-                <button class="btn" style="width:100%; justify-content:center; margin-top:14px;" onclick="saveResultLines()">
+                <button class="btn" id="resultsSaveBtn" style="width:100%; justify-content:center; margin-top:14px;" onclick="saveResultLines()">
                     <i class="fas fa-check"></i>
                     Save results
                 </button>
@@ -3175,7 +3217,7 @@
             <div id="auditLogList"></div>
         </div>
 
-        <div class="app-version">GEBLL v-0.52</div>
+        <div class="app-version">GEBLL v-0.53</div>
     </div>
 
 
@@ -3231,6 +3273,9 @@
         let pendingSwapRequest = null;
         let pendingDayOffSwap = null;
         let pendingResultsAssignmentId = null;
+        let resultsSaveInProgress = false;
+        let resultsModalDirty = false;
+        let addTxSaveInProgress = false;
         let currentResultLines = [];
 
         const assigneeMap = {};
@@ -4501,16 +4546,14 @@
             return `${eh.toString().padStart(2, '0')}:${em.toString().padStart(2, '0')}`;
         }
 
-        function addShift() {
-            const start = document.getElementById('shiftStart').value;
-            const hours = parseInt(document.getElementById('shiftDurationHours').value, 10) || 0;
-            const minutes = parseInt(document.getElementById('shiftDurationMinutes').value, 10) || 0;
-            const locationId = document.getElementById('shiftLocation').value;
+        // Shared by Settings → Shifts and the quick "Add shift" pop-up in Schedule.
+        // Returns true when the shift was created.
+        function createShiftTemplate(start, hours, minutes, locationId) {
             const grossMinutes = hours * 60 + minutes;
 
             if (!start || grossMinutes <= 0 || !locationId) {
                 alert('Please fill in start time, a duration greater than 0, and a location');
-                return;
+                return false;
             }
 
             const end = calcEndTime(start, grossMinutes);
@@ -4520,10 +4563,61 @@
                 start, end, locationId, grossMinutes
             });
             logAction('Shift template created', `${start}-${end} (${loc ? loc.name : locationId})`);
+            return true;
+        }
+
+        function addShift() {
+            const start = document.getElementById('shiftStart').value;
+            const hours = parseInt(document.getElementById('shiftDurationHours').value, 10) || 0;
+            const minutes = parseInt(document.getElementById('shiftDurationMinutes').value, 10) || 0;
+            const locationId = document.getElementById('shiftLocation').value;
+
+            if (!createShiftTemplate(start, hours, minutes, locationId)) return;
 
             document.getElementById('shiftStart').value = '';
             document.getElementById('shiftDurationHours').value = '';
             document.getElementById('shiftDurationMinutes').value = '';
+        }
+
+        function canManageShiftTemplates() {
+            const role = getUserRole();
+            return role.name === 'Admin' || (role.modules || []).includes('shifts');
+        }
+
+        function openQuickShiftModal() {
+            if (!canManageShiftTemplates()) return;
+
+            const select = document.getElementById('quickShiftLocation');
+            const current = select.value;
+            if (state.locations.length === 0) {
+                select.innerHTML = '<option value="">No locations yet — create one first</option>';
+            } else {
+                select.innerHTML = state.locations.map(l => `<option value="${l.id}">${l.name}</option>`).join('');
+                if (current && state.locations.some(l => l.id === current)) select.value = current;
+            }
+
+            document.getElementById('quickShiftStart').value = '';
+            document.getElementById('quickShiftDurationHours').value = '';
+            document.getElementById('quickShiftDurationMinutes').value = '';
+            document.getElementById('quickShiftModalOverlay').classList.add('active');
+        }
+
+        function closeQuickShiftModal() {
+            document.getElementById('quickShiftModalOverlay').classList.remove('active');
+        }
+
+        function closeQuickShiftModalOutside(e) {
+            if (e.target.id === 'quickShiftModalOverlay') closeQuickShiftModal();
+        }
+
+        function saveQuickShift() {
+            const start = document.getElementById('quickShiftStart').value;
+            const hours = parseInt(document.getElementById('quickShiftDurationHours').value, 10) || 0;
+            const minutes = parseInt(document.getElementById('quickShiftDurationMinutes').value, 10) || 0;
+            const locationId = document.getElementById('quickShiftLocation').value;
+
+            if (!createShiftTemplate(start, hours, minutes, locationId)) return;
+            closeQuickShiftModal();
         }
 
         function deleteShift(id) {
@@ -5022,6 +5116,9 @@
         function renderSchedule() {
             const grid = document.getElementById('scheduleGrid');
             if (!grid) return;
+
+            const quickShiftWrap = document.getElementById('quickShiftWrap');
+            if (quickShiftWrap) quickShiftWrap.classList.toggle('app-hidden', !canManageShiftTemplates());
 
             const dates = getScheduleDates();
             updateScheduleRangeLabel(dates);
@@ -6678,6 +6775,7 @@
                 bbg: !!l.bbg
             }));
 
+            resultsModalDirty = false;
             populateResultsFormSelects();
             clearTransactionForm();
             renderResultLinesList();
@@ -6697,8 +6795,24 @@
             currentResultLines = [];
         }
 
+        function hasTransactionTypedInForm() {
+            return document.getElementById('txReceivedAmount').value !== '' ||
+                document.getElementById('txDeliveredAmount').value !== '';
+        }
+
+        // Closing by accident (a tap outside the box on a phone) used to throw away
+        // every transaction added but not saved yet.
+        function requestCloseResultsModal() {
+            if (resultsSaveInProgress) return;
+            if ((resultsModalDirty || hasTransactionTypedInForm()) &&
+                !confirm('You have transactions that are not saved yet. Close and discard them?')) {
+                return;
+            }
+            closeResultsModal();
+        }
+
         function closeResultsModalOutside(e) {
-            if (e.target.id === 'resultsModalOverlay') closeResultsModal();
+            if (e.target.id === 'resultsModalOverlay') requestCloseResultsModal();
         }
 
         function addResultLine() {
@@ -6736,6 +6850,7 @@
                 bbg
             });
 
+            resultsModalDirty = true;
             clearTransactionForm();
             renderResultLinesList();
         }
@@ -6754,6 +6869,7 @@
             document.getElementById('txBbg').checked = !!l.bbg;
 
             currentResultLines.splice(index, 1);
+            resultsModalDirty = true;
             renderResultLinesList();
 
             document.getElementById('txReceivedAmount').focus();
@@ -6761,6 +6877,7 @@
 
         function removeResultLine(index) {
             currentResultLines.splice(index, 1);
+            resultsModalDirty = true;
             renderResultLinesList();
         }
 
@@ -6820,49 +6937,111 @@
             }
         }
 
+        // Saves the whole list for one shift in a single atomic batch.
+        // Previous version wrote documents one by one and could run twice at the
+        // same time (double tap on "Save results"). The second run deleted only the
+        // old lines it had read before the first run finished, so the new lines were
+        // duplicated, some were written with an empty assignmentId (because the modal
+        // had already been closed) and the audit log showed a second entry with
+        // 0 or the same number of transactions a few milliseconds later.
         async function saveResultLines() {
+            if (resultsSaveInProgress) return;
             if (!pendingResultsAssignmentId) return;
-            const a = state.assignments.find(x => x.id === pendingResultsAssignmentId);
 
-            const existing = state.resultLines.filter(l => l.assignmentId === pendingResultsAssignmentId);
-            const memberId = a ? a.memberId : (existing[0] ? existing[0].memberId : null);
-            const dateKey = a ? a.dateKey : (existing[0] ? existing[0].dateKey : null);
-
-            if (!memberId || !dateKey) {
-                alert('Could not determine which member or date these results belong to.');
-                return;
+            // A transaction typed in the form (or loaded back with the pen button)
+            // but not added to the list would be lost silently.
+            if (hasTransactionTypedInForm()) {
+                if (!confirm('There is a transaction in the form that has not been added to the list. Press OK to add it and save, or Cancel to go back.')) {
+                    return;
+                }
+                const before = currentResultLines.length;
+                addResultLine();
+                if (currentResultLines.length === before) return;
             }
 
-            for (const l of existing) {
-                await fns.deleteDoc(fns.doc(db, 'resultLines', l.id));
+            // Freeze everything this save needs, so nothing changes under it.
+            const assignmentId = pendingResultsAssignmentId;
+            const linesToSave = currentResultLines.map(l => ({ ...l }));
+            const a = state.assignments.find(x => x.id === assignmentId);
+
+            const saveBtn = document.getElementById('resultsSaveBtn');
+            const saveBtnHtml = saveBtn ? saveBtn.innerHTML : '';
+            resultsSaveInProgress = true;
+            if (saveBtn) {
+                saveBtn.disabled = true;
+                saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving…';
             }
 
-            for (const line of currentResultLines) {
-                await fns.addDoc(fns.collection(db, 'resultLines'), {
-                    assignmentId: pendingResultsAssignmentId,
-                    memberId,
-                    dateKey,
-                    receivedCcy: line.receivedCcy,
-                    receivedAmount: line.receivedAmount,
-                    deliveredCcy: line.deliveredCcy,
-                    deliveredAmount: line.deliveredAmount,
-                    discount: line.discount,
-                    discountCode: line.discountCode || '',
-                    discountType: line.discountType || 'margin',
-                    bbg: !!line.bbg,
-                    createdAt: new Date().toISOString()
+            try {
+                // Read the current lines straight from the server, not from local state,
+                // so lines written by another device a moment ago are replaced too.
+                const existingSnap = await fns.getDocs(
+                    fns.query(fns.collection(db, 'resultLines'), fns.where('assignmentId', '==', assignmentId))
+                );
+                const existing = existingSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+                const memberId = a ? a.memberId : (existing[0] ? existing[0].memberId : null);
+                const dateKey = a ? a.dateKey : (existing[0] ? existing[0].dateKey : null);
+
+                if (!memberId || !dateKey) {
+                    alert('Could not determine which member or date these results belong to.');
+                    return;
+                }
+
+                const ops = [];
+                existing.forEach(l => ops.push(batch => batch.delete(fns.doc(db, 'resultLines', l.id))));
+
+                // One millisecond apart so the saved order is kept when sorting by createdAt.
+                const baseTime = Date.now();
+                linesToSave.forEach((line, idx) => {
+                    const ref = fns.doc(fns.collection(db, 'resultLines'));
+                    const data = {
+                        assignmentId,
+                        memberId,
+                        dateKey,
+                        receivedCcy: line.receivedCcy,
+                        receivedAmount: line.receivedAmount,
+                        deliveredCcy: line.deliveredCcy,
+                        deliveredAmount: line.deliveredAmount,
+                        discount: line.discount,
+                        discountCode: line.discountCode || '',
+                        discountType: line.discountType || 'margin',
+                        bbg: !!line.bbg,
+                        createdAt: new Date(baseTime + idx).toISOString()
+                    };
+                    ops.push(batch => batch.set(ref, data));
                 });
-            }
 
-            await clearValidationForDate(memberId, dateKey);
-            const m = assigneeMap[memberId];
-            logAction('Results saved', `${dateKey} — ${currentResultLines.length} transaction(s) for ${m ? m.name : memberId}`);
+                (state.resultValidations || [])
+                    .filter(v => v.memberId === memberId && v.dateKey === dateKey)
+                    .forEach(v => ops.push(batch => batch.delete(fns.doc(db, 'resultValidations', v.id))));
 
-            closeResultsModal();
-            alert('Results saved.');
+                // Firestore allows 500 operations per batch; a normal shift fits in one.
+                const BATCH_LIMIT = 450;
+                for (let i = 0; i < ops.length; i += BATCH_LIMIT) {
+                    const batch = fns.writeBatch(db);
+                    ops.slice(i, i + BATCH_LIMIT).forEach(op => op(batch));
+                    await batch.commit();
+                }
 
-            if (document.getElementById('resultsValidation').classList.contains('active')) {
-                renderRvDailyList();
+                const m = assigneeMap[memberId];
+                await logAction('Results saved', `${dateKey} — ${linesToSave.length} transaction(s) for ${m ? m.name : memberId}`);
+
+                resultsModalDirty = false;
+                closeResultsModal();
+                alert('Results saved.');
+
+                if (document.getElementById('resultsValidation').classList.contains('active')) {
+                    renderRvDailyList();
+                }
+            } catch (err) {
+                alert('Results could not be saved. Nothing was lost from the list — please try again.\n\n' + (err.message || err));
+            } finally {
+                resultsSaveInProgress = false;
+                if (saveBtn) {
+                    saveBtn.disabled = false;
+                    saveBtn.innerHTML = saveBtnHtml;
+                }
             }
         }
 
@@ -7506,6 +7685,9 @@
                             </span>
                         </div>
                         <div class="card-actions">
+                            <button class="btn btn-secondary" onclick="openRvDayTransactions('${memberId}','${dk}')">
+                                <i class="fas fa-list-check"></i> Edit transactions
+                            </button>
                             ${assignmentId ? `
                                 <button class="btn btn-secondary" onclick="openResultsModal('${assignmentId}')">
                                     <i class="fas fa-pen"></i> Edit all
@@ -7524,6 +7706,15 @@
                     </div>
                 `;
             }).join('');
+        }
+
+        // Opens the list of transactions of a day (each with Edit / Delete) and
+        // scrolls to it, since it is rendered below the whole daily list.
+        function openRvDayTransactions(memberId, dateKey) {
+            rvSelectedDateKey = null;
+            toggleRvDayDetail(memberId, dateKey);
+            const wrap = document.getElementById('rvDayDetailWrap');
+            if (wrap) wrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
 
         function toggleRvDayDetail(memberId, dateKey) {
@@ -7659,6 +7850,7 @@
         }
 
         async function saveAddTransaction() {
+            if (addTxSaveInProgress) return;
             const overlay = document.getElementById('addTxModalOverlay');
             const memberId = overlay.dataset.memberId;
             const dateKey = overlay.dataset.dateKey;
@@ -7687,20 +7879,28 @@
                 return;
             }
 
-            await fns.addDoc(fns.collection(db, 'resultLines'), {
-                assignmentId: null,
-                memberId,
-                dateKey,
-                receivedCcy, receivedAmount,
-                deliveredCcy, deliveredAmount,
-                discount, discountCode, discountType,
-                bbg,
-                createdAt: new Date().toISOString()
-            });
+            addTxSaveInProgress = true;
+            try {
+                await fns.addDoc(fns.collection(db, 'resultLines'), {
+                    assignmentId: null,
+                    memberId,
+                    dateKey,
+                    receivedCcy, receivedAmount,
+                    deliveredCcy, deliveredAmount,
+                    discount, discountCode, discountType,
+                    bbg,
+                    createdAt: new Date().toISOString()
+                });
 
-            await clearValidationForDate(memberId, dateKey);
-            const m = assigneeMap[memberId];
-            await logAction('Transaction added', `${dateKey} — ${receivedAmount} ${receivedCcy} for ${m ? m.name : memberId}`);
+                await clearValidationForDate(memberId, dateKey);
+                const m = assigneeMap[memberId];
+                await logAction('Transaction added', `${dateKey} — ${receivedAmount} ${receivedCcy} for ${m ? m.name : memberId}`);
+            } catch (err) {
+                alert('The transaction could not be added: ' + (err.message || err));
+                return;
+            } finally {
+                addTxSaveInProgress = false;
+            }
 
             closeAddTxModal();
             rvSelectedDateKey = null;
