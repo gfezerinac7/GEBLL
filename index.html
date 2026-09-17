@@ -1316,6 +1316,49 @@
             font-style: italic;
         }
 
+        .tx-weekday-grid {
+            display: grid;
+            grid-template-columns: repeat(7, minmax(0, 1fr));
+            gap: 6px;
+            margin-top: 6px;
+        }
+
+        .tx-weekday-grid label {
+            display: block;
+            font-size: 11px;
+            color: #666;
+            text-align: center;
+            margin-bottom: 2px;
+        }
+
+        .tx-weekday-grid input {
+            width: 100%;
+            min-width: 0;
+            box-sizing: border-box;
+            padding: 8px 4px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 13px;
+            text-align: center;
+        }
+
+        .vb-diff {
+            font-size: 11px;
+            font-weight: 700;
+            margin-top: 3px;
+        }
+
+        .vb-diff.up { color: #bbf7d0; }
+        .vb-diff.down { color: #fecaca; }
+
+        /* Phones: summary cards wrap onto rows of three instead of overflowing. */
+        @media (max-width: 480px) {
+            .results-summary-card {
+                grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+                row-gap: 16px;
+            }
+        }
+
         .sg-add-btn {
             width: 100%;
             background: #f5f8ff;
@@ -3117,6 +3160,56 @@
 
             <div class="form-section">
                 <div class="section-title">
+                    <i class="fas fa-people-arrows"></i>
+                    Transactions distribution
+                </div>
+                <p style="font-size:12px; color:#999; margin-bottom:14px;">
+                    The Transactions target is the workplace total. It is shared out across the published shifts of the month:
+                    each shift weighs its net hours × the weekday factor × the time-of-day factor, and each advisor gets
+                    the share of the target that matches the weight of their shifts. Sick leave shifts do not count.
+                </p>
+                <div class="form-group">
+                    <label class="module-check" style="width:fit-content;">
+                        <input type="checkbox" id="txDistEnabled">
+                        Use each advisor's share as their Transactions target
+                    </label>
+                </div>
+
+                <label style="font-size:13px; font-weight:600; color:#333;">Weekday factors</label>
+                <div class="tx-weekday-grid" id="txWeekdayGrid"></div>
+                <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin:8px 0 16px;">
+                    <button class="btn btn-secondary" onclick="fillWeekdayFactorsFromHistory()">
+                        <i class="fas fa-wand-magic-sparkles"></i>
+                        Calculate from last 3 months
+                    </button>
+                    <span id="txWeekdayInfo" style="font-size:12px; color:#666;"></span>
+                </div>
+
+                <label style="font-size:13px; font-weight:600; color:#333;">Time-of-day factors</label>
+                <p style="font-size:12px; color:#999; margin:4px 0 10px;">Hours outside these blocks count as 1.0.</p>
+                <div class="results-entry-row results-entry-header" style="grid-template-columns: 1fr 1fr 1fr auto;">
+                    <div>From</div>
+                    <div>To</div>
+                    <div>Factor</div>
+                    <div></div>
+                </div>
+                <div class="results-entry-row" style="grid-template-columns: 1fr 1fr 1fr auto;">
+                    <input type="time" id="txBlockFrom">
+                    <input type="time" id="txBlockTo">
+                    <input type="number" id="txBlockFactor" step="0.05" min="0" placeholder="1.20">
+                    <button class="btn btn-secondary" onclick="addTxTimeBlock()"><i class="fas fa-plus"></i></button>
+                </div>
+                <div id="txBlockList" style="margin-top:8px;"></div>
+
+                <button class="btn btn-secondary" style="margin-top:12px;" onclick="previewTxDistribution()">
+                    <i class="fas fa-eye"></i>
+                    Preview distribution
+                </button>
+                <div id="txDistPreview" style="margin-top:10px;"></div>
+            </div>
+
+            <div class="form-section">
+                <div class="section-title">
                     <i class="fas fa-scale-balanced"></i>
                     Index weighting
                 </div>
@@ -3266,7 +3359,7 @@
             <div id="auditLogList"></div>
         </div>
 
-        <div class="app-version">GEBLL v-0.54</div>
+        <div class="app-version">GEBLL v-0.55</div>
     </div>
 
 
@@ -7163,7 +7256,7 @@
                     <div class="results-summary-card" style="grid-template-columns: repeat(${Math.min(activeMetrics.length, 4)}, 1fr);">` +
                     activeMetrics.map(m => `
                         <div class="vb-stat">
-                            <div class="vb-number">${Number(targets[m.key].value).toLocaleString()}</div>
+                            <div class="vb-number">${getMemberTargetValue(currentMonthKey, m.key, currentMember.id).toLocaleString(undefined, { maximumFractionDigits: m.key === 'revenuePerTx' ? 2 : 0 })}</div>
                             <div class="vb-label">${m.label}</div>
                         </div>
                     `).join('') + `</div>`;
@@ -7197,7 +7290,7 @@
                 html += `<div class="section-title"><i class="fas fa-percent"></i> Achievement</div>
                     <div class="results-summary-card" style="grid-template-columns: repeat(${Math.min(activeMetrics.length, 4)}, 1fr); background: linear-gradient(135deg, #059669 0%, #047857 100%);">` +
                     activeMetrics.map(m => {
-                        const target = Number(targets[m.key].value) || 0;
+                        const target = getMemberTargetValue(currentMonthKey, m.key, currentMember.id);
                         const actual = month[m.key] || 0;
                         const pct = target > 0 ? (actual / target) * 100 : 0;
                         return `
@@ -7307,10 +7400,236 @@
 
         // Monthly index: same weighting as the per-transaction index,
         // but using the month's accumulated average and revenue per transaction.
+        // ===== TRANSACTIONS TARGET DISTRIBUTION =====
+
+        const WEEKDAY_SHORT = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+        const DEFAULT_TX_DISTRIBUTION = { enabled: true, weekdayFactors: [1, 1, 1, 1, 1, 1, 1], timeBlocks: [] };
+
+        // Monday = 0 … Sunday = 6
+        function weekdayIndex(date) {
+            return (date.getDay() + 6) % 7;
+        }
+
+        function getTxDistributionSettings(periodKey) {
+            const cfg = getBonusConfigForPeriod(periodKey);
+            const d = cfg && cfg.txDistribution;
+            return {
+                enabled: !!(d && d.enabled),
+                weekdayFactors: (d && Array.isArray(d.weekdayFactors) && d.weekdayFactors.length === 7)
+                    ? d.weekdayFactors.map(f => Number(f)) : [...DEFAULT_TX_DISTRIBUTION.weekdayFactors],
+                timeBlocks: (d && Array.isArray(d.timeBlocks)) ? d.timeBlocks : []
+            };
+        }
+
+        function blockFactorAt(minuteOfDay, timeBlocks) {
+            for (const b of timeBlocks) {
+                const from = timeToMinutes(b.from);
+                const to = timeToMinutes(b.to);
+                const inside = from < to
+                    ? (minuteOfDay >= from && minuteOfDay < to)
+                    : (minuteOfDay >= from || minuteOfDay < to); // block that crosses midnight
+                if (inside) return Number(b.factor);
+            }
+            return 1;
+        }
+
+        // Weight of one shift in "weighted net hours". elapsedUntil (a Date) returns only
+        // the part of the weight that has already happened by then.
+        function calcShiftWeight(dateKey, shift, settings, elapsedUntil) {
+            const STEP = 5;
+            const startMin = timeToMinutes(shift.start);
+            const gross = calcGrossMinutes(shift.start, shift.end);
+            if (gross <= 0) return 0;
+            const netRatio = gross > 30 ? (gross - 30) / gross : 1;
+            const base = dateKeyToDate(dateKey);
+            const baseWeekday = weekdayIndex(base);
+            const startMs = base.getTime() + startMin * 60000;
+            const limitMs = elapsedUntil ? elapsedUntil.getTime() : Infinity;
+
+            let weighted = 0;
+            for (let t = 0; t < gross; t += STEP) {
+                const segment = Math.min(STEP, gross - t);
+                const segStartMs = startMs + t * 60000;
+                if (segStartMs >= limitMs) break;
+                const part = Math.min(segment, (limitMs - segStartMs) / 60000);
+                const absMin = startMin + t;
+                const wd = (baseWeekday + Math.floor(absMin / 1440)) % 7;
+                const factor = (settings.weekdayFactors[wd] ?? 1) * blockFactorAt(absMin % 1440, settings.timeBlocks);
+                weighted += factor * part;
+            }
+            return (weighted * netRatio) / 60;
+        }
+
+        let txDistributionCache = null;
+
+        // Weights of every published, non-sick shift of the period, per shift and per member.
+        function getTxDistribution(periodKey, settingsOverride) {
+            const settings = settingsOverride || getTxDistributionSettings(periodKey);
+            const canCache = !settingsOverride;
+            if (canCache && txDistributionCache &&
+                txDistributionCache.periodKey === periodKey &&
+                txDistributionCache.assignments === state.assignments &&
+                txDistributionCache.shifts === state.shifts &&
+                txDistributionCache.bonusConfigs === state.bonusConfigs) {
+                return txDistributionCache.result;
+            }
+
+            const shiftById = {};
+            state.shifts.forEach(sh => { shiftById[sh.id] = sh; });
+
+            const items = [];
+            const byMember = {};
+            let total = 0;
+            state.assignments.forEach(a => {
+                if (!a.published || a.sickLeave || !a.dateKey || a.dateKey.slice(0, 7) !== periodKey) return;
+                const shift = shiftById[a.shiftId];
+                if (!shift) return;
+                const w = calcShiftWeight(a.dateKey, shift, settings);
+                if (w <= 0) return;
+                items.push({ a, shift, w });
+                byMember[a.memberId] = (byMember[a.memberId] || 0) + w;
+                total += w;
+            });
+
+            const result = { settings, items, byMember, total };
+            if (canCache) {
+                txDistributionCache = {
+                    periodKey, result,
+                    assignments: state.assignments, shifts: state.shifts, bonusConfigs: state.bonusConfigs
+                };
+            }
+            return result;
+        }
+
+        function getWorkplaceTarget(periodKey, key) {
+            const cfg = getBonusConfigForPeriod(periodKey);
+            const t = cfg && cfg.targets && cfg.targets[key];
+            if (!t || t.value === '' || t.value == null || isNaN(Number(t.value))) return null;
+            return Number(t.value);
+        }
+
+        // Share of the month's weighted hours already worked by `now` (0 … 1),
+        // optionally for a single member. Falls back to calendar days when the
+        // month has no published shifts yet.
+        function getPeriodProgress(periodKey, memberId, now) {
+            now = now || new Date();
+            const dist = getTxDistribution(periodKey);
+            const [y, m] = periodKey.split('-').map(Number);
+            const monthStart = new Date(y, m - 1, 1);
+            const monthEnd = new Date(y, m, 1);
+
+            if (now <= monthStart) return { total: 0, member: 0 };
+
+            if (dist.total <= 0) {
+                const f = Math.min(1, (now - monthStart) / (monthEnd - monthStart));
+                return { total: f, member: null, byDays: true };
+            }
+
+            let elapsedTotal = 0;
+            let elapsedMember = 0;
+            dist.items.forEach(it => {
+                const e = calcShiftWeight(it.a.dateKey, it.shift, dist.settings, now);
+                elapsedTotal += e;
+                if (memberId && it.a.memberId === memberId) elapsedMember += e;
+            });
+            return { total: elapsedTotal / dist.total, member: elapsedMember / dist.total };
+        }
+
+        // Transactions target of one member for the whole period (their share).
+        function getMemberTxTarget(periodKey, memberId) {
+            const T = getWorkplaceTarget(periodKey, 'transactions');
+            if (T == null || !memberId) return null;
+            const dist = getTxDistribution(periodKey);
+            if (dist.total <= 0) return null;
+            return T * (dist.byMember[memberId] || 0) / dist.total;
+        }
+
+        // Target used for a member's achievement. Only Transactions is distributed,
+        // and only when the period has the distribution switched on.
+        function getMemberTargetValue(periodKey, key, memberId) {
+            if (key === 'transactions' && memberId && getTxDistributionSettings(periodKey).enabled) {
+                const share = getMemberTxTarget(periodKey, memberId);
+                if (share != null) return share;
+            }
+            return getWorkplaceTarget(periodKey, key) || 0;
+        }
+
+        // What the workplace should have reached by now, for every target with a value.
+        // Turnover and Revenue follow the transactions expected so far × the Average
+        // and Revenue-per-transaction targets when those exist.
+        function getWorkplaceTargetsToDate(periodKey, now) {
+            const progressInfo = getPeriodProgress(periodKey, null, now);
+            const progress = progressInfo.total;
+            const T = getWorkplaceTarget(periodKey, 'transactions');
+            const avg = getWorkplaceTarget(periodKey, 'average');
+            const rpt = getWorkplaceTarget(periodKey, 'revenuePerTx');
+            const turnover = getWorkplaceTarget(periodKey, 'turnover');
+            const revenue = getWorkplaceTarget(periodKey, 'revenue');
+            const bbg = getWorkplaceTarget(periodKey, 'bbg');
+
+            const txToDate = T != null ? T * progress : null;
+            const values = {};
+            if (T != null) values.transactions = txToDate;
+            if (avg != null) values.average = avg;
+            if (rpt != null) values.revenuePerTx = rpt;
+            if (T != null && avg != null) values.turnover = txToDate * avg;
+            else if (turnover != null) values.turnover = turnover * progress;
+            if (T != null && rpt != null) values.revenue = txToDate * rpt;
+            else if (revenue != null) values.revenue = revenue * progress;
+            if (bbg != null) values.bbg = bbg * progress;
+            return { progress, byDays: !!progressInfo.byDays, values };
+        }
+
+        function formatDiffPct(actual, target) {
+            if (target == null || !(target > 0)) return null;
+            const pct = ((actual - target) / target) * 100;
+            return { pct, text: `${pct >= 0 ? '+' : '−'}${Math.abs(pct).toFixed(1)}%` };
+        }
+
+        // Transactions per net hour on each weekday over the three months before the
+        // period, scaled so the average factor is 1.00. Only days with results count.
+        function calcWeekdayFactorsFromHistory(periodKey) {
+            const [y, m] = periodKey.split('-').map(Number);
+            const fromKey = toDateKey(new Date(y, m - 4, 1));
+            const toKey = toDateKey(new Date(y, m - 1, 1)); // exclusive
+
+            const tx = [0, 0, 0, 0, 0, 0, 0];
+            const hours = [0, 0, 0, 0, 0, 0, 0];
+            const daysWithResults = new Set();
+
+            state.resultLines.forEach(l => {
+                if (!l.dateKey || l.dateKey < fromKey || l.dateKey >= toKey) return;
+                tx[weekdayIndex(dateKeyToDate(l.dateKey))]++;
+                daysWithResults.add(l.dateKey);
+            });
+
+            const shiftById = {};
+            state.shifts.forEach(sh => { shiftById[sh.id] = sh; });
+            state.assignments.forEach(a => {
+                if (a.sickLeave || !daysWithResults.has(a.dateKey)) return;
+                const shift = shiftById[a.shiftId];
+                if (!shift) return;
+                const gross = calcGrossMinutes(shift.start, shift.end);
+                hours[weekdayIndex(dateKeyToDate(a.dateKey))] += Math.max(gross - 30, 0) / 60;
+            });
+
+            const rates = tx.map((n, i) => hours[i] > 0 ? n / hours[i] : null);
+            const known = rates.filter(r => r != null && r > 0);
+            if (known.length === 0) return null;
+            const mean = known.reduce((a, b) => a + b, 0) / known.length;
+            return {
+                factors: rates.map(r => r != null && r > 0 ? Math.round((r / mean) * 100) / 100 : 1),
+                days: daysWithResults.size,
+                transactions: tx.reduce((a, b) => a + b, 0),
+                from: fromKey,
+                to: toDateKey(new Date(y, m - 1, 0))
+            };
+        }
+
         // ===== BONUS CALCULATION =====
 
         // Overall achievement as a percentage, using each ticked target's weight.
-        function calcAchievement(monthAgg, periodKey) {
+        function calcAchievement(monthAgg, periodKey, memberId) {
             const cfg = getBonusConfigForPeriod(periodKey);
             if (!cfg || !cfg.targets) return null;
 
@@ -7321,7 +7640,7 @@
                 // Each target is judged on its own.
                 return active.map(m => {
                     const t = cfg.targets[m.key];
-                    const target = Number(t.value) || 0;
+                    const target = getMemberTargetValue(periodKey, m.key, memberId);
                     const actual = monthAgg[m.key] || 0;
                     return {
                         key: m.key,
@@ -7336,7 +7655,7 @@
             let total = 0;
             active.forEach(m => {
                 const t = cfg.targets[m.key];
-                const target = Number(t.value) || 0;
+                const target = getMemberTargetValue(periodKey, m.key, memberId);
                 const actual = monthAgg[m.key] || 0;
                 const pct = target > 0 ? (actual / target) : 0;
                 total += pct * ((Number(t.weight) || 0) / 100);
@@ -7370,7 +7689,7 @@
             let mainBonus = 0;
             let breakdown = [];
 
-            const achievement = calcAchievement(monthAgg, periodKey);
+            const achievement = calcAchievement(monthAgg, periodKey, member ? member.id : null);
 
             if (cfg.mode === 'independent' && Array.isArray(achievement)) {
                 achievement.forEach(a => {
@@ -8809,6 +9128,8 @@
             document.getElementById('indexWeightAverage').oninput = updateIndexWeightSummary;
             document.getElementById('indexWeightRevenuePerTx').oninput = updateIndexWeightSummary;
 
+            loadTxDistributionForm(periodKey, cfg);
+
             document.getElementById('bonusModeSelect').value = (cfg && cfg.mode) || 'combined';
             currentBonusTiers = (cfg && cfg.tiers) ? [...cfg.tiers] : [];
             currentBbgTiers = (cfg && cfg.bbgTiers) ? [...cfg.bbgTiers] : [];
@@ -8816,6 +9137,140 @@
             renderBbgTiers();
             updateBonusWeightSummary();
             updateIndexWeightSummary();
+        }
+
+        let currentTxBlocks = [];
+
+        // A period without its own distribution settings starts from the most recent
+        // period that has them, so the factors don't have to be typed every month.
+        function loadTxDistributionForm(periodKey, cfg) {
+            let d = cfg && cfg.txDistribution;
+            let enabled = d ? !!d.enabled : true;
+            if (!d) {
+                const previous = state.bonusConfigs
+                    .filter(c => c.txDistribution && c.periodKey !== periodKey)
+                    .sort((a, b) => b.periodKey.localeCompare(a.periodKey));
+                d = (previous.find(c => c.periodKey < periodKey) || previous[0] || {}).txDistribution || DEFAULT_TX_DISTRIBUTION;
+            }
+
+            document.getElementById('txDistEnabled').checked = enabled;
+            const factors = Array.isArray(d.weekdayFactors) && d.weekdayFactors.length === 7 ? d.weekdayFactors : DEFAULT_TX_DISTRIBUTION.weekdayFactors;
+            document.getElementById('txWeekdayGrid').innerHTML = WEEKDAY_SHORT.map((label, i) => `
+                <div>
+                    <label for="txWd${i}">${label}</label>
+                    <input type="number" id="txWd${i}" step="0.05" min="0" value="${factors[i]}">
+                </div>
+            `).join('');
+            document.getElementById('txWeekdayInfo').textContent = '';
+            document.getElementById('txDistPreview').innerHTML = '';
+            currentTxBlocks = Array.isArray(d.timeBlocks) ? d.timeBlocks.map(b => ({ ...b })) : [];
+            renderTxBlocks();
+        }
+
+        function renderTxBlocks() {
+            const list = document.getElementById('txBlockList');
+            if (!list) return;
+            if (currentTxBlocks.length === 0) {
+                list.innerHTML = `<p style="color:#999; font-size:13px;">No time blocks — every hour counts as 1.0.</p>`;
+                return;
+            }
+            list.innerHTML = currentTxBlocks.map((b, idx) => `
+                <div class="results-line-item" style="grid-template-columns: 1fr 1fr 1fr auto;">
+                    <div>${b.from}</div>
+                    <div>${b.to}</div>
+                    <div>× ${Number(b.factor).toFixed(2)}</div>
+                    <button class="btn btn-danger" style="padding:4px 8px;" onclick="removeTxTimeBlock(${idx})">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        function blocksOverlap(a, b) {
+            const ranges = x => {
+                const f = timeToMinutes(x.from), t = timeToMinutes(x.to);
+                return f < t ? [[f, t]] : [[f, 1440], [0, t]];
+            };
+            return ranges(a).some(([af, at]) => ranges(b).some(([bf, bt]) => af < bt && bf < at));
+        }
+
+        function addTxTimeBlock() {
+            const from = document.getElementById('txBlockFrom').value;
+            const to = document.getElementById('txBlockTo').value;
+            const factor = parseFloat(document.getElementById('txBlockFactor').value);
+            if (!from || !to || isNaN(factor) || factor < 0) {
+                alert('Fill in from, to and a factor of 0 or more.');
+                return;
+            }
+            if (from === to) {
+                alert('From and To cannot be the same time.');
+                return;
+            }
+            const block = { from, to, factor };
+            if (currentTxBlocks.some(b => blocksOverlap(b, block))) {
+                alert('This block overlaps another one. Adjust the times or delete the other block first.');
+                return;
+            }
+            currentTxBlocks.push(block);
+            currentTxBlocks.sort((a, b) => a.from.localeCompare(b.from));
+            document.getElementById('txBlockFrom').value = '';
+            document.getElementById('txBlockTo').value = '';
+            document.getElementById('txBlockFactor').value = '';
+            renderTxBlocks();
+        }
+
+        function removeTxTimeBlock(idx) {
+            currentTxBlocks.splice(idx, 1);
+            renderTxBlocks();
+        }
+
+        function readTxDistributionForm() {
+            const weekdayFactors = WEEKDAY_SHORT.map((_, i) => parseFloat(document.getElementById(`txWd${i}`).value));
+            return {
+                enabled: document.getElementById('txDistEnabled').checked,
+                weekdayFactors,
+                timeBlocks: currentTxBlocks.map(b => ({ from: b.from, to: b.to, factor: Number(b.factor) }))
+            };
+        }
+
+        function fillWeekdayFactorsFromHistory() {
+            const periodKey = getBonusPeriodKey();
+            const res = calcWeekdayFactorsFromHistory(periodKey);
+            const info = document.getElementById('txWeekdayInfo');
+            if (!res) {
+                info.textContent = 'Not enough results with shifts in the 3 months before this period.';
+                info.style.color = '#dc2626';
+                return;
+            }
+            res.factors.forEach((f, i) => { document.getElementById(`txWd${i}`).value = f; });
+            info.style.color = '#666';
+            info.textContent = `Based on ${res.transactions} transactions over ${res.days} days (${res.from} to ${res.to}). Review and save.`;
+        }
+
+        function previewTxDistribution() {
+            const periodKey = getBonusPeriodKey();
+            const el = document.getElementById('txDistPreview');
+            const settings = readTxDistributionForm();
+            if (settings.weekdayFactors.some(f => isNaN(f) || f < 0)) {
+                el.innerHTML = `<p style="font-size:13px; color:#dc2626;">Every weekday factor must be a number of 0 or more.</p>`;
+                return;
+            }
+            const T = parseFloat(document.getElementById('target_transactions_value').value);
+            const dist = getTxDistribution(periodKey, settings);
+            if (dist.total <= 0) {
+                el.innerHTML = `<p style="font-size:13px; color:#999;">There are no published shifts in ${periodKey} yet.</p>`;
+                return;
+            }
+            const rows = Object.entries(dist.byMember)
+                .map(([id, w]) => ({ name: assigneeMap[id] ? assigneeMap[id].name : 'Unknown', w }))
+                .sort((a, b) => b.w - a.w);
+            el.innerHTML = `
+                <div class="inbox-item" style="border-left:3px solid #2563eb;">
+                    <strong style="font-size:13px;">${isNaN(T) ? 'Set a Transactions target to see each share' : `Transactions target ${T.toLocaleString()}`} — ${dist.items.length} published shift(s)</strong>
+                    <ul style="font-size:12px; color:#666; margin:6px 0 0 16px;">
+                        ${rows.map(r => `<li>${r.name}: ${(r.w / dist.total * 100).toFixed(1)}%${isNaN(T) ? '' : ' → ' + Math.round(T * r.w / dist.total) + ' tx'}</li>`).join('')}
+                    </ul>
+                </div>`;
         }
 
         function getEnabledWeightTotal() {
@@ -8999,6 +9454,16 @@
 
             const mode = document.getElementById('bonusModeSelect').value;
 
+            const txDistribution = readTxDistributionForm();
+            if (txDistribution.weekdayFactors.some(f => isNaN(f) || f < 0)) {
+                alert('Every weekday factor must be a number of 0 or more.');
+                return;
+            }
+            if (txDistribution.weekdayFactors.every(f => f === 0)) {
+                alert('At least one weekday factor must be above 0.');
+                return;
+            }
+
             const existing = state.bonusConfigs.find(c => c.periodKey === periodKey);
             const payload = {
                 periodKey,
@@ -9006,7 +9471,8 @@
                 mode,
                 tiers: currentBonusTiers,
                 bbgTiers: currentBbgTiers,
-                indexWeights: { average: indexAvgWeight, revenuePerTx: indexRptWeight }
+                indexWeights: { average: indexAvgWeight, revenuePerTx: indexRptWeight },
+                txDistribution
             };
 
             if (existing) {
@@ -9059,34 +9525,53 @@
         }
 
         // Every target with a value in Bonus Settings for the period, whether or not
-        // it is ticked to count towards the bonus. Revenue targets stay Admin-only.
-        function renderWpTargets(periodKey, showRevenue) {
+        // it is ticked to count towards the bonus, shown as what should be reached by now.
+        // Revenue targets stay Admin-only.
+        function renderWpTargets(periodKey, showRevenue, toDate) {
             const cfg = getBonusConfigForPeriod(periodKey);
             const targets = (cfg && cfg.targets) || {};
             const REVENUE_METRICS = ['revenue', 'revenuePerTx'];
-            const withValue = BONUS_METRICS.filter(m => {
-                const t = targets[m.key];
-                return t && t.value !== '' && t.value != null && !isNaN(Number(t.value)) &&
-                    (showRevenue || !REVENUE_METRICS.includes(m.key));
-            });
+            const withValue = BONUS_METRICS.filter(m =>
+                toDate.values[m.key] != null && getWorkplaceTarget(periodKey, m.key) != null &&
+                (showRevenue || !REVENUE_METRICS.includes(m.key))
+            );
 
             if (withValue.length === 0) {
                 return `<div class="section-title"><i class="fas fa-bullseye"></i> Targets</div>
                     <p style="font-size:13px; color:#999; margin:-6px 0 18px;">No targets set in Bonus Settings for this period.</p>`;
             }
 
-            return `<div class="section-title"><i class="fas fa-bullseye"></i> Targets</div>
+            const RATIO_METRICS = ['average', 'revenuePerTx'];
+            return `<div class="section-title"><i class="fas fa-bullseye"></i> Targets to date</div>
+                <p style="font-size:12px; color:#666; margin:-6px 0 10px;">
+                    Expected by now: ${(toDate.progress * 100).toFixed(1)}% of the month${toDate.byDays ? ' (calendar days — no published shifts yet)' : "'s weighted shift hours"}.
+                </p>
                 <div class="results-summary-card" style="grid-template-columns: repeat(${Math.min(withValue.length, 4)}, 1fr); background: linear-gradient(135deg, #475569 0%, #334155 100%);">` +
                 withValue.map(m => {
-                    const t = targets[m.key];
+                    const t = targets[m.key] || {};
+                    const value = toDate.values[m.key];
+                    const decimals = m.key === 'revenuePerTx' ? 2 : 0;
+                    const full = RATIO_METRICS.includes(m.key)
+                        ? ''
+                        : `Month: ${Math.round(value / (toDate.progress || 1)).toLocaleString()} • `;
                     return `
                         <div class="vb-stat">
-                            <div class="vb-number">${Number(t.value).toLocaleString()}</div>
+                            <div class="vb-number">${value.toLocaleString(undefined, { maximumFractionDigits: decimals, minimumFractionDigits: decimals })}</div>
                             <div class="vb-label">${m.label}</div>
-                            <div class="vb-label" style="margin-top:4px; font-size:10px;">${t.enabled ? 'Counts for bonus' : 'Not in bonus'}</div>
+                            <div class="vb-label" style="margin-top:4px; font-size:10px;">${toDate.progress > 0 ? full : ''}${t.enabled ? 'Counts for bonus' : 'Not in bonus'}</div>
                         </div>
                     `;
                 }).join('') + `</div>`;
+        }
+
+        function wpStat(valueText, label, actual, target) {
+            const diff = formatDiffPct(actual, target);
+            return `
+                <div class="vb-stat">
+                    <div class="vb-number">${valueText}</div>
+                    <div class="vb-label">${label}</div>
+                    ${diff ? `<div class="vb-diff ${diff.pct >= 0 ? 'up' : 'down'}">${diff.text}</div>` : ''}
+                </div>`;
         }
 
         function renderWpResults() {
@@ -9097,28 +9582,34 @@
             const periodKey = getWpPeriodKey();
             const showRevenue = canSeeRevenue();
             const periodLines = state.resultLines.filter(l => l.dateKey.slice(0, 7) === periodKey);
+            const toDate = getWorkplaceTargetsToDate(periodKey);
 
             if (periodLines.length === 0) {
                 summaryEl.innerHTML = `<div class="empty-state"><i class="fas fa-chart-column"></i><p>No results recorded for this period.</p></div>` +
-                    renderWpTargets(periodKey, showRevenue);
+                    renderWpTargets(periodKey, showRevenue, toDate);
                 byMemberEl.innerHTML = '';
                 return;
             }
 
             const total = aggregateLines(periodLines);
             const cols = showRevenue ? 6 : 5;
+            const tv = toDate.values;
 
             summaryEl.innerHTML = `
                 <div class="section-title"><i class="fas fa-layer-group"></i> Workplace total</div>
                 <div class="results-summary-card" style="grid-template-columns: repeat(${cols}, 1fr);">
-                    <div class="vb-stat"><div class="vb-number">${total.transactions}</div><div class="vb-label">Txns</div></div>
-                    <div class="vb-stat"><div class="vb-number">${total.turnover.toFixed(0)}</div><div class="vb-label">Turnover</div></div>
-                    <div class="vb-stat"><div class="vb-number">${total.average.toFixed(0)}</div><div class="vb-label">Average</div></div>
-                    ${showRevenue ? `<div class="vb-stat"><div class="vb-number">${total.revenue.toFixed(0)}</div><div class="vb-label">Revenue</div></div>` : ''}
-                    <div class="vb-stat"><div class="vb-number">${total.bbg}</div><div class="vb-label">BBG</div></div>
-                    <div class="vb-stat"><div class="vb-number">${calcMonthIndex(total, periodKey)}</div><div class="vb-label">Index</div></div>
+                    ${wpStat(total.transactions, 'Txns', total.transactions, tv.transactions)}
+                    ${wpStat(total.turnover.toFixed(0), 'Turnover', total.turnover, tv.turnover)}
+                    ${wpStat(total.average.toFixed(0), 'Average', total.average, tv.average)}
+                    ${showRevenue ? wpStat(total.revenue.toFixed(0), 'Revenue', total.revenue, tv.revenue) : ''}
+                    ${wpStat(total.bbg, 'BBG', total.bbg, tv.bbg)}
+                    ${wpStat(calcMonthIndex(total, periodKey), 'Index', 0, null)}
                 </div>
-            ` + renderWpTargets(periodKey, showRevenue);
+                <p style="font-size:12px; color:#666; margin:-10px 0 18px;">% = difference with the target to date.</p>
+            ` + renderWpTargets(periodKey, showRevenue, toDate);
+
+            const T = getWorkplaceTarget(periodKey, 'transactions');
+            const dist = getTxDistribution(periodKey);
 
             // Admins are left out of the advisor comparison.
             const memberIds = [...new Set(periodLines.map(l => l.memberId))]
@@ -9129,19 +9620,28 @@
             const rows = memberIds.map(id => {
                 const m = state.team.find(x => x.id === id);
                 const agg = aggregateLines(periodLines.filter(l => l.memberId === id));
-                const achievement = calcAchievement(agg, periodKey);
+                const achievement = calcAchievement(agg, periodKey, id);
                 const pct = typeof achievement === 'number' ? achievement : null;
-                return { id, name: m ? m.name : 'Unknown', agg, pct };
+
+                let txToDate = null;
+                if (T != null && dist.total > 0) {
+                    txToDate = T * getPeriodProgress(periodKey, id).member;
+                }
+                return { id, name: m ? m.name : 'Unknown', agg, pct, txToDate };
             }).sort((a, b) => b.agg.turnover - a.agg.turnover);
 
-            byMemberEl.innerHTML = rows.map(r => `
-                <div class="results-day-item">
+            byMemberEl.innerHTML = rows.map(r => {
+                const diff = r.txToDate != null ? formatDiffPct(r.agg.transactions, r.txToDate) : null;
+                return `
+                <div class="results-day-item" style="flex-wrap:wrap; gap:4px;">
                     <strong>${r.name}</strong>
                     <span style="font-size:13px; color:#666;">
                         ${r.agg.transactions} txns • ${r.agg.turnover.toFixed(0)} turnover • ${r.agg.average.toFixed(0)} avg${showRevenue ? ' • ' + r.agg.revenue.toFixed(0) + ' rev' : ''} • ${r.agg.bbg} BBG${r.pct != null ? ' • ' + r.pct.toFixed(0) + '%' : ''}
+                        ${r.txToDate != null ? `<br>Txns target to date: ${Math.round(r.txToDate)}${diff ? ` <strong style="color:${diff.pct >= 0 ? '#16a34a' : '#dc2626'};">(${diff.text})</strong>` : ''}` : ''}
                     </span>
                 </div>
-            `).join('');
+            `;
+            }).join('');
         }
 
 
@@ -9258,7 +9758,7 @@
                 const active = BONUS_METRICS.filter(m => cfg.targets[m.key] && cfg.targets[m.key].enabled);
                 if (active.length > 0) {
                     const achRows = active.map(m => {
-                        const target = Number(cfg.targets[m.key].value) || 0;
+                        const target = getMemberTargetValue(periodKey, m.key, member.id);
                         const actual = month[m.key] || 0;
                         const pct = target > 0 ? (actual / target) * 100 : 0;
                         return [m.label, target.toFixed(2), actual.toFixed(2), pct.toFixed(2) + '%'];
@@ -9332,7 +9832,7 @@
             const rows = memberIds.map(id => {
                 const m = state.team.find(x => x.id === id);
                 const agg = aggregateLines(periodLines.filter(l => l.memberId === id));
-                const ach = calcAchievement(agg, periodKey);
+                const ach = calcAchievement(agg, periodKey, id);
                 const bonus = calcBonus(agg, periodKey, m);
                 const bbgTier = cfg ? findTier(cfg.bbgTiers, agg.bbg || 0) : null;
 
