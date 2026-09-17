@@ -3359,7 +3359,7 @@
             <div id="auditLogList"></div>
         </div>
 
-        <div class="app-version">GEBLL v-0.55</div>
+        <div class="app-version">GEBLL v-0.56</div>
     </div>
 
 
@@ -9714,6 +9714,52 @@
             return 20;
         }
 
+        // ===== REPORT TARGETS (up to the end of yesterday) =====
+
+        // Targets in reports cover every shift that ended before today started.
+        // A past month gets its full target, a future month none.
+        function getReportTargetCutoff() {
+            const now = new Date();
+            return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        }
+
+        function getReportTargetNote(periodKey) {
+            const cutoff = getReportTargetCutoff();
+            const [y, m] = periodKey.split('-').map(Number);
+            if (cutoff >= new Date(y, m, 1)) return 'Targets: full month';
+            if (cutoff <= new Date(y, m - 1, 1)) return 'Targets: period not started yet';
+            const yesterday = new Date(cutoff);
+            yesterday.setDate(yesterday.getDate() - 1);
+            return `Targets up to ${toDateKey(yesterday)}`;
+        }
+
+        // Member's Transactions target up to the cutoff (their distributed share).
+        function getMemberTxTargetUntil(periodKey, memberId, cutoff) {
+            const T = getWorkplaceTarget(periodKey, 'transactions');
+            if (T == null) return null;
+            const dist = getTxDistribution(periodKey);
+            if (dist.total <= 0) return null;
+            return T * getPeriodProgress(periodKey, memberId, cutoff).member;
+        }
+
+        // Transactions target per day for one member, for the days before the cutoff.
+        function getMemberDailyTxTargets(periodKey, memberId, cutoff) {
+            const T = getWorkplaceTarget(periodKey, 'transactions');
+            const dist = getTxDistribution(periodKey);
+            const byDay = {};
+            if (T == null || dist.total <= 0) return byDay;
+            const cutoffKey = toDateKey(cutoff);
+            dist.items.forEach(it => {
+                if (it.a.memberId !== memberId || it.a.dateKey >= cutoffKey) return;
+                byDay[it.a.dateKey] = (byDay[it.a.dateKey] || 0) + T * it.w / dist.total;
+            });
+            return byDay;
+        }
+
+        function fmtTarget(value, decimals) {
+            return value == null ? '—' : Number(value).toFixed(decimals);
+        }
+
         function generateIndividualReport() {
             const memberId = document.getElementById('reportMemberSelect').value;
             const member = state.team.find(m => m.id === memberId);
@@ -9732,20 +9778,28 @@
             const doc = newPdfDoc();
             let y = addPdfHeader(doc, `Individual results — ${member.name}`, getReportPeriodLabel());
 
+            const cutoff = getReportTargetCutoff();
+            const avgTarget = getWorkplaceTarget(periodKey, 'average');
+            const txTarget = getMemberTxTargetUntil(periodKey, member.id, cutoff);
+            const turnoverTarget = (txTarget != null && avgTarget != null) ? txTarget * avgTarget : null;
+
+            doc.setFontSize(8);
+            doc.setTextColor(100, 116, 139);
+            doc.text(`${member.name} — ${getReportTargetNote(periodKey)}`, 14, y - 1);
+            doc.setTextColor(0, 0, 0);
+            y += 3;
+
             const summaryRows = [
-                ['Transactions', String(month.transactions)],
-                ['Turnover', month.turnover.toFixed(2)],
-                ['Average', month.average.toFixed(2)],
-                ['BBG', String(month.bbg)],
-                ['Index', calcMonthIndex(month, periodKey)]
+                ['Transactions', String(month.transactions), fmtTarget(txTarget, 1)],
+                ['Turnover', month.turnover.toFixed(2), fmtTarget(turnoverTarget, 2)],
+                ['Average', month.average.toFixed(2), fmtTarget(avgTarget, 2)],
+                ['BBG', String(month.bbg), '—'],
+                ['Index', calcMonthIndex(month, periodKey), '—']
             ];
-            if (showRevenue) {
-                summaryRows.splice(3, 0, ['Revenue', month.revenue.toFixed(2)]);
-            }
 
             doc.autoTable({
                 startY: y,
-                head: [['KPIs', 'Value']],
+                head: [['KPIs', 'Value', 'Targets']],
                 body: summaryRows,
                 theme: 'striped',
                 headStyles: { fillColor: [37, 99, 235], fontSize: 8, halign: 'center' },
@@ -9793,12 +9847,27 @@
                 y = doc.lastAutoTable.finalY + 8;
             }
 
-            const dayKeys = [...new Set(lines.map(l => l.dateKey))].sort();
+            // Days with results plus days with a shift before today, so a worked day
+            // without any transaction still shows up against its target.
+            const dailyTxTargets = getMemberDailyTxTargets(periodKey, member.id, cutoff);
+            const dayKeys = [...new Set([...lines.map(l => l.dateKey), ...Object.keys(dailyTxTargets)])].sort();
             const dailyRows = dayKeys.map(dk => {
                 const d = aggregateLines(lines.filter(l => l.dateKey === dk));
-                return [dk, String(d.transactions), d.turnover.toFixed(2), d.average.toFixed(2), String(d.bbg)];
+                const dayTx = dailyTxTargets[dk] ?? null;
+                const dayTurnover = (dayTx != null && avgTarget != null) ? dayTx * avgTarget : null;
+                return [
+                    dk,
+                    fmtTarget(dayTx, 1),
+                    String(d.transactions),
+                    fmtTarget(dayTurnover, 2),
+                    d.turnover.toFixed(2),
+                    fmtTarget(avgTarget, 2),
+                    d.average.toFixed(2),
+                    String(d.bbg),
+                    d.transactions > 0 ? calcMonthIndex(d, periodKey) : '—'
+                ];
             });
-            const dailyHead = ['Date', 'Txns', 'Turnover', 'Average', 'BBG'];
+            const dailyHead = ['Date', 'Target Txns', 'Txns', 'Target Turnover', 'Turnover', 'Target Average', 'Average', 'BBG', 'Index'];
 
             doc.autoTable({
                 startY: y,
@@ -9849,6 +9918,7 @@
                 const achievedTier = (cfg && overallPct != null) ? findTier(cfg.tiers, overallPct) : null;
 
                 return {
+                    id,
                     name: m ? m.name : 'Unknown',
                     agg,
                     pct: overallPct,
@@ -9865,21 +9935,33 @@
             if (rows.length === 0) { alert('No advisor results recorded in that period.'); return; }
 
             const doc = newPdfDoc('landscape');
-            const y = addPdfHeader(doc, '', getReportPeriodLabel());
+            let y = addPdfHeader(doc, '', getReportPeriodLabel());
 
-            const avgTarget = (cfg && cfg.targets && cfg.targets.average && cfg.targets.average.value) || 0;
+            doc.setFontSize(8);
+            doc.setTextColor(100, 116, 139);
+            doc.text(getReportTargetNote(periodKey), 10, y - 1);
+            doc.setTextColor(0, 0, 0);
+            y += 3;
+
+            const cutoff = getReportTargetCutoff();
+            const avgTarget = getWorkplaceTarget(periodKey, 'average');
 
             const head = [
-                'Advisor', 'Txns', 'Turnover', 'Target Average', 'Average',
+                'Advisor', 'Target Txns', 'Txns', 'Target Turnover', 'Turnover', 'Target Average', 'Average',
                 'Bonus Average %', 'Bonus Average kr.',
                 'BBG', 'Rate per BBG', 'Bonus BBG', 'Total bonus'
             ];
 
-            const body = rows.map(r => [
+            const body = rows.map(r => {
+                const txTarget = getMemberTxTargetUntil(periodKey, r.id, cutoff);
+                const turnoverTarget = (txTarget != null && avgTarget != null) ? txTarget * avgTarget : null;
+                return [
                 r.name,
+                fmtTarget(txTarget, 1),
                 String(r.agg.transactions),
+                fmtTarget(turnoverTarget, 2),
                 r.agg.turnover.toFixed(2),
-                avgTarget ? Number(avgTarget).toFixed(2) : '—',
+                fmtTarget(avgTarget, 2),
                 r.agg.average.toFixed(2),
                 r.tierPct != null ? r.tierPct.toFixed(2) + '%' : '—',
                 r.bonus ? r.bonus.mainBonus.toFixed(2) : '0.00',
@@ -9887,15 +9969,16 @@
                 r.bbgRate.toFixed(2),
                 r.bonus ? r.bonus.bbgBonus.toFixed(2) : '0.00',
                 r.bonus ? r.bonus.total.toFixed(2) : '0.00'
-            ]);
+                ];
+            });
 
             doc.autoTable({
                 startY: y,
                 head: [head],
                 body,
                 theme: 'grid',
-                headStyles: { fillColor: [37, 99, 235], fontSize: 8, halign: 'center' },
-                styles: { fontSize: 8, cellPadding: 1.2, halign: 'center' },
+                headStyles: { fillColor: [37, 99, 235], fontSize: 7.5, halign: 'center' },
+                styles: { fontSize: 7.5, cellPadding: 1.2, halign: 'center' },
                 margin: { left: 10, right: 10 },
                 didParseCell: (data) => {
                     if (data.section !== 'body') return;
