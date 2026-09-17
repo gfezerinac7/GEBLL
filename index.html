@@ -3483,7 +3483,7 @@
             <div id="auditLogList"></div>
         </div>
 
-        <div class="app-version">GEBLL v-0.57</div>
+        <div class="app-version">GEBLL v-0.58</div>
     </div>
 
 
@@ -9910,7 +9910,7 @@
         }
 
         // ===== REPORT MODEL — one definition, rendered as PDF or Excel =====
-        // A cell is plain text or { t: text shown, v: number for Excel, z: Excel format, x: Excel-only text }.
+        // A cell is plain text or { t: text shown, v: number for Excel, z: Excel number format }.
 
         const REPORT_COLORS = { blue: [37, 99, 235], green: [5, 150, 105], amber: [180, 83, 9] };
 
@@ -9996,57 +9996,218 @@
             return doc;
         }
 
-        function renderReportXlsx(report) {
-            const aoa = [];
-            aoa.push([report.title ? `${report.title} — ${report.periodLabel}` : report.periodLabel]);
-            (report.notes || []).forEach(n => aoa.push([n]));
-            aoa.push([]);
-            report.sections.forEach(sec => {
-                if (sec.heading) aoa.push([sec.heading]);
-                if (sec.emptyText) { aoa.push([sec.emptyText]); aoa.push([]); return; }
-                aoa.push(sec.head);
-                sec.rows.forEach(r => aoa.push(r));
-                if (sec.foot) aoa.push(sec.foot);
-                aoa.push([]);
-            });
-            if (report.footerText) aoa.push([report.footerText]);
+        // Excel files are built with ExcelJS so they carry the same look as the PDFs:
+        // coloured headers, striped or grid tables, bold totals, highlighted cells and
+        // number formats. The library is only downloaded the first time it is needed.
+        let excelJsPromise = null;
 
-            const ws = {};
-            const widths = [];
-            let maxCol = 0;
-            aoa.forEach((row, r) => {
-                row.forEach((c, col) => {
-                    let cell;
-                    if (c && typeof c === 'object') {
-                        if (c.x != null) cell = { t: 's', v: c.x };
-                        else if (typeof c.v === 'number') cell = { t: 'n', v: c.v, z: c.z };
-                        else cell = { t: 's', v: String(c.t ?? '') };
-                    } else if (typeof c === 'number') {
-                        cell = { t: 'n', v: c };
-                    } else {
-                        cell = { t: 's', v: c == null ? '' : String(c) };
+        function loadExcelJs() {
+            if (window.ExcelJS) return Promise.resolve(window.ExcelJS);
+            if (excelJsPromise) return excelJsPromise;
+            const sources = [
+                'https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js',
+                'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js'
+            ];
+            excelJsPromise = new Promise((resolve, reject) => {
+                const tryNext = (i) => {
+                    if (i >= sources.length) {
+                        excelJsPromise = null;
+                        reject(new Error('Could not load the Excel library. Check your internet connection and try again.'));
+                        return;
                     }
-                    ws[XLSX.utils.encode_cell({ r, c: col })] = cell;
-                    maxCol = Math.max(maxCol, col);
-                    if (row.length > 1) {
-                        const len = String(c && typeof c === 'object' ? (c.x ?? c.t) : (cell.v ?? '')).length;
-                        widths[col] = Math.max(widths[col] || 8, Math.min(len + 2, 40));
-                    }
-                });
+                    const script = document.createElement('script');
+                    script.src = sources[i];
+                    script.async = true;
+                    script.onload = () => (window.ExcelJS ? resolve(window.ExcelJS) : tryNext(i + 1));
+                    script.onerror = () => { script.remove(); tryNext(i + 1); };
+                    document.head.appendChild(script);
+                };
+                tryNext(0);
             });
-            ws['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: Math.max(aoa.length - 1, 0), c: maxCol } });
-            ws['!cols'] = Array.from({ length: maxCol + 1 }, (_, i) => ({ wch: widths[i] || 12 }));
-
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, (report.sheetName || 'Report').replace(/[\\/?*[\]:]/g, ' ').slice(0, 31));
-            XLSX.writeFile(wb, `${report.fileBase}.xlsx`);
+            return excelJsPromise;
         }
 
-        function renderReport(report, format) {
+        function rgbToArgb(rgb) {
+            return 'FF' + rgb.map(n => Math.round(n).toString(16).padStart(2, '0')).join('').toUpperCase();
+        }
+
+        function downloadBlob(blob, filename) {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 4000);
+        }
+
+        async function renderReportXlsx(report) {
+            const ExcelJS = await loadExcelJs();
+
+            // Same colours as jsPDF-AutoTable uses in the PDFs.
+            const TEXT_BODY = [80, 80, 80];
+            const TEXT_DARK = [30, 41, 59];
+            const TEXT_NOTE = [100, 116, 139];
+            const TEXT_MUTED = [150, 150, 150];
+            const STRIPE = [245, 245, 245];
+            const FOOT = [226, 232, 240];
+            const GRID_LINE = { style: 'thin', color: { argb: rgbToArgb([200, 200, 200]) } };
+            // PDF point sizes are tiny on screen, so Excel keeps the hierarchy two points bigger.
+            const font = (pdfSize, extra) => ({ name: 'Arial', size: pdfSize + 2, ...(extra || {}) });
+            const solid = (rgb) => ({ type: 'pattern', pattern: 'solid', fgColor: { argb: rgbToArgb(rgb) } });
+
+            const landscape = report.orientation === 'landscape';
+            const wb = new ExcelJS.Workbook();
+            wb.creator = 'GEBLL';
+            wb.created = new Date();
+            const ws = wb.addWorksheet((report.sheetName || 'Report').replace(/[\\/?*[\]:]/g, ' ').slice(0, 31), {
+                views: [{ showGridLines: false }],
+                pageSetup: {
+                    paperSize: 9, // A4
+                    orientation: landscape ? 'landscape' : 'portrait',
+                    fitToPage: true,
+                    fitToWidth: 1,
+                    fitToHeight: 0,
+                    margins: { left: 0.4, right: 0.4, top: 0.5, bottom: 0.5, header: 0.2, footer: 0.2 }
+                }
+            });
+
+            const widths = [];
+            const trackWidth = (col, text) => {
+                const len = String(text ?? '').length;
+                widths[col] = Math.max(widths[col] || 0, Math.min(len + 3, 45));
+            };
+            const setValue = (cell, raw) => {
+                if (raw && typeof raw === 'object') {
+                    if (typeof raw.v === 'number') {
+                        cell.value = raw.v;
+                        if (raw.z) cell.numFmt = raw.z;
+                    } else {
+                        cell.value = raw.t ?? '';
+                    }
+                } else if (typeof raw === 'number') {
+                    cell.value = raw;
+                } else {
+                    cell.value = raw == null ? '' : String(raw);
+                }
+            };
+            const center = { horizontal: 'center', vertical: 'middle' };
+
+            let r = 1;
+            const titleCell = ws.getCell(r, 1);
+            titleCell.value = report.periodLabel;
+            titleCell.font = font(11, { color: { argb: rgbToArgb(TEXT_DARK) } });
+            r++;
+
+            (report.notes || []).forEach(note => {
+                const c = ws.getCell(r, 1);
+                c.value = note;
+                c.font = font(8, { color: { argb: rgbToArgb(TEXT_NOTE) } });
+                r++;
+            });
+            r++;
+
+            report.sections.forEach(sec => {
+                if (sec.heading) {
+                    const c = ws.getCell(r, 1);
+                    c.value = sec.heading;
+                    c.font = font(10, { color: { argb: rgbToArgb(TEXT_DARK) } });
+                    r++;
+                }
+                if (sec.emptyText) {
+                    const c = ws.getCell(r, 1);
+                    c.value = sec.emptyText;
+                    c.font = font(8, { color: { argb: rgbToArgb(TEXT_MUTED) } });
+                    r += 2;
+                    return;
+                }
+
+                const headSize = sec.fontSize || 8;
+                const bodySize = sec.bodyFontSize || headSize;
+                const grid = sec.theme === 'grid';
+                const border = grid ? { top: GRID_LINE, left: GRID_LINE, bottom: GRID_LINE, right: GRID_LINE } : null;
+
+                sec.head.forEach((h, i) => {
+                    const c = ws.getCell(r, i + 1);
+                    c.value = h;
+                    c.font = font(headSize, { bold: true, color: { argb: 'FFFFFFFF' } });
+                    c.fill = solid(sec.headColor || REPORT_COLORS.blue);
+                    c.alignment = center;
+                    trackWidth(i, h);
+                });
+                ws.getRow(r).height = (headSize + 2) * 1.9;
+                r++;
+
+                sec.rows.forEach((row, ri) => {
+                    row.forEach((raw, ci) => {
+                        const c = ws.getCell(r, ci + 1);
+                        setValue(c, raw);
+
+                        // Striped tables shade every other row, starting with the first.
+                        let fill = (!grid && ri % 2 === 0) ? STRIPE : null;
+                        let text = TEXT_BODY;
+                        let bold = !!(sec.columnStyles && sec.columnStyles[ci] && sec.columnStyles[ci].fontStyle === 'bold');
+                        const st = sec.cellStyle ? sec.cellStyle(ri, ci, raw) : null;
+                        if (st) {
+                            if (st.fill) fill = st.fill;
+                            if (st.text) text = st.text;
+                            if (st.bold) bold = true;
+                        }
+
+                        c.font = font(bodySize, { bold, color: { argb: rgbToArgb(text) } });
+                        if (fill) c.fill = solid(fill);
+                        if (border) c.border = border;
+                        c.alignment = center;
+                        trackWidth(ci, cellText(raw));
+                    });
+                    r++;
+                });
+
+                if (sec.foot) {
+                    sec.foot.forEach((raw, ci) => {
+                        const c = ws.getCell(r, ci + 1);
+                        setValue(c, raw);
+                        c.font = font(headSize, { bold: true, color: { argb: rgbToArgb(TEXT_DARK) } });
+                        c.fill = solid(FOOT);
+                        c.alignment = center;
+                        trackWidth(ci, cellText(raw));
+                    });
+                    r++;
+                }
+                r++;
+            });
+
+            if (report.footerText) {
+                const c = ws.getCell(r, 1);
+                c.value = report.footerText;
+                c.font = font(10, { color: { argb: rgbToArgb(TEXT_DARK) } });
+            }
+
+            // Like the PDF tables, the widest table fills the printable width of the page.
+            const finalWidths = Array.from({ length: widths.length }, (_, i) => Math.max(widths[i] || 0, 10));
+            const pageWidth = landscape ? 150 : 100;
+            const used = finalWidths.reduce((a, b) => a + b, 0);
+            const scale = used > 0 && used < pageWidth ? pageWidth / used : 1;
+            finalWidths.forEach((w, i) => { ws.getColumn(i + 1).width = Math.round(w * scale * 10) / 10; });
+
+            const buffer = await wb.xlsx.writeBuffer();
+            downloadBlob(
+                new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }),
+                `${report.fileBase}.xlsx`
+            );
+        }
+
+        async function renderReport(report, format) {
             if (!report) return;
             if (report.error) { alert(report.error); return; }
-            if (format === 'xlsx') renderReportXlsx(report);
-            else renderReportPdf(report);
+            try {
+                if (format === 'xlsx') await renderReportXlsx(report);
+                else renderReportPdf(report);
+            } catch (err) {
+                alert('The report could not be created: ' + (err.message || err));
+                return;
+            }
             logAction('Report generated', `${report.logLabel}${format === 'xlsx' ? ' (Excel)' : ' (PDF)'}`);
         }
 
@@ -10623,13 +10784,8 @@
                             .filter(Boolean)
                             .sort((a, b) => a.start.localeCompare(b.start));
                         const span = shifts.length > 0 ? `${shifts[0].start}-${shifts[shifts.length - 1].end}` : '';
-                        if (dayAssignments.some(a => a.sickLeave)) {
-                            sickCells.add(`${d - 1}|${colIdx + 2}`);
-                            // Excel has no cell colours here, so sick leave is spelled out.
-                            row.push({ t: span, x: `${span} (Sick)`.trim() });
-                        } else {
-                            row.push(span);
-                        }
+                        if (dayAssignments.some(a => a.sickLeave)) sickCells.add(`${d - 1}|${colIdx + 2}`);
+                        row.push(span);
                         return;
                     }
 
