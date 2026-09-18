@@ -3483,7 +3483,7 @@
             <div id="auditLogList"></div>
         </div>
 
-        <div class="app-version">GEBLL v-0.58</div>
+        <div class="app-version">GEBLL v-0.59</div>
     </div>
 
 
@@ -3535,6 +3535,7 @@
         let scheduleRefDate = new Date();
         let pendingAssign = null;
         let rotasRefDate = new Date();
+        let rotasScrollToTodayPending = false;
         let pendingSwapRequest = null;
         let pendingDayOffSwap = null;
         let pendingResultsAssignmentId = null;
@@ -3903,7 +3904,7 @@
             document.getElementById(tab).classList.add('active');
 
             if (tab === 'myrota') renderMyRota();
-            if (tab === 'rotas') renderRotas();
+            if (tab === 'rotas') { rotasScrollToTodayPending = true; renderRotas(); }
             if (tab === 'inbox') { renderInbox(); markUnreadNotificationsAsRead(); }
             if (tab === 'schedule') renderSchedule();
             if (tab === 'vacation') renderVacation();
@@ -3995,7 +3996,7 @@
             document.getElementById(tab).classList.add('active');
 
             if (tab === 'myrota') renderMyRota();
-            if (tab === 'rotas') renderRotas();
+            if (tab === 'rotas') { rotasScrollToTodayPending = true; renderRotas(); }
             if (tab === 'inbox') { renderInbox(); markUnreadNotificationsAsRead(); }
             if (tab === 'schedule') renderSchedule();
             if (tab === 'vacation') renderVacation();
@@ -5972,6 +5973,20 @@
                     </div>
                 `;
             }).join('');
+
+            if (rotasScrollToTodayPending) {
+                rotasScrollToTodayPending = false;
+                requestAnimationFrame(scrollRotasToToday);
+            }
+        }
+
+        function scrollRotasToToday() {
+            const wrap = document.getElementById('rotasGridWrap');
+            const todayHeader = document.querySelector('#rotasGrid .rotas-day-header.today');
+            if (!wrap || !todayHeader) return;
+            const col = todayHeader.closest('.rotas-day-col');
+            const offset = col.getBoundingClientRect().left - wrap.getBoundingClientRect().left;
+            wrap.scrollLeft = Math.max(0, wrap.scrollLeft + offset);
         }
 
         let pendingMyShiftAssignmentId = null;
