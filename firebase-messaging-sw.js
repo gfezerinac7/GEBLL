@@ -2,18 +2,18 @@ importScripts('https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js'
 importScripts('https://www.gstatic.com/firebasejs/10.7.0/firebase-messaging-compat.js');
 
 firebase.initializeApp({
-    apiKey: "AIzaSyB0_ROV4sjigkHj5yachpCuuAmoUtfsJoA",
-    authDomain: "task-manager-5f5b3.firebaseapp.com",
-    projectId: "task-manager-5f5b3",
-    storageBucket: "task-manager-5f5b3.firebasestorage.app",
-    messagingSenderId: "912477224199",
-    appId: "1:912477224199:web:ca3071efacbb5994ff19a2"
+    apiKey: "AIzaSyCHXUL5qlZZ_me6S8oGzMMHqcBs0cV43eY",
+    authDomain: "bbapp-6b10e.firebaseapp.com",
+    projectId: "bbapp-6b10e",
+    storageBucket: "bbapp-6b10e.firebasestorage.app",
+    messagingSenderId: "431787724186",
+    appId: "1:431787724186:web:450f61927ae01bfc8f7e23"
 });
 
 const messaging = firebase.messaging();
 
 messaging.onBackgroundMessage((payload) => {
-    const title = (payload.notification && payload.notification.title) || 'GEBLL';
+    const title = (payload.notification && payload.notification.title) || 'BBapp';
     const body = (payload.notification && payload.notification.body) || (payload.data && payload.data.message) || '';
     const badgeCount = parseInt((payload.data && payload.data.badge) || '0', 10);
 
