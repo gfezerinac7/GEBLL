@@ -2691,6 +2691,27 @@
 
                 <div class="form-section">
                     <div class="section-title">
+                        <i class="fas fa-bullseye"></i>
+                        Daily targets
+                    </div>
+                    <p style="font-size:12px; color:#999; margin-bottom:12px;">
+                        Every day of the report period with each employee's Transactions target (their distributed share),
+                        plus their Turnover target when an Average target is set. Swaps and reassignments are already included.
+                    </p>
+                    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                        <button class="btn" onclick="generateDailyTargetsReport('pdf')">
+                            <i class="fas fa-file-pdf"></i>
+                            PDF
+                        </button>
+                        <button class="btn btn-success" onclick="generateDailyTargetsReport('xlsx')">
+                            <i class="fas fa-file-excel"></i>
+                            Excel
+                        </button>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <div class="section-title">
                         <i class="fas fa-clock"></i>
                         Hours worked (hourly staff)
                     </div>
@@ -3287,7 +3308,8 @@
                     Transactions distribution
                 </div>
                 <p style="font-size:12px; color:#999; margin-bottom:14px;">
-                    The Transactions target is the workplace total. It is shared out across the published shifts of the month:
+                    The Transactions target is the workplace total. It is shared out across every assigned shift of the whole month
+                    (draft or published), and it is recalculated whenever shifts are swapped or reassigned:
                     each shift weighs its net hours × the weekday factor × the time-of-day factor, and each advisor gets
                     the share of the target that matches the weight of their shifts. Sick leave shifts and shifts in locations
                     without a target (Settings → Locations) do not count.
@@ -3483,7 +3505,7 @@
             <div id="auditLogList"></div>
         </div>
 
-        <div class="app-version">GEBLL v-0.59</div>
+        <div class="app-version">GEBLL v-0.60</div>
     </div>
 
 
@@ -7624,7 +7646,25 @@
 
         let txDistributionCache = null;
 
-        // Weights of every published, non-sick shift of the period, per shift and per member.
+        // Day-off swaps give the day back later (swap-back on the return date). Until that
+        // swap-back is applied, the distribution already counts it, so both advisors'
+        // targets reflect the full agreement from the moment it is approved.
+        function getPendingSwapBackMap(periodKey) {
+            const map = {};
+            (state.dayOffSwapRequests || []).forEach(r => {
+                if (r.status !== 'approved' || r.swapBackDone || !r.returnDateKey) return;
+                if (r.returnDateKey.slice(0, 7) !== periodKey) return;
+                const day = map[r.returnDateKey] || (map[r.returnDateKey] = {});
+                day[r.requesterId] = r.targetMemberId;
+                day[r.targetMemberId] = r.requesterId;
+            });
+            return map;
+        }
+
+        // Weights of every non-sick shift of the whole month, per shift and per member.
+        // Draft shifts count too, so the target is always spread over the full month and
+        // not only over the weeks already published. Swaps move assignments between
+        // members, so the shares follow them automatically.
         function getTxDistribution(periodKey, settingsOverride) {
             const settings = settingsOverride || getTxDistributionSettings(periodKey);
             const canCache = !settingsOverride;
@@ -7633,22 +7673,26 @@
                 txDistributionCache.assignments === state.assignments &&
                 txDistributionCache.shifts === state.shifts &&
                 txDistributionCache.bonusConfigs === state.bonusConfigs &&
-                txDistributionCache.locations === state.locations) {
+                txDistributionCache.locations === state.locations &&
+                txDistributionCache.dayOffSwapRequests === state.dayOffSwapRequests) {
                 return txDistributionCache.result;
             }
 
             const shiftById = {};
             state.shifts.forEach(sh => { shiftById[sh.id] = sh; });
 
+            const swapBacks = getPendingSwapBackMap(periodKey);
             const items = [];
             const byMember = {};
             let total = 0;
-            state.assignments.forEach(a => {
-                if (!a.published || a.sickLeave || !a.dateKey || a.dateKey.slice(0, 7) !== periodKey) return;
-                const shift = shiftById[a.shiftId];
+            state.assignments.forEach(orig => {
+                if (orig.sickLeave || !orig.memberId || !orig.dateKey || orig.dateKey.slice(0, 7) !== periodKey) return;
+                const shift = shiftById[orig.shiftId];
                 if (!shift || !locationHasTarget(shift.locationId)) return;
-                const w = calcShiftWeight(a.dateKey, shift, settings);
+                const w = calcShiftWeight(orig.dateKey, shift, settings);
                 if (w <= 0) return;
+                const swappedTo = swapBacks[orig.dateKey] && swapBacks[orig.dateKey][orig.memberId];
+                const a = swappedTo ? { ...orig, memberId: swappedTo } : orig;
                 items.push({ a, shift, w });
                 byMember[a.memberId] = (byMember[a.memberId] || 0) + w;
                 total += w;
@@ -7659,7 +7703,7 @@
                 txDistributionCache = {
                     periodKey, result,
                     assignments: state.assignments, shifts: state.shifts, bonusConfigs: state.bonusConfigs,
-                    locations: state.locations
+                    locations: state.locations, dayOffSwapRequests: state.dayOffSwapRequests
                 };
             }
             return result;
@@ -9422,7 +9466,7 @@
             const T = parseFloat(document.getElementById('target_transactions_value').value);
             const dist = getTxDistribution(periodKey, settings);
             if (dist.total <= 0) {
-                el.innerHTML = `<p style="font-size:13px; color:#999;">There are no published shifts in ${periodKey} yet.</p>`;
+                el.innerHTML = `<p style="font-size:13px; color:#999;">There are no assigned shifts in ${periodKey} yet.</p>`;
                 return;
             }
             const rows = Object.entries(dist.byMember)
@@ -9430,7 +9474,7 @@
                 .sort((a, b) => b.w - a.w);
             el.innerHTML = `
                 <div class="inbox-item" style="border-left:3px solid #2563eb;">
-                    <strong style="font-size:13px;">${isNaN(T) ? 'Set a Transactions target to see each share' : `Transactions target ${T.toLocaleString()}`} — ${dist.items.length} published shift(s)</strong>
+                    <strong style="font-size:13px;">${isNaN(T) ? 'Set a Transactions target to see each share' : `Transactions target ${T.toLocaleString()}`} — ${dist.items.length} shift(s) in the month</strong>
                     <ul style="font-size:12px; color:#666; margin:6px 0 0 16px;">
                         ${rows.map(r => `<li>${r.name}: ${(r.w / dist.total * 100).toFixed(1)}%${isNaN(T) ? '' : ' → ' + Math.round(T * r.w / dist.total) + ' tx'}</li>`).join('')}
                     </ul>
@@ -9708,7 +9752,7 @@
             const RATIO_METRICS = ['average', 'revenuePerTx'];
             return `<div class="section-title"><i class="fas fa-bullseye"></i> Targets to date</div>
                 <p style="font-size:12px; color:#666; margin:-6px 0 10px;">
-                    Expected by now: ${(toDate.progress * 100).toFixed(1)}% of the month${toDate.byDays ? ' (calendar days — no published shifts yet)' : "'s weighted shift hours"}.
+                    Expected up to yesterday: ${(toDate.progress * 100).toFixed(1)}% of the month${toDate.byDays ? ' (calendar days — no shifts assigned yet)' : "'s weighted shift hours"}.
                 </p>
                 <div class="results-summary-card" style="grid-template-columns: repeat(${Math.min(withValue.length, 4)}, 1fr); background: linear-gradient(135deg, #475569 0%, #334155 100%);">` +
                 withValue.map(m => {
@@ -9745,11 +9789,15 @@
 
             const periodKey = getWpPeriodKey();
             const showRevenue = canSeeRevenue();
-            const periodLines = state.resultLines.filter(l => l.dateKey.slice(0, 7) === periodKey);
-            const toDate = getWorkplaceTargetsToDate(periodKey);
+            // Results and targets both stop at the end of yesterday, so they compare like for like.
+            const cutoff = getReportTargetCutoff();
+            const cutoffKey = toDateKey(cutoff);
+            const periodLines = state.resultLines.filter(l => l.dateKey.slice(0, 7) === periodKey && l.dateKey < cutoffKey);
+            const toDate = getWorkplaceTargetsToDate(periodKey, cutoff);
+            const upToLabel = getReportTargetNote(periodKey).replace('Targets: ', '').replace('Targets up to ', 'up to ');
 
             if (periodLines.length === 0) {
-                summaryEl.innerHTML = `<div class="empty-state"><i class="fas fa-chart-column"></i><p>No results recorded for this period.</p></div>` +
+                summaryEl.innerHTML = `<div class="empty-state"><i class="fas fa-chart-column"></i><p>No results recorded for this period before today.</p></div>` +
                     renderWpTargets(periodKey, showRevenue, toDate);
                 byMemberEl.innerHTML = '';
                 return;
@@ -9760,7 +9808,7 @@
             const tv = toDate.values;
 
             summaryEl.innerHTML = `
-                <div class="section-title"><i class="fas fa-layer-group"></i> Workplace total</div>
+                <div class="section-title"><i class="fas fa-layer-group"></i> Workplace total <span style="font-size:12px; font-weight:400; color:#666;">(${upToLabel})</span></div>
                 <div class="results-summary-card" style="grid-template-columns: repeat(${cols}, 1fr);">
                     ${wpStat(total.transactions, 'Txns', total.transactions, tv.transactions)}
                     ${wpStat(total.turnover.toFixed(0), 'Turnover', total.turnover, tv.turnover)}
@@ -9769,7 +9817,7 @@
                     ${wpStat(total.bbg, 'BBG', total.bbg, tv.bbg)}
                     ${wpStat(calcMonthIndex(total, periodKey), 'Index', 0, null)}
                 </div>
-                <p style="font-size:12px; color:#666; margin:-10px 0 18px;">% = difference with the target to date.</p>
+                <p style="font-size:12px; color:#666; margin:-10px 0 18px;">Results up to yesterday. % = difference with the target up to yesterday.</p>
             ` + renderWpTargets(periodKey, showRevenue, toDate);
 
             const T = getWorkplaceTarget(periodKey, 'transactions');
@@ -9789,7 +9837,7 @@
 
                 let txToDate = null;
                 if (T != null && dist.total > 0) {
-                    txToDate = T * getPeriodProgress(periodKey, id).member;
+                    txToDate = T * getPeriodProgress(periodKey, id, cutoff).member;
                 }
                 return { id, name: m ? m.name : 'Unknown', agg, pct, txToDate };
             }).sort((a, b) => b.agg.turnover - a.agg.turnover);
@@ -9801,7 +9849,7 @@
                     <strong>${r.name}</strong>
                     <span style="font-size:13px; color:#666;">
                         ${r.agg.transactions} txns • ${r.agg.turnover.toFixed(0)} turnover • ${r.agg.average.toFixed(0)} avg${showRevenue ? ' • ' + r.agg.revenue.toFixed(0) + ' rev' : ''} • ${r.agg.bbg} BBG${r.pct != null ? ' • ' + r.pct.toFixed(0) + '%' : ''}
-                        ${r.txToDate != null ? `<br>Txns target to date: ${Math.round(r.txToDate)}${diff ? ` <strong style="color:${diff.pct >= 0 ? '#16a34a' : '#dc2626'};">(${diff.text})</strong>` : ''}` : ''}
+                        ${r.txToDate != null ? `<br>Txns target up to yesterday: ${Math.round(r.txToDate)}${diff ? ` <strong style="color:${diff.pct >= 0 ? '#16a34a' : '#dc2626'};">(${diff.text})</strong>` : ''}` : ''}
                     </span>
                 </div>
             `;
@@ -10857,6 +10905,106 @@
 
         function generateRotaReport(format) {
             renderReport(buildRotaReport(), format);
+        }
+
+        // ----- Daily targets -----
+
+        // Grid of the whole month: dates down the side, one column per employee with a
+        // share of the target, a total per day and a total per employee at the bottom.
+        function buildDailyTargetsReport(periodKey) {
+            const T = getWorkplaceTarget(periodKey, 'transactions');
+            if (T == null) return { error: 'There is no Transactions target in Bonus Settings for that period.' };
+            const dist = getTxDistribution(periodKey);
+            if (dist.total <= 0) return { error: 'There are no assigned shifts in that period yet.' };
+
+            const avgTarget = getWorkplaceTarget(periodKey, 'average');
+            const [year, month] = periodKey.split('-').map(Number);
+            const daysInMonth = new Date(year, month, 0).getDate();
+
+            // Per day and member, in transactions.
+            const byDay = {};
+            dist.items.forEach(it => {
+                const day = byDay[it.a.dateKey] || (byDay[it.a.dateKey] = {});
+                day[it.a.memberId] = (day[it.a.memberId] || 0) + T * it.w / dist.total;
+            });
+
+            const memberIds = Object.keys(dist.byMember).filter(id => dist.byMember[id] > 0);
+            const members = sortBySeniority(memberIds.map(id => state.team.find(m => m.id === id) || { id, name: 'Unknown' }));
+            if (members.length === 0) return { error: 'There are no assigned shifts in that period yet.' };
+
+            const todayKey = toDateKey(new Date());
+            const head = ['DOW', 'Date'].concat(members.map(m => (m.name || 'Unknown').split(' ')[0].substring(0, 10)), ['Total']);
+            const todayRows = new Set();
+
+            const buildSection = (multiplier, decimals, heading, headColor) => {
+                const colTotals = members.map(() => 0);
+                let grand = 0;
+                const rows = [];
+                for (let d = 1; d <= daysInMonth; d++) {
+                    const date = new Date(year, month - 1, d);
+                    const dateKey = toDateKey(date);
+                    const day = byDay[dateKey] || {};
+                    const dd = String(d).padStart(2, '0');
+                    const mm = String(month).padStart(2, '0');
+                    const row = [date.toLocaleDateString('en-US', { weekday: 'short' }), `${dd}/${mm}/${year}`];
+                    let dayTotal = 0;
+                    members.forEach((m, i) => {
+                        const v = day[m.id];
+                        if (v == null) { row.push(''); return; }
+                        const value = v * multiplier;
+                        colTotals[i] += value;
+                        dayTotal += value;
+                        row.push(numCell(value, decimals));
+                    });
+                    grand += dayTotal;
+                    row.push(dayTotal > 0 ? numCell(dayTotal, decimals) : '');
+                    if (dateKey === todayKey) todayRows.add(d - 1);
+                    rows.push(row);
+                }
+                return {
+                    heading,
+                    head,
+                    rows,
+                    foot: ['', 'Month'].concat(colTotals.map(v => numCell(v, decimals)), [numCell(grand, decimals)]),
+                    theme: 'grid',
+                    headColor,
+                    fontSize: 7,
+                    bodyFontSize: 6.5,
+                    columnStyles: { 0: { fontStyle: 'bold' }, 1: { fontStyle: 'bold' }, [head.length - 1]: { fontStyle: 'bold' } },
+                    cellStyle: (rowIdx, colIdx, raw) => {
+                        if (todayRows.has(rowIdx)) return { fill: [219, 234, 254], text: [30, 64, 175] };
+                        const dow = rows[rowIdx] && rows[rowIdx][0];
+                        if (colIdx >= 2 && colIdx < head.length - 1 && cellText(raw) === '') return { fill: [248, 250, 252] };
+                        if (dow === 'Sat' || dow === 'Sun') return { fill: [241, 245, 249] };
+                        return null;
+                    }
+                };
+            };
+
+            const sections = [buildSection(1, 1, 'Transactions target per day', REPORT_COLORS.blue)];
+            if (avgTarget != null) {
+                sections.push(buildSection(avgTarget, 0, `Turnover target per day (Transactions × Average target ${avgTarget.toLocaleString()})`, REPORT_COLORS.green));
+            }
+
+            const drafts = dist.items.filter(it => !it.a.published).length;
+            const notes = [`Workplace Transactions target: ${T.toLocaleString()} — spread over ${dist.items.length} shift(s) of the month.`];
+            if (drafts > 0) notes.push(`${drafts} of those shift(s) are still drafts; the targets change if the rota changes.`);
+
+            return {
+                title: 'Daily targets',
+                periodLabel: getReportPeriodLabel() + ' — Daily targets',
+                orientation: 'landscape',
+                margin: 8,
+                notes,
+                sections,
+                sheetName: 'Daily targets',
+                fileBase: `GEBLL_daily_targets_${periodKey}`,
+                logLabel: `Daily targets, ${periodKey}`
+            };
+        }
+
+        function generateDailyTargetsReport(format) {
+            renderReport(buildDailyTargetsReport(getReportPeriodKey()), format);
         }
 
 
