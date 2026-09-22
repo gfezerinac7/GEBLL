@@ -1845,6 +1845,131 @@
             padding: 6px;
         }
         .act-hint { font-size: 12px; color: #888; margin: -6px 0 12px; }
+        .act-days {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 4px;
+        }
+        .act-day { cursor: pointer; }
+        .act-day input { position: absolute; opacity: 0; pointer-events: none; }
+        .act-day span {
+            display: block;
+            text-align: center;
+            padding: 9px 0;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #555;
+            background: white;
+        }
+        .act-day input:checked + span {
+            background: #2563eb;
+            border-color: #2563eb;
+            color: white;
+        }
+        .badge-biweekly {
+            background: #e6fcf5;
+            color: #0c8599;
+        }
+        .act-viewbar {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            margin-bottom: 14px;
+            flex-wrap: wrap;
+        }
+        .act-seg {
+            display: inline-flex;
+            background: #f3f4f6;
+            border-radius: 8px;
+            padding: 3px;
+        }
+        .act-seg button {
+            background: none;
+            border: none;
+            padding: 7px 10px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #666;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .act-seg button.active {
+            background: white;
+            color: #2563eb;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+        }
+        #actCategoryFilter {
+            flex: 1;
+            min-width: 120px;
+            padding: 9px 10px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            background: white;
+        }
+        .act-dot {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        .act-cat-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            background: #f3f4f6;
+            color: #444;
+        }
+        .act-colors {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+        .act-color {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            border: 3px solid white;
+            box-shadow: 0 0 0 1px #ddd;
+            cursor: pointer;
+            padding: 0;
+        }
+        .act-color.selected { box-shadow: 0 0 0 2px #333; }
+        .act-cat-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            border: 1px solid #eee;
+            border-radius: 10px;
+            margin-bottom: 8px;
+        }
+        .act-cat-row .name { flex: 1; font-weight: 600; font-size: 14px; word-break: break-word; }
+        .act-cat-row .count { font-size: 12px; color: #999; }
+        .act-cat-row button {
+            background: none;
+            border: none;
+            color: #888;
+            cursor: pointer;
+            padding: 6px;
+            font-size: 14px;
+        }
+        .act-cat-row .act-color { width: 22px; height: 22px; border-width: 2px; }
+        .act-offday-note {
+            font-size: 12px;
+            color: #999;
+            text-align: center;
+            margin-top: 14px;
+        }
 
         @media (max-width: 600px) {
             .form-row {
@@ -2025,8 +2150,40 @@
                 <button class="act-filter" data-filter="paused" onclick="setActivitiesFilter('paused')">Paused</button>
                 <button class="act-filter" data-filter="done" onclick="setActivitiesFilter('done')">Completed</button>
             </div>
+            <div class="act-viewbar">
+                <div class="act-seg" id="actGroupSeg">
+                    <button data-group="category" onclick="setActivitiesGroupBy('category')">By category</button>
+                    <button data-group="frequency" onclick="setActivitiesGroupBy('frequency')">By frequency</button>
+                </div>
+                <select id="actCategoryFilter" onchange="setActivitiesCategoryFilter(this.value)"></select>
+                <button class="act-nav-btn app-hidden" id="actManageCatsBtn" onclick="openCategoriesModal()" title="Manage categories">
+                    <i class="fas fa-tags"></i>
+                </button>
+            </div>
             <div id="actSummary"></div>
             <div id="activityList"></div>
+        </div>
+
+        <div id="categoriesModalOverlay" class="modal-overlay" onclick="if(event.target.id==='categoriesModalOverlay')closeCategoriesModal()">
+            <div class="modal-box">
+                <div class="modal-header">
+                    <div class="section-title" style="margin-bottom:0;">
+                        <i class="fas fa-tags"></i>
+                        Categories
+                    </div>
+                    <button class="modal-close" onclick="closeCategoriesModal()"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="form-group">
+                    <label>New category</label>
+                    <div class="act-comment-form" style="margin-top:0;">
+                        <input type="text" id="newCategoryName" placeholder="Ex: Cash, Stock, Cleaning"
+                            onkeydown="if(event.key==='Enter'){addActivityCategory();}">
+                        <button class="btn" style="padding:8px 14px;" onclick="addActivityCategory()"><i class="fas fa-plus"></i></button>
+                    </div>
+                    <div class="act-colors" id="newCategoryColors"></div>
+                </div>
+                <div id="categoryList"></div>
+            </div>
         </div>
 
         <button class="fab app-hidden" id="taskFab" onclick="openActivityModal()" title="New activity">
@@ -2048,6 +2205,15 @@
                     <input type="text" id="actName" placeholder="Ex: Cash count and closing report">
                 </div>
                 <div class="form-group">
+                    <label>Category</label>
+                    <div style="display:flex; gap:6px;">
+                        <select id="actCategory" style="flex:1; min-width:0;"></select>
+                        <button type="button" class="btn btn-secondary" style="padding:8px 12px;" onclick="quickAddActivityCategory()" title="New category">
+                            <i class="fas fa-plus"></i> New
+                        </button>
+                    </div>
+                </div>
+                <div class="form-group">
                     <label>Description</label>
                     <textarea id="actDesc" placeholder="Additional details..." rows="2"></textarea>
                 </div>
@@ -2056,20 +2222,29 @@
                     <select id="actFrequency" onchange="updateActivityFrequencyFields()">
                         <option value="daily">Daily</option>
                         <option value="weekly">Weekly</option>
+                        <option value="biweekly">Every 2 weeks (odd / even weeks)</option>
                         <option value="monthly">Monthly</option>
                     </select>
                 </div>
-                <div class="form-group app-hidden" id="actWeeklyWrap">
-                    <label>Day of the week</label>
-                    <select id="actWeekday">
-                        <option value="1">Monday</option>
-                        <option value="2">Tuesday</option>
-                        <option value="3">Wednesday</option>
-                        <option value="4">Thursday</option>
-                        <option value="5">Friday</option>
-                        <option value="6">Saturday</option>
-                        <option value="0">Sunday</option>
+                <div class="form-group app-hidden" id="actParityWrap">
+                    <label>Weeks</label>
+                    <select id="actWeekParity">
+                        <option value="odd">Odd weeks</option>
+                        <option value="even">Even weeks</option>
                     </select>
+                    <p class="act-hint" id="actParityHint" style="margin:6px 0 0;"></p>
+                </div>
+                <div class="form-group app-hidden" id="actWeeklyWrap">
+                    <label>Days of the week</label>
+                    <div class="act-days" id="actWeekdays">
+                        <label class="act-day"><input type="checkbox" value="1"><span>Mon</span></label>
+                        <label class="act-day"><input type="checkbox" value="2"><span>Tue</span></label>
+                        <label class="act-day"><input type="checkbox" value="3"><span>Wed</span></label>
+                        <label class="act-day"><input type="checkbox" value="4"><span>Thu</span></label>
+                        <label class="act-day"><input type="checkbox" value="5"><span>Fri</span></label>
+                        <label class="act-day"><input type="checkbox" value="6"><span>Sat</span></label>
+                        <label class="act-day"><input type="checkbox" value="0"><span>Sun</span></label>
+                    </div>
                 </div>
                 <div class="app-hidden" id="actMonthlyWrap">
                     <div class="form-row">
@@ -3685,7 +3860,7 @@
             <div id="auditLogList"></div>
         </div>
 
-        <div class="app-version">GEBLL v-0.61</div>
+        <div class="app-version">GEBLL v-0.63</div>
     </div>
 
 
@@ -3712,6 +3887,7 @@
         const state = {
             activities: [],
             activityRuns: [],
+            activityCategories: [],
             team: [],
             roles: [],
             locations: [],
@@ -3863,6 +4039,12 @@
                 renderActivities();
             });
 
+            const unsubActivityCategories = fns.onSnapshot(fns.collection(db, 'activityCategories'), (snapshot) => {
+                state.activityCategories = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                renderActivities();
+                renderCategoriesList();
+            });
+
             const teamCol = fns.collection(db, 'team');
             const unsubTeam = fns.onSnapshot(teamCol, (snapshot) => {
                 state.team = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -4006,7 +4188,7 @@
                 if (document.getElementById('bonusSettings').classList.contains('active')) loadBonusConfig();
             });
 
-            unsubscribers = [unsubActivities, unsubActivityRuns, unsubTeam, unsubRoles, unsubLocations, unsubShifts, unsubAssignments, unsubSwapRequests, unsubNotifications, unsubVacationRequests, unsubDayOffSwapRequests, unsubResultLines, unsubResultValidations, unsubRescheduleRequests, unsubAuditLog, unsubCurrencies, unsubDiscountCodes, unsubAppConfig, unsubBonusConfigs, unsubLongTermLeaves];
+            unsubscribers = [unsubActivities, unsubActivityRuns, unsubActivityCategories, unsubTeam, unsubRoles, unsubLocations, unsubShifts, unsubAssignments, unsubSwapRequests, unsubNotifications, unsubVacationRequests, unsubDayOffSwapRequests, unsubResultLines, unsubResultValidations, unsubRescheduleRequests, unsubAuditLog, unsubCurrencies, unsubDiscountCodes, unsubAppConfig, unsubBonusConfigs, unsubLongTermLeaves];
         }
 
         async function ensureDefaultRoles() {
@@ -4168,7 +4350,7 @@
             if (tab === 'management') initManagement();
         }
 
-        // ===== ADMIN. ACTIVITIES (v-0.61 — replaces Tasks + Projects) =====
+        // ===== ADMIN. ACTIVITIES (v-0.61, weekly days + every-2-weeks in v-0.62) =====
         // activities/{id}      → definition: name, desc, frequency, weekday, monthlyMode, monthDay, steps[]
         // activityRuns/{id}    → one doc per activity per period ({activityId}_{periodKey}):
         //                        status (pending|paused|done), who completed/paused, step checks, comments
@@ -4176,6 +4358,11 @@
 
         let actViewDateKey = '';          // '' = today
         let actFilter = 'all';
+        let actCategoryFilter = '';       // '' = all, '__none' = uncategorized, else category id
+        let actGroupBy = 'category';
+        try { actGroupBy = localStorage.getItem('gebllActGroupBy') || 'category'; } catch (e) {}
+        const ACT_CAT_COLORS = ['#2563eb', '#0ca678', '#f59f00', '#e8590c', '#e03131', '#c2255c', '#7048e8', '#1098ad', '#5c940d', '#868e96'];
+        let newCategoryColor = ACT_CAT_COLORS[0];
         const actExpanded = new Set();
         const ACT_WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -4214,15 +4401,48 @@
             return n + (s[(v - 20) % 10] || s[v] || s[0]);
         }
 
-        // Works out which period (day / week / month) the viewed date falls into for this activity.
-        function actPeriod(act, viewDate) {
-            if (act.frequency === 'weekly') {
-                const monday = startOfWeek(viewDate);
-                const wd = Number(act.weekday ?? 1);
-                const due = new Date(monday);
-                due.setDate(monday.getDate() + ((wd + 6) % 7));
-                return { key: 'W' + toDateKey(monday), due, label: `Every ${ACT_WEEKDAYS[wd]}` };
+        const ACT_DAY_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+        // ISO 8601 week number (weeks start Monday; week 1 contains the first Thursday).
+        function actIsoWeek(date) {
+            const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+            const day = d.getUTCDay() || 7;
+            d.setUTCDate(d.getUTCDate() + 4 - day);
+            const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+            return Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
+        }
+
+        // Activities saved in v-0.61 have a single 'weekday'; newer ones have 'weekdays'.
+        function actWeekdays(act) {
+            if (Array.isArray(act.weekdays) && act.weekdays.length) return act.weekdays.map(Number);
+            if (act.weekday != null) return [Number(act.weekday)];
+            return [1];
+        }
+
+        function actDaysLabel(days) {
+            const order = [1, 2, 3, 4, 5, 6, 0];
+            const sorted = order.filter(d => days.includes(d));
+            if (sorted.length === 7) return 'Every day';
+            if (sorted.length === 5 && [1, 2, 3, 4, 5].every(d => sorted.includes(d))) return 'Mon–Fri';
+            return sorted.map(d => ACT_DAY_SHORT[d]).join(', ');
+        }
+
+        // Does this activity have an occurrence on (or covering) the given date?
+        function actOccursOn(act, date) {
+            const f = act.frequency || 'daily';
+            if (f === 'weekly' || f === 'biweekly') {
+                if (!actWeekdays(act).includes(date.getDay())) return false;
+                if (f === 'biweekly') {
+                    const odd = actIsoWeek(date) % 2 === 1;
+                    return (act.weekParity === 'even') ? !odd : odd;
+                }
             }
+            return true;
+        }
+
+        // Works out which period the viewed date falls into for this activity.
+        // Daily / weekly / every-2-weeks: one occurrence per scheduled day. Monthly: one per month.
+        function actPeriod(act, viewDate) {
             if (act.frequency === 'monthly') {
                 const y = viewDate.getFullYear();
                 const m = viewDate.getMonth();
@@ -4237,7 +4457,10 @@
             }
             const d = new Date(viewDate);
             d.setHours(0, 0, 0, 0);
-            return { key: toDateKey(d), due: d, label: 'Every day' };
+            let label = 'Every day';
+            if (act.frequency === 'weekly') label = actDaysLabel(actWeekdays(act));
+            if (act.frequency === 'biweekly') label = `${act.weekParity === 'even' ? 'Even' : 'Odd'} weeks · ${actDaysLabel(actWeekdays(act))}`;
+            return { key: toDateKey(d), due: d, label };
         }
 
         function actRunId(act, period) {
@@ -4271,7 +4494,7 @@
             const todayKey = actTodayKey();
             const dueKey = toDateKey(period.due);
             const dueTxt = period.due.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
-            if (act.frequency === 'daily') return { text: '', overdue: status !== 'done' && dueKey < todayKey };
+            if (act.frequency !== 'monthly') return { text: '', overdue: status !== 'done' && dueKey < todayKey };
             if (status === 'done') return { text: `Due ${dueTxt}`, overdue: false };
             if (dueKey < todayKey) return { text: `Overdue · was due ${dueTxt}`, overdue: true };
             if (dueKey === todayKey) return { text: 'Due today', overdue: false, today: true };
@@ -4299,7 +4522,12 @@
             const viewDate = actViewDate();
             const manager = canManageActivities();
 
-            const items = state.activities.map(act => {
+            renderActivityCategoryControls();
+            const inCategory = state.activities.filter(actMatchesCategoryFilter);
+            const scheduled = inCategory.filter(act => actOccursOn(act, viewDate));
+            const offDayCount = inCategory.length - scheduled.length;
+
+            const items = scheduled.map(act => {
                 const period = actPeriod(act, viewDate);
                 const run = actGetRun(act, period);
                 const status = actStatus(run);
@@ -4321,31 +4549,53 @@
                 list.innerHTML = `
                     <div class="empty-state">
                         <i class="fas fa-list-check"></i>
-                        <p>${manager ? 'No activities yet. Tap + to create the first one.' : 'No activities yet.'}</p>
+                        <p>${inCategory.length
+                            ? 'Nothing scheduled for this day.'
+                            : state.activities.length ? 'No activities in this category.'
+                            : (manager ? 'No activities yet. Tap + to create the first one.' : 'No activities yet.')}</p>
                     </div>`;
                 return;
             }
 
             const filtered = items.filter(i => actFilter === 'all' || i.status === actFilter);
             const rank = i => i.status === 'done' ? 3 : i.status === 'paused' ? 2 : i.due.overdue ? 0 : 1;
-            const groups = [
-                { key: 'daily', title: 'Daily', icon: 'fa-repeat' },
-                { key: 'weekly', title: 'Weekly', icon: 'fa-calendar-week' },
-                { key: 'monthly', title: 'Monthly', icon: 'fa-calendar-days' }
-            ];
+            let groups;
+            if (actGroupBy === 'category') {
+                groups = actSortedCategories().map(c => ({
+                    match: i => i.act.categoryId === c.id,
+                    head: `<span class="act-dot" style="background:${actEsc(c.color)}"></span> ${actEsc(c.name)}`
+                }));
+                groups.push({
+                    match: i => !actCategoryById(i.act.categoryId),
+                    head: `<span class="act-dot" style="background:#ced4da"></span> Uncategorized`
+                });
+            } else {
+                groups = [
+                    { key: 'daily', title: 'Daily', icon: 'fa-repeat' },
+                    { key: 'weekly', title: 'Weekly', icon: 'fa-calendar-week' },
+                    { key: 'biweekly', title: 'Every 2 weeks', icon: 'fa-calendar-week' },
+                    { key: 'monthly', title: 'Monthly', icon: 'fa-calendar-days' }
+                ].map(g => ({
+                    match: i => (i.act.frequency || 'daily') === g.key,
+                    head: `<i class="fas ${g.icon}"></i> ${g.title}`
+                }));
+            }
 
             let html = '';
             groups.forEach(g => {
-                const rows = filtered.filter(i => (i.act.frequency || 'daily') === g.key)
+                const rows = filtered.filter(g.match)
                     .sort((a, b) => rank(a) - rank(b) || a.period.due - b.period.due || a.act.name.localeCompare(b.act.name));
                 if (rows.length === 0) return;
-                const done = items.filter(i => (i.act.frequency || 'daily') === g.key && i.status === 'done').length;
-                const total = items.filter(i => (i.act.frequency || 'daily') === g.key).length;
-                html += `<div class="act-group-title"><i class="fas ${g.icon}"></i> ${g.title} <span style="font-weight:600;">· ${done}/${total}</span></div>`;
+                const done = items.filter(i => g.match(i) && i.status === 'done').length;
+                const total = items.filter(g.match).length;
+                html += `<div class="act-group-title">${g.head} <span style="font-weight:600;">· ${done}/${total}</span></div>`;
                 html += rows.map(i => renderActivityCard(i, manager)).join('');
             });
 
             if (!html) html = `<div class="empty-state"><i class="fas fa-filter"></i><p>Nothing in this filter.</p></div>`;
+            if (offDayCount > 0) {
+                html += `<div class="act-offday-note">${offDayCount} other ${offDayCount === 1 ? 'activity is' : 'activities are'} not scheduled for this day.</div>`;
+            }
             list.innerHTML = html;
 
             Object.entries(drafts).forEach(([id, val]) => { const el = document.getElementById(id); if (el) el.value = val; });
@@ -4367,11 +4617,15 @@
 
             const comments = (run && run.comments) || [];
             const metaBits = [];
+            const cat = actCategoryById(act.categoryId);
+            if (cat && actGroupBy !== 'category') {
+                metaBits.push(`<span class="act-cat-chip"><span class="act-dot" style="background:${actEsc(cat.color)}"></span>${actEsc(cat.name)}</span>`);
+            }
             metaBits.push(`<span class="${freqBadgeClass}">${actEsc(period.label)}</span>`);
             if (status === 'paused') metaBits.push(`<span class="badge act-badge-paused">Paused</span>`);
-            if (due.overdue) metaBits.push(`<span class="badge act-badge-overdue">${act.frequency === 'daily' ? 'Not done' : 'Overdue'}</span>`);
+            if (due.overdue) metaBits.push(`<span class="badge act-badge-overdue">${act.frequency !== 'monthly' ? 'Not done' : 'Overdue'}</span>`);
             if (due.text && !due.overdue) metaBits.push(`<span>${actEsc(due.text)}</span>`);
-            if (due.text && due.overdue && act.frequency !== 'daily') metaBits.push(`<span>${actEsc(due.text.replace('Overdue · ', ''))}</span>`);
+            if (due.text && due.overdue && act.frequency === 'monthly') metaBits.push(`<span>${actEsc(due.text.replace('Overdue · ', ''))}</span>`);
             if (comments.length) metaBits.push(`<span><i class="fas fa-comment"></i> ${comments.length}</span>`);
 
             const progressHtml = prog ? `
@@ -4585,11 +4839,209 @@
             }
         }
 
+        // ---------- Categories ----------
+
+        function actSortedCategories() {
+            return [...state.activityCategories].sort((a, b) =>
+                (a.order ?? 0) - (b.order ?? 0) || (a.name || '').localeCompare(b.name || ''));
+        }
+
+        function actCategoryById(id) {
+            return id ? state.activityCategories.find(c => c.id === id) || null : null;
+        }
+
+        function actMatchesCategoryFilter(act) {
+            if (!actCategoryFilter) return true;
+            if (actCategoryFilter === '__none') return !actCategoryById(act.categoryId);
+            return act.categoryId === actCategoryFilter;
+        }
+
+        function renderActivityCategoryControls() {
+            document.querySelectorAll('#actGroupSeg button').forEach(b =>
+                b.classList.toggle('active', b.getAttribute('data-group') === actGroupBy));
+            const sel = document.getElementById('actCategoryFilter');
+            if (sel) {
+                if (actCategoryFilter && actCategoryFilter !== '__none' && !actCategoryById(actCategoryFilter)) actCategoryFilter = '';
+                sel.innerHTML = `<option value="">All categories</option>` +
+                    actSortedCategories().map(c => `<option value="${c.id}">${actEsc(c.name)}</option>`).join('') +
+                    `<option value="__none">Uncategorized</option>`;
+                sel.value = actCategoryFilter;
+            }
+            const manageBtn = document.getElementById('actManageCatsBtn');
+            if (manageBtn) manageBtn.classList.toggle('app-hidden', !canManageActivities());
+        }
+
+        function setActivitiesGroupBy(g) {
+            actGroupBy = g;
+            try { localStorage.setItem('gebllActGroupBy', g); } catch (e) {}
+            renderActivities();
+        }
+
+        function setActivitiesCategoryFilter(v) {
+            actCategoryFilter = v;
+            renderActivities();
+        }
+
+        function fillActivityCategorySelect(selectedId) {
+            const sel = document.getElementById('actCategory');
+            sel.innerHTML = `<option value="">No category</option>` +
+                actSortedCategories().map(c => `<option value="${c.id}">${actEsc(c.name)}</option>`).join('');
+            sel.value = actCategoryById(selectedId) ? selectedId : '';
+        }
+
+        function actNextCategoryColor() {
+            const used = state.activityCategories.map(c => c.color);
+            return ACT_CAT_COLORS.find(c => !used.includes(c)) || ACT_CAT_COLORS[state.activityCategories.length % ACT_CAT_COLORS.length];
+        }
+
+        async function createActivityCategory(name, color) {
+            name = (name || '').trim();
+            if (!name) return null;
+            const existing = state.activityCategories.find(c => (c.name || '').toLowerCase() === name.toLowerCase());
+            if (existing) { alert('A category with that name already exists'); return null; }
+            const maxOrder = state.activityCategories.reduce((m, c) => Math.max(m, c.order ?? 0), -1);
+            const ref = await fns.addDoc(fns.collection(db, 'activityCategories'), {
+                name,
+                color: color || actNextCategoryColor(),
+                order: maxOrder + 1,
+                createdAt: new Date().toISOString()
+            });
+            logAction('Activity category created', name);
+            return ref.id;
+        }
+
+        // "+ New" next to the category select in the activity form.
+        async function quickAddActivityCategory() {
+            if (!canManageActivities()) return;
+            const name = prompt('New category name:', '');
+            if (!name || !name.trim()) return;
+            try {
+                const id = await createActivityCategory(name);
+                if (!id) return;
+                if (!actCategoryById(id)) state.activityCategories.push({ id, name: name.trim(), color: '#868e96', order: 999 });
+                fillActivityCategorySelect(id);
+            } catch (err) {
+                alert('Could not create category: ' + (err.message || err));
+            }
+        }
+
+        function renderNewCategoryColors() {
+            const wrap = document.getElementById('newCategoryColors');
+            if (!wrap) return;
+            wrap.innerHTML = ACT_CAT_COLORS.map(c => `
+                <button type="button" class="act-color ${c === newCategoryColor ? 'selected' : ''}" style="background:${c}"
+                    onclick="newCategoryColor='${c}'; renderNewCategoryColors();"></button>`).join('');
+        }
+
+        function openCategoriesModal() {
+            if (!canManageActivities()) return;
+            newCategoryColor = actNextCategoryColor();
+            document.getElementById('newCategoryName').value = '';
+            renderNewCategoryColors();
+            renderCategoriesList();
+            document.getElementById('categoriesModalOverlay').classList.add('active');
+        }
+
+        function closeCategoriesModal() {
+            document.getElementById('categoriesModalOverlay').classList.remove('active');
+        }
+
+        async function addActivityCategory() {
+            const input = document.getElementById('newCategoryName');
+            try {
+                const id = await createActivityCategory(input.value, newCategoryColor);
+                if (!id) return;
+                input.value = '';
+                const usedNow = [...state.activityCategories.map(c => c.color), newCategoryColor];
+                newCategoryColor = ACT_CAT_COLORS.find(c => !usedNow.includes(c)) || ACT_CAT_COLORS[usedNow.length % ACT_CAT_COLORS.length];
+                renderNewCategoryColors();
+            } catch (err) {
+                alert('Could not create category: ' + (err.message || err));
+            }
+        }
+
+        function renderCategoriesList() {
+            const list = document.getElementById('categoryList');
+            if (!list) return;
+            const cats = actSortedCategories();
+            if (cats.length === 0) {
+                list.innerHTML = `<p style="font-size:13px; color:#999;">No categories yet.</p>`;
+                return;
+            }
+            list.innerHTML = cats.map((c, idx) => {
+                const count = state.activities.filter(a => a.categoryId === c.id).length;
+                return `
+                    <div class="act-cat-row">
+                        <button type="button" class="act-color" style="background:${actEsc(c.color)}" title="Change colour"
+                            onclick="cycleActivityCategoryColor('${c.id}')"></button>
+                        <div class="name">${actEsc(c.name)} <div class="count">${count} ${count === 1 ? 'activity' : 'activities'}</div></div>
+                        <button onclick="moveActivityCategory('${c.id}', -1)" ${idx === 0 ? 'disabled style="opacity:.3"' : ''} title="Move up"><i class="fas fa-arrow-up"></i></button>
+                        <button onclick="moveActivityCategory('${c.id}', 1)" ${idx === cats.length - 1 ? 'disabled style="opacity:.3"' : ''} title="Move down"><i class="fas fa-arrow-down"></i></button>
+                        <button onclick="renameActivityCategory('${c.id}')" title="Rename"><i class="fas fa-pen"></i></button>
+                        <button onclick="deleteActivityCategory('${c.id}')" title="Delete" style="color:#ff6b6b;"><i class="fas fa-trash"></i></button>
+                    </div>`;
+            }).join('');
+        }
+
+        async function cycleActivityCategoryColor(id) {
+            const c = actCategoryById(id);
+            if (!c) return;
+            const next = ACT_CAT_COLORS[(ACT_CAT_COLORS.indexOf(c.color) + 1) % ACT_CAT_COLORS.length];
+            await fns.updateDoc(fns.doc(db, 'activityCategories', id), { color: next });
+        }
+
+        async function renameActivityCategory(id) {
+            const c = actCategoryById(id);
+            if (!c) return;
+            const name = prompt('Rename category:', c.name);
+            if (!name || !name.trim() || name.trim() === c.name) return;
+            if (state.activityCategories.some(x => x.id !== id && (x.name || '').toLowerCase() === name.trim().toLowerCase())) {
+                alert('A category with that name already exists');
+                return;
+            }
+            await fns.updateDoc(fns.doc(db, 'activityCategories', id), { name: name.trim() });
+            logAction('Activity category renamed', `${c.name} → ${name.trim()}`);
+        }
+
+        async function moveActivityCategory(id, dir) {
+            const cats = actSortedCategories();
+            const idx = cats.findIndex(c => c.id === id);
+            const target = cats[idx + dir];
+            if (idx === -1 || !target) return;
+            const batch = fns.writeBatch(db);
+            cats.forEach((c, i) => {
+                let order = i;
+                if (i === idx) order = idx + dir;
+                else if (i === idx + dir) order = idx;
+                if ((c.order ?? -1) !== order) batch.update(fns.doc(db, 'activityCategories', c.id), { order });
+            });
+            await batch.commit();
+        }
+
+        async function deleteActivityCategory(id) {
+            const c = actCategoryById(id);
+            if (!c) return;
+            const used = state.activities.filter(a => a.categoryId === id);
+            const msg = used.length
+                ? `Delete "${c.name}"? Its ${used.length} ${used.length === 1 ? 'activity' : 'activities'} will become Uncategorized (not deleted).`
+                : `Delete "${c.name}"?`;
+            if (!confirm(msg)) return;
+            const batch = fns.writeBatch(db);
+            used.forEach(a => batch.update(fns.doc(db, 'activities', a.id), { categoryId: null }));
+            batch.delete(fns.doc(db, 'activityCategories', id));
+            await batch.commit();
+            if (actCategoryFilter === id) actCategoryFilter = '';
+            logAction('Activity category deleted', c.name);
+        }
+
         // ---------- Create / edit / delete ----------
 
         function updateActivityFrequencyFields() {
             const f = document.getElementById('actFrequency').value;
-            document.getElementById('actWeeklyWrap').classList.toggle('app-hidden', f !== 'weekly');
+            document.getElementById('actWeeklyWrap').classList.toggle('app-hidden', f !== 'weekly' && f !== 'biweekly');
+            document.getElementById('actParityWrap').classList.toggle('app-hidden', f !== 'biweekly');
+            const wk = actIsoWeek(new Date());
+            document.getElementById('actParityHint').textContent = `This week is week ${wk} (${wk % 2 === 1 ? 'odd' : 'even'}).`;
             document.getElementById('actMonthlyWrap').classList.toggle('app-hidden', f !== 'monthly');
         }
 
@@ -4624,8 +5076,11 @@
             document.getElementById('activitySaveLabel').textContent = act ? 'Save Changes' : 'Create Activity';
             document.getElementById('actName').value = act ? act.name : '';
             document.getElementById('actDesc').value = act ? (act.desc || '') : '';
+            fillActivityCategorySelect(act ? (act.categoryId || '') : (actCategoryFilter && actCategoryFilter !== '__none' ? actCategoryFilter : ''));
             document.getElementById('actFrequency').value = act ? (act.frequency || 'daily') : 'daily';
-            document.getElementById('actWeekday').value = act && act.weekday != null ? String(act.weekday) : '1';
+            const days = act ? actWeekdays(act) : [];
+            document.querySelectorAll('#actWeekdays input').forEach(cb => { cb.checked = days.includes(Number(cb.value)); });
+            document.getElementById('actWeekParity').value = act && act.weekParity === 'even' ? 'even' : 'odd';
             document.getElementById('actMonthlyMode').value = act && act.monthlyMode ? act.monthlyMode : 'on';
             document.getElementById('actMonthDay').value = act && act.monthDay ? act.monthDay : 1;
             document.getElementById('actStepsEditor').innerHTML = '';
@@ -4647,12 +5102,18 @@
             const editId = document.getElementById('actEditId').value;
             const name = document.getElementById('actName').value.trim();
             const desc = document.getElementById('actDesc').value.trim();
+            const categoryId = document.getElementById('actCategory').value || null;
             const frequency = document.getElementById('actFrequency').value;
-            const weekday = parseInt(document.getElementById('actWeekday').value, 10);
+            const weekdays = Array.from(document.querySelectorAll('#actWeekdays input:checked')).map(cb => Number(cb.value));
+            const weekParity = document.getElementById('actWeekParity').value;
             const monthlyMode = document.getElementById('actMonthlyMode').value;
             const monthDay = parseInt(document.getElementById('actMonthDay').value, 10);
 
             if (!name) { alert('Please enter an activity name'); return; }
+            if ((frequency === 'weekly' || frequency === 'biweekly') && weekdays.length === 0) {
+                alert('Please tick at least one day of the week');
+                return;
+            }
             if (frequency === 'monthly' && (!monthDay || monthDay < 1 || monthDay > 31)) {
                 alert('Day of the month must be between 1 and 31');
                 return;
@@ -4665,8 +5126,11 @@
             const data = {
                 name,
                 desc,
+                categoryId,
                 frequency,
-                weekday: frequency === 'weekly' ? weekday : null,
+                weekdays: (frequency === 'weekly' || frequency === 'biweekly') ? weekdays : null,
+                weekday: null,
+                weekParity: frequency === 'biweekly' ? weekParity : null,
                 monthlyMode: frequency === 'monthly' ? monthlyMode : null,
                 monthDay: frequency === 'monthly' ? monthDay : null,
                 steps,
