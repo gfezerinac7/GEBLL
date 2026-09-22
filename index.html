@@ -10,7 +10,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
-        import { getFirestore, collection, onSnapshot, addDoc, deleteDoc, doc, updateDoc, setDoc, getDoc, writeBatch, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+        import { getFirestore, collection, onSnapshot, addDoc, deleteDoc, doc, updateDoc, setDoc, getDoc, writeBatch, query, where, getDocs, arrayUnion } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
         import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword, sendPasswordResetEmail, updatePassword } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
         import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-messaging.js";
 
@@ -33,7 +33,7 @@
         const secondaryAuth = getAuth(secondaryApp);
 
         window.firebaseDB = db;
-        window.firebaseFns = { collection, onSnapshot, addDoc, deleteDoc, doc, updateDoc, setDoc, getDoc, writeBatch, query, where, getDocs };
+        window.firebaseFns = { collection, onSnapshot, addDoc, deleteDoc, doc, updateDoc, setDoc, getDoc, writeBatch, query, where, getDocs, arrayUnion };
         window.firebaseAuth = auth;
         window.firebaseAuthFns = { signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword, sendPasswordResetEmail, updatePassword };
         window.firebaseSecondaryAuth = secondaryAuth;
@@ -1600,6 +1600,252 @@
             color: #999;
         }
 
+        /* ===== ADMIN. ACTIVITIES ===== */
+        .act-toolbar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+        }
+        .act-toolbar input[type="date"] {
+            flex: 1;
+            min-width: 140px;
+            padding: 9px 10px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        .act-nav-btn, .act-today-btn {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 9px 12px;
+            cursor: pointer;
+            color: #2563eb;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        .act-filters {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 14px;
+            flex-wrap: wrap;
+        }
+        .act-filter {
+            background: #f3f4f6;
+            border: 1px solid transparent;
+            border-radius: 20px;
+            padding: 6px 14px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #555;
+            cursor: pointer;
+        }
+        .act-filter.active {
+            background: #e7efff;
+            border-color: #2563eb;
+            color: #2563eb;
+        }
+        .act-summary {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+        .act-summary-item {
+            flex: 1;
+            min-width: 90px;
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 10px;
+            padding: 10px 12px;
+        }
+        .act-summary-item .num {
+            font-size: 20px;
+            font-weight: 700;
+            color: #333;
+        }
+        .act-summary-item .lbl {
+            font-size: 12px;
+            color: #888;
+        }
+        .act-group-title {
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: #888;
+            margin: 18px 0 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .act-card {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-left: 4px solid #cbd5e1;
+            border-radius: 12px;
+            padding: 14px 14px 12px;
+            margin-bottom: 10px;
+        }
+        .act-card.status-done { border-left-color: #40c057; background: #f6fbf7; }
+        .act-card.status-paused { border-left-color: #f59f00; background: #fffaf0; }
+        .act-card.overdue { border-left-color: #ff6b6b; }
+        .act-head {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+        }
+        .act-check {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            border: 2px solid #cbd5e1;
+            background: white;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            flex-shrink: 0;
+            font-size: 14px;
+        }
+        .act-check.done {
+            background: #40c057;
+            border-color: #40c057;
+        }
+        .act-main { flex: 1; min-width: 0; cursor: pointer; }
+        .act-name {
+            font-weight: 600;
+            font-size: 15px;
+            color: #333;
+            word-break: break-word;
+        }
+        .status-done .act-name { color: #6b7280; text-decoration: line-through; }
+        .act-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 6px;
+            font-size: 12px;
+            color: #666;
+            align-items: center;
+        }
+        .act-badge-paused { background: #fff3bf; color: #b08600; }
+        .act-badge-overdue { background: #ffe0e0; color: #c92a2a; }
+        .act-badge-done { background: #d3f9d8; color: #2f7e1f; }
+        .act-expand {
+            background: none;
+            border: none;
+            color: #999;
+            cursor: pointer;
+            padding: 4px 6px;
+            font-size: 14px;
+        }
+        .act-progress {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 10px;
+            font-size: 12px;
+            color: #666;
+        }
+        .act-progress .progress-bar { flex: 1; margin: 0; height: 6px; }
+        .act-by {
+            font-size: 12px;
+            color: #2f7e1f;
+            margin-top: 8px;
+        }
+        .act-by.paused { color: #b08600; }
+        .act-details {
+            margin-top: 12px;
+            border-top: 1px solid #eee;
+            padding-top: 12px;
+        }
+        .act-desc { color: #666; font-size: 13px; margin-bottom: 10px; white-space: pre-wrap; }
+        .act-sub-title {
+            font-size: 12px;
+            font-weight: 700;
+            color: #888;
+            text-transform: uppercase;
+            margin: 10px 0 6px;
+        }
+        .act-step {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 8px 10px;
+            background: #f9f9f9;
+            border-radius: 8px;
+            margin-bottom: 6px;
+            font-size: 14px;
+        }
+        .act-step input { margin-top: 2px; flex-shrink: 0; }
+        .act-step .txt { flex: 1; word-break: break-word; }
+        .act-step.done .lbl { text-decoration: line-through; color: #999; }
+        .act-step .who { display: block; font-size: 11px; color: #888; text-decoration: none; margin-top: 2px; }
+        .act-comment {
+            background: #f3f6fb;
+            border-radius: 8px;
+            padding: 8px 10px;
+            margin-bottom: 6px;
+            font-size: 13px;
+        }
+        .act-comment .who { font-size: 11px; color: #888; margin-bottom: 2px; }
+        .act-comment .txt { white-space: pre-wrap; word-break: break-word; }
+        .act-comment-form {
+            display: flex;
+            gap: 6px;
+            margin-top: 6px;
+        }
+        .act-comment-form input {
+            flex: 1;
+            min-width: 0;
+            padding: 9px 10px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        .act-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 12px;
+        }
+        .act-actions .btn { padding: 7px 12px; font-size: 13px; }
+        .btn-warning { background: #f59f00; }
+        .btn-warning:hover { background: #e08e00; }
+        .act-step-row {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+        .act-step-row .num {
+            width: 22px;
+            font-size: 12px;
+            color: #888;
+            text-align: right;
+            flex-shrink: 0;
+        }
+        .act-step-row input {
+            flex: 1;
+            min-width: 0;
+            padding: 9px 10px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        .act-step-row button {
+            background: none;
+            border: none;
+            color: #999;
+            cursor: pointer;
+            padding: 6px;
+        }
+        .act-hint { font-size: 12px; color: #888; margin: -6px 0 12px; }
+
         @media (max-width: 600px) {
             .form-row {
                 grid-template-columns: 1fr;
@@ -1724,11 +1970,7 @@
             </button>
             <button class="tab-btn" data-module="tasks" onclick="switchTab('tasks')">
                 <i class="fas fa-list-check"></i>
-                Tasks
-            </button>
-            <button class="tab-btn" data-module="projects" onclick="switchTab('projects')">
-                <i class="fas fa-folder"></i>
-                Projects
+                Admin. Activities
             </button>
             <button class="tab-btn" data-module="management" onclick="switchTab('management')">
                 <i class="fas fa-briefcase"></i>
@@ -1769,153 +2011,92 @@
             </button>
         </div>
 
-        <!-- TAB TAREAS -->
+        <!-- TAB ADMIN. ACTIVITIES (replaces Tasks + Projects) -->
         <div id="tasks" class="content">
-            <div class="section-title">
-                <i class="fas fa-tasks"></i>
-                Active Tasks
+            <div class="act-toolbar">
+                <button class="act-nav-btn" onclick="shiftActivitiesDate(-1)" title="Previous day"><i class="fas fa-chevron-left"></i></button>
+                <input type="date" id="actViewDate" onchange="setActivitiesDate(this.value)">
+                <button class="act-nav-btn" onclick="shiftActivitiesDate(1)" title="Next day"><i class="fas fa-chevron-right"></i></button>
+                <button class="act-today-btn" onclick="setActivitiesDate('')">Today</button>
             </div>
-            <div id="taskList"></div>
+            <div class="act-filters" id="actFilters">
+                <button class="act-filter active" data-filter="all" onclick="setActivitiesFilter('all')">All</button>
+                <button class="act-filter" data-filter="pending" onclick="setActivitiesFilter('pending')">Pending</button>
+                <button class="act-filter" data-filter="paused" onclick="setActivitiesFilter('paused')">Paused</button>
+                <button class="act-filter" data-filter="done" onclick="setActivitiesFilter('done')">Completed</button>
+            </div>
+            <div id="actSummary"></div>
+            <div id="activityList"></div>
         </div>
 
-        <button class="fab app-hidden" id="taskFab" onclick="openTaskModal()" title="Add task">
+        <button class="fab app-hidden" id="taskFab" onclick="openActivityModal()" title="New activity">
             <i class="fas fa-plus"></i>
         </button>
 
-        <div id="taskModalOverlay" class="modal-overlay" onclick="closeTaskModalOutside(event)">
+        <div id="activityModalOverlay" class="modal-overlay" onclick="closeActivityModalOutside(event)">
             <div class="modal-box">
                 <div class="modal-header">
                     <div class="section-title" style="margin-bottom:0;">
                         <i class="fas fa-plus-circle"></i>
-                        New Task
+                        <span id="activityModalTitle">New Activity</span>
                     </div>
-                    <button class="modal-close" onclick="closeTaskModal()"><i class="fas fa-times"></i></button>
+                    <button class="modal-close" onclick="closeActivityModal()"><i class="fas fa-times"></i></button>
                 </div>
+                <input type="hidden" id="actEditId">
                 <div class="form-group">
-                    <label>Task Name</label>
-                    <input type="text" id="taskName" placeholder="Ex: Review client proposal">
-                </div>
-                <div class="form-group">
-                    <label>Description</label>
-                    <textarea id="taskDesc" placeholder="Additional details..." rows="2"></textarea>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Recurrence Type</label>
-                        <select id="taskRecurrence">
-                            <option value="once">Once</option>
-                            <option value="daily">Daily</option>
-                            <option value="weekly">Weekly</option>
-                            <option value="monthly">Monthly</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Due Date</label>
-                        <input type="date" id="taskDate">
-                    </div>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Priority</label>
-                        <select id="taskPriority">
-                            <option value="low">Low</option>
-                            <option value="medium" selected>Medium</option>
-                            <option value="high">High</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Assign To</label>
-                        <select id="taskAssignee">
-                            <option value="">Unassigned</option>
-                        </select>
-                    </div>
-                </div>
-                <button class="btn" style="width:100%; justify-content:center;" onclick="addTask()">
-                    <i class="fas fa-check"></i>
-                    Add Task
-                </button>
-            </div>
-        </div>
-
-        <!-- TAB PROYECTOS -->
-        <div id="projects" class="content">
-            <div class="form-section">
-                <div class="section-title">
-                    <i class="fas fa-plus-circle"></i>
-                    New Project
-                </div>
-                <div class="form-group">
-                    <label>Project Name</label>
-                    <input type="text" id="projectName" placeholder="Ex: Website redesign">
+                    <label>Activity Name</label>
+                    <input type="text" id="actName" placeholder="Ex: Cash count and closing report">
                 </div>
                 <div class="form-group">
                     <label>Description</label>
-                    <textarea id="projectDesc" placeholder="Goals and details..." rows="2"></textarea>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Start Date</label>
-                        <input type="date" id="projectStart">
-                    </div>
-                    <div class="form-group">
-                        <label>End Date</label>
-                        <input type="date" id="projectEnd">
-                    </div>
-                </div>
-                <button class="btn" onclick="addProject()">
-                    <i class="fas fa-plus"></i>
-                    Create Project
-                </button>
-            </div>
-
-            <div class="section-title">
-                <i class="fas fa-folder-open"></i>
-                Projects in Progress
-            </div>
-            <div id="projectList"></div>
-        </div>
-
-        <div id="projectTaskModalOverlay" class="modal-overlay" onclick="closeProjectTaskModalOutside(event)">
-            <div class="modal-box">
-                <div class="modal-header">
-                    <div class="section-title" style="margin-bottom:0;">
-                        <i class="fas fa-plus-circle"></i>
-                        New Project Task
-                    </div>
-                    <button class="modal-close" onclick="closeProjectTaskModal()"><i class="fas fa-times"></i></button>
+                    <textarea id="actDesc" placeholder="Additional details..." rows="2"></textarea>
                 </div>
                 <div class="form-group">
-                    <label>Task Name</label>
-                    <input type="text" id="ptaskName" placeholder="Ex: Design homepage mockup">
-                </div>
-                <div class="form-group">
-                    <label>Description</label>
-                    <textarea id="ptaskDesc" placeholder="Additional details..." rows="2"></textarea>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Due Date</label>
-                        <input type="date" id="ptaskDate">
-                    </div>
-                    <div class="form-group">
-                        <label>Priority</label>
-                        <select id="ptaskPriority">
-                            <option value="low">Low</option>
-                            <option value="medium" selected>Medium</option>
-                            <option value="high">High</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label>Assign To (Lead / Admin only)</label>
-                    <select id="ptaskAssignee">
-                        <option value="">Unassigned</option>
+                    <label>Frequency</label>
+                    <select id="actFrequency" onchange="updateActivityFrequencyFields()">
+                        <option value="daily">Daily</option>
+                        <option value="weekly">Weekly</option>
+                        <option value="monthly">Monthly</option>
                     </select>
                 </div>
-                <input type="hidden" id="ptaskProjectId">
-                <button class="btn" style="width:100%; justify-content:center;" onclick="addProjectTask()">
+                <div class="form-group app-hidden" id="actWeeklyWrap">
+                    <label>Day of the week</label>
+                    <select id="actWeekday">
+                        <option value="1">Monday</option>
+                        <option value="2">Tuesday</option>
+                        <option value="3">Wednesday</option>
+                        <option value="4">Thursday</option>
+                        <option value="5">Friday</option>
+                        <option value="6">Saturday</option>
+                        <option value="0">Sunday</option>
+                    </select>
+                </div>
+                <div class="app-hidden" id="actMonthlyWrap">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Type</label>
+                            <select id="actMonthlyMode">
+                                <option value="on">On a specific day</option>
+                                <option value="by">Deadline (no later than)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Day of the month</label>
+                            <input type="number" id="actMonthDay" min="1" max="31" value="1">
+                        </div>
+                    </div>
+                    <p class="act-hint">If the month is shorter (e.g. day 31 in April), the last day of the month is used.</p>
+                </div>
+                <div class="form-group">
+                    <label>Steps (optional)</label>
+                    <div id="actStepsEditor"></div>
+                    <button type="button" class="task-add-btn" style="margin-top:6px;" onclick="addActivityStepRow()">
+                        <i class="fas fa-plus"></i> Add step
+                    </button>
+                </div>
+                <button class="btn" style="width:100%; justify-content:center;" onclick="saveActivity()">
                     <i class="fas fa-check"></i>
-                    Add Task to Project
+                    <span id="activitySaveLabel">Create Activity</span>
                 </button>
             </div>
         </div>
@@ -2862,8 +3043,7 @@
                 <div class="form-group">
                     <label>Visible Modules</label>
                     <div class="module-checks" id="newRoleModules">
-                        <label class="module-check"><input type="checkbox" value="tasks"> Tasks</label>
-                        <label class="module-check"><input type="checkbox" value="projects"> Projects</label>
+                        <label class="module-check"><input type="checkbox" value="tasks"> Admin. Activities</label>
                         <label class="module-check"><input type="checkbox" value="team"> Team</label>
                         <label class="module-check"><input type="checkbox" value="locations"> Locations</label>
                         <label class="module-check"><input type="checkbox" value="schedule"> Schedule</label>
@@ -3505,15 +3685,14 @@
             <div id="auditLogList"></div>
         </div>
 
-        <div class="app-version">GEBLL v-0.60</div>
+        <div class="app-version">GEBLL v-0.61</div>
     </div>
 
 
     <script>
         const ADMIN_UID = 'Lx9yqGaSngS6GpidDgNKQQGdm9o2';
         const CORE_MODULES = [
-            { key: 'tasks', label: 'Tasks' },
-            { key: 'projects', label: 'Projects' },
+            { key: 'tasks', label: 'Admin. Activities' },
             { key: 'team', label: 'Team' },
             { key: 'locations', label: 'Locations' },
             { key: 'schedule', label: 'Schedule' },
@@ -3531,8 +3710,8 @@
         ];
 
         const state = {
-            tasks: [],
-            projects: [],
+            activities: [],
+            activityRuns: [],
             team: [],
             roles: [],
             locations: [],
@@ -3674,16 +3853,14 @@
         function startDataSync() {
             unsubscribers.forEach(u => u && u());
 
-            const tasksCol = fns.collection(db, 'tasks');
-            const unsubTasks = fns.onSnapshot(tasksCol, (snapshot) => {
-                state.tasks = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-                renderTasks();
+            const unsubActivities = fns.onSnapshot(fns.collection(db, 'activities'), (snapshot) => {
+                state.activities = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                renderActivities();
             });
 
-            const projectsCol = fns.collection(db, 'projects');
-            const unsubProjects = fns.onSnapshot(projectsCol, (snapshot) => {
-                state.projects = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-                renderProjects();
+            const unsubActivityRuns = fns.onSnapshot(fns.collection(db, 'activityRuns'), (snapshot) => {
+                state.activityRuns = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                renderActivities();
             });
 
             const teamCol = fns.collection(db, 'team');
@@ -3700,8 +3877,8 @@
                 currentMember = state.team.find(m => m.authUid === currentUser.uid) || null;
                 renderTeam();
                 renderLongTermLeaves();
-                populateAssigneeSelects();
                 applyRolePermissions();
+                renderActivities();
                 renderSchedule();
                 updateInboxUnreadBadge();
                 refreshPushButtonState();
@@ -3829,13 +4006,13 @@
                 if (document.getElementById('bonusSettings').classList.contains('active')) loadBonusConfig();
             });
 
-            unsubscribers = [unsubTasks, unsubProjects, unsubTeam, unsubRoles, unsubLocations, unsubShifts, unsubAssignments, unsubSwapRequests, unsubNotifications, unsubVacationRequests, unsubDayOffSwapRequests, unsubResultLines, unsubResultValidations, unsubRescheduleRequests, unsubAuditLog, unsubCurrencies, unsubDiscountCodes, unsubAppConfig, unsubBonusConfigs, unsubLongTermLeaves];
+            unsubscribers = [unsubActivities, unsubActivityRuns, unsubTeam, unsubRoles, unsubLocations, unsubShifts, unsubAssignments, unsubSwapRequests, unsubNotifications, unsubVacationRequests, unsubDayOffSwapRequests, unsubResultLines, unsubResultValidations, unsubRescheduleRequests, unsubAuditLog, unsubCurrencies, unsubDiscountCodes, unsubAppConfig, unsubBonusConfigs, unsubLongTermLeaves];
         }
 
         async function ensureDefaultRoles() {
             const defaults = [
-                { name: 'Admin', modules: ['tasks', 'projects', 'team', 'locations', 'shifts', 'schedule', 'myrota', 'rotas', 'inbox', 'vacation', 'results', 'ccySettings', 'bonusSettings', 'resultsValidation', 'swapHistory', 'auditLog', 'roles'], protected: true },
-                { name: 'Lead', modules: ['tasks', 'projects', 'team', 'locations', 'shifts', 'schedule', 'myrota', 'rotas', 'inbox', 'vacation', 'results', 'management', 'resultsValidation', 'swapHistory'], protected: false },
+                { name: 'Admin', modules: ['tasks', 'team', 'locations', 'shifts', 'schedule', 'myrota', 'rotas', 'inbox', 'vacation', 'results', 'ccySettings', 'bonusSettings', 'resultsValidation', 'swapHistory', 'auditLog', 'roles'], protected: true },
+                { name: 'Lead', modules: ['tasks', 'team', 'locations', 'shifts', 'schedule', 'myrota', 'rotas', 'inbox', 'vacation', 'results', 'management', 'resultsValidation', 'swapHistory'], protected: false },
                 { name: 'Member', modules: ['myrota', 'rotas', 'inbox', 'vacation', 'results'], protected: false }
             ];
             for (const d of defaults) {
@@ -3848,7 +4025,7 @@
 
         function getUserRole() {
             if (currentUser && currentUser.uid === ADMIN_UID) {
-                return { name: 'Admin', modules: ['tasks', 'projects', 'team', 'locations', 'shifts', 'schedule', 'myrota', 'rotas', 'inbox', 'vacation', 'results', 'ccySettings', 'bonusSettings', 'resultsValidation', 'swapHistory', 'auditLog', 'roles'], protected: true };
+                return { name: 'Admin', modules: ['tasks', 'team', 'locations', 'shifts', 'schedule', 'myrota', 'rotas', 'inbox', 'vacation', 'results', 'ccySettings', 'bonusSettings', 'resultsValidation', 'swapHistory', 'auditLog', 'roles'], protected: true };
             }
             if (!currentMember) return { name: 'Member', modules: [] };
             return state.roles.find(r => r.name === currentMember.role) || { name: currentMember.role, modules: [] };
@@ -3868,6 +4045,9 @@
                 let visible;
                 if (mod === 'settings') {
                     visible = isAdmin || SETTINGS_SUBMODULES.some(sm => (role.modules || []).includes(sm));
+                } else if (mod === 'tasks') {
+                    // Roles saved before v-0.61 may only have the old 'projects' module.
+                    visible = isAdmin || (role.modules || []).includes('tasks') || (role.modules || []).includes('projects');
                 } else {
                     visible = isAdmin || (role.modules || []).includes(mod);
                 }
@@ -3903,7 +4083,7 @@
         function updateTaskFabVisibility(tab) {
             const fab = document.getElementById('taskFab');
             if (!fab) return;
-            fab.classList.toggle('app-hidden', tab !== 'tasks');
+            fab.classList.toggle('app-hidden', !(tab === 'tasks' && canManageActivities()));
         }
 
         function switchTabProgrammatic(tab) {
@@ -3925,6 +4105,7 @@
             settingsBar.classList.add('app-hidden');
             document.getElementById(tab).classList.add('active');
 
+            if (tab === 'tasks') renderActivities();
             if (tab === 'myrota') renderMyRota();
             if (tab === 'rotas') { rotasScrollToTodayPending = true; renderRotas(); }
             if (tab === 'inbox') { renderInbox(); markUnreadNotificationsAsRead(); }
@@ -3951,52 +4132,12 @@
             if (sub === 'bonusSettings') initBonusSettings();
         }
 
-        function populateAssigneeSelects() {
-            const taskSelect = document.getElementById('taskAssignee');
-            const projTaskSelect = document.getElementById('ptaskAssignee');
-
-            const allOptions = '<option value="">Unassigned</option>' +
-                state.team.map(m => `<option value="${m.id}">${m.name} (${m.role})</option>`).join('');
-
-            const leadAdminOptions = '<option value="">Unassigned</option>' +
-                state.team.filter(m => m.role === 'Lead' || m.role === 'Admin')
-                    .map(m => `<option value="${m.id}">${m.name} (${m.role})</option>`).join('');
-
-            if (taskSelect) taskSelect.innerHTML = allOptions;
-            if (projTaskSelect) projTaskSelect.innerHTML = leadAdminOptions;
-        }
-
         function populateRoleSelect() {
             const roleSelect = document.getElementById('memberRole');
             if (!roleSelect) return;
             const current = roleSelect.value;
             roleSelect.innerHTML = state.roles.map(r => `<option value="${r.name}">${r.name}</option>`).join('');
             if (current && state.roles.some(r => r.name === current)) roleSelect.value = current;
-        }
-
-        function openTaskModal() {
-            document.getElementById('taskModalOverlay').classList.add('active');
-        }
-
-        function closeTaskModal() {
-            document.getElementById('taskModalOverlay').classList.remove('active');
-        }
-
-        function closeTaskModalOutside(e) {
-            if (e.target.id === 'taskModalOverlay') closeTaskModal();
-        }
-
-        function openProjectTaskModal(projectId) {
-            document.getElementById('ptaskProjectId').value = projectId;
-            document.getElementById('projectTaskModalOverlay').classList.add('active');
-        }
-
-        function closeProjectTaskModal() {
-            document.getElementById('projectTaskModalOverlay').classList.remove('active');
-        }
-
-        function closeProjectTaskModalOutside(e) {
-            if (e.target.id === 'projectTaskModalOverlay') closeProjectTaskModal();
         }
 
         function switchTab(tab) {
@@ -4017,6 +4158,7 @@
             settingsBar.classList.add('app-hidden');
             document.getElementById(tab).classList.add('active');
 
+            if (tab === 'tasks') renderActivities();
             if (tab === 'myrota') renderMyRota();
             if (tab === 'rotas') { rotasScrollToTodayPending = true; renderRotas(); }
             if (tab === 'inbox') { renderInbox(); markUnreadNotificationsAsRead(); }
@@ -4026,148 +4168,551 @@
             if (tab === 'management') initManagement();
         }
 
-        function addTask() {
-            const name = document.getElementById('taskName').value.trim();
-            const desc = document.getElementById('taskDesc').value.trim();
-            const recurrence = document.getElementById('taskRecurrence').value;
-            const date = document.getElementById('taskDate').value;
-            const priority = document.getElementById('taskPriority').value;
-            const assignee = document.getElementById('taskAssignee').value;
+        // ===== ADMIN. ACTIVITIES (v-0.61 — replaces Tasks + Projects) =====
+        // activities/{id}      → definition: name, desc, frequency, weekday, monthlyMode, monthDay, steps[]
+        // activityRuns/{id}    → one doc per activity per period ({activityId}_{periodKey}):
+        //                        status (pending|paused|done), who completed/paused, step checks, comments
+        // Old 'tasks' and 'projects' collections are left untouched in Firestore.
 
-            if (!name) {
-                alert('Please enter a task name');
+        let actViewDateKey = '';          // '' = today
+        let actFilter = 'all';
+        const actExpanded = new Set();
+        const ACT_WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+        function actEsc(s) {
+            return String(s == null ? '' : s)
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        }
+
+        function canManageActivities() {
+            const role = getUserRole();
+            return role.name === 'Admin' || role.name === 'Lead';
+        }
+
+        function actActor() {
+            if (currentMember) return { id: currentMember.id, name: currentMember.name };
+            return { id: currentUser ? currentUser.uid : null, name: currentUser ? currentUser.email : 'Unknown' };
+        }
+
+        function actViewDate() {
+            if (!actViewDateKey) {
+                const d = new Date();
+                d.setHours(0, 0, 0, 0);
+                return d;
+            }
+            return dateKeyToDate(actViewDateKey);
+        }
+
+        function actTodayKey() {
+            return toDateKey(new Date());
+        }
+
+        function actOrdinal(n) {
+            const s = ['th', 'st', 'nd', 'rd'];
+            const v = n % 100;
+            return n + (s[(v - 20) % 10] || s[v] || s[0]);
+        }
+
+        // Works out which period (day / week / month) the viewed date falls into for this activity.
+        function actPeriod(act, viewDate) {
+            if (act.frequency === 'weekly') {
+                const monday = startOfWeek(viewDate);
+                const wd = Number(act.weekday ?? 1);
+                const due = new Date(monday);
+                due.setDate(monday.getDate() + ((wd + 6) % 7));
+                return { key: 'W' + toDateKey(monday), due, label: `Every ${ACT_WEEKDAYS[wd]}` };
+            }
+            if (act.frequency === 'monthly') {
+                const y = viewDate.getFullYear();
+                const m = viewDate.getMonth();
+                const lastDay = new Date(y, m + 1, 0).getDate();
+                const day = Math.min(Math.max(parseInt(act.monthDay, 10) || 1, 1), lastDay);
+                const due = new Date(y, m, day);
+                const mm = String(m + 1).padStart(2, '0');
+                const label = act.monthlyMode === 'by'
+                    ? `No later than the ${actOrdinal(parseInt(act.monthDay, 10) || 1)}`
+                    : `On the ${actOrdinal(parseInt(act.monthDay, 10) || 1)}`;
+                return { key: `M${y}-${mm}`, due, label };
+            }
+            const d = new Date(viewDate);
+            d.setHours(0, 0, 0, 0);
+            return { key: toDateKey(d), due: d, label: 'Every day' };
+        }
+
+        function actRunId(act, period) {
+            return `${act.id}_${period.key}`;
+        }
+
+        function actGetRun(act, period) {
+            const id = actRunId(act, period);
+            return state.activityRuns.find(r => r.id === id) || null;
+        }
+
+        function actStatus(run) {
+            return run && run.status ? run.status : 'pending';
+        }
+
+        function actStepProgress(act, run) {
+            const steps = act.steps || [];
+            if (steps.length === 0) return null;
+            const checks = (run && run.steps) || {};
+            const done = steps.filter(s => checks[s.id]).length;
+            return { done, total: steps.length, pct: Math.round((done / steps.length) * 100) };
+        }
+
+        function actFormatStamp(iso) {
+            if (!iso) return '';
+            const d = new Date(iso);
+            return d.toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+        }
+
+        function actDueInfo(act, period, status) {
+            const todayKey = actTodayKey();
+            const dueKey = toDateKey(period.due);
+            const dueTxt = period.due.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+            if (act.frequency === 'daily') return { text: '', overdue: status !== 'done' && dueKey < todayKey };
+            if (status === 'done') return { text: `Due ${dueTxt}`, overdue: false };
+            if (dueKey < todayKey) return { text: `Overdue · was due ${dueTxt}`, overdue: true };
+            if (dueKey === todayKey) return { text: 'Due today', overdue: false, today: true };
+            return { text: `Due ${dueTxt}`, overdue: false };
+        }
+
+        // ---------- Rendering ----------
+
+        function renderActivities() {
+            const list = document.getElementById('activityList');
+            if (!list) return;
+
+            const dateInput = document.getElementById('actViewDate');
+            if (dateInput) dateInput.value = toDateKey(actViewDate());
+
+            document.querySelectorAll('#actFilters .act-filter').forEach(b =>
+                b.classList.toggle('active', b.getAttribute('data-filter') === actFilter));
+
+            // Keep half-typed comments and focus across live re-renders.
+            const drafts = {};
+            document.querySelectorAll('.act-comment-input').forEach(i => { if (i.value) drafts[i.id] = i.value; });
+            const focusedId = document.activeElement && document.activeElement.classList.contains('act-comment-input')
+                ? document.activeElement.id : null;
+
+            const viewDate = actViewDate();
+            const manager = canManageActivities();
+
+            const items = state.activities.map(act => {
+                const period = actPeriod(act, viewDate);
+                const run = actGetRun(act, period);
+                const status = actStatus(run);
+                const due = actDueInfo(act, period, status);
+                return { act, period, run, status, due };
+            });
+
+            const counts = { all: items.length, pending: 0, paused: 0, done: 0 };
+            items.forEach(i => counts[i.status]++);
+
+            document.getElementById('actSummary').innerHTML = items.length === 0 ? '' : `
+                <div class="act-summary">
+                    <div class="act-summary-item"><div class="num">${counts.done}/${counts.all}</div><div class="lbl">Completed</div></div>
+                    <div class="act-summary-item"><div class="num">${counts.pending}</div><div class="lbl">Pending</div></div>
+                    <div class="act-summary-item"><div class="num">${counts.paused}</div><div class="lbl">Paused</div></div>
+                </div>`;
+
+            if (items.length === 0) {
+                list.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-list-check"></i>
+                        <p>${manager ? 'No activities yet. Tap + to create the first one.' : 'No activities yet.'}</p>
+                    </div>`;
                 return;
             }
 
-            fns.addDoc(fns.collection(db, 'tasks'), {
+            const filtered = items.filter(i => actFilter === 'all' || i.status === actFilter);
+            const rank = i => i.status === 'done' ? 3 : i.status === 'paused' ? 2 : i.due.overdue ? 0 : 1;
+            const groups = [
+                { key: 'daily', title: 'Daily', icon: 'fa-repeat' },
+                { key: 'weekly', title: 'Weekly', icon: 'fa-calendar-week' },
+                { key: 'monthly', title: 'Monthly', icon: 'fa-calendar-days' }
+            ];
+
+            let html = '';
+            groups.forEach(g => {
+                const rows = filtered.filter(i => (i.act.frequency || 'daily') === g.key)
+                    .sort((a, b) => rank(a) - rank(b) || a.period.due - b.period.due || a.act.name.localeCompare(b.act.name));
+                if (rows.length === 0) return;
+                const done = items.filter(i => (i.act.frequency || 'daily') === g.key && i.status === 'done').length;
+                const total = items.filter(i => (i.act.frequency || 'daily') === g.key).length;
+                html += `<div class="act-group-title"><i class="fas ${g.icon}"></i> ${g.title} <span style="font-weight:600;">· ${done}/${total}</span></div>`;
+                html += rows.map(i => renderActivityCard(i, manager)).join('');
+            });
+
+            if (!html) html = `<div class="empty-state"><i class="fas fa-filter"></i><p>Nothing in this filter.</p></div>`;
+            list.innerHTML = html;
+
+            Object.entries(drafts).forEach(([id, val]) => { const el = document.getElementById(id); if (el) el.value = val; });
+            if (focusedId) { const el = document.getElementById(focusedId); if (el) el.focus(); }
+        }
+
+        function renderActivityCard(item, manager) {
+            const { act, period, run, status, due } = item;
+            const expanded = actExpanded.has(act.id);
+            const prog = actStepProgress(act, run);
+            const freqBadgeClass = `badge badge-${act.frequency || 'daily'}`;
+
+            let statusLine = '';
+            if (status === 'done' && run) {
+                statusLine = `<div class="act-by"><i class="fas fa-circle-check"></i> Completed by <strong>${actEsc(run.completedByName)}</strong> · ${actFormatStamp(run.completedAt)}</div>`;
+            } else if (status === 'paused' && run) {
+                statusLine = `<div class="act-by paused"><i class="fas fa-circle-pause"></i> Paused by <strong>${actEsc(run.pausedByName)}</strong> · ${actFormatStamp(run.pausedAt)}</div>`;
+            }
+
+            const comments = (run && run.comments) || [];
+            const metaBits = [];
+            metaBits.push(`<span class="${freqBadgeClass}">${actEsc(period.label)}</span>`);
+            if (status === 'paused') metaBits.push(`<span class="badge act-badge-paused">Paused</span>`);
+            if (due.overdue) metaBits.push(`<span class="badge act-badge-overdue">${act.frequency === 'daily' ? 'Not done' : 'Overdue'}</span>`);
+            if (due.text && !due.overdue) metaBits.push(`<span>${actEsc(due.text)}</span>`);
+            if (due.text && due.overdue && act.frequency !== 'daily') metaBits.push(`<span>${actEsc(due.text.replace('Overdue · ', ''))}</span>`);
+            if (comments.length) metaBits.push(`<span><i class="fas fa-comment"></i> ${comments.length}</span>`);
+
+            const progressHtml = prog ? `
+                <div class="act-progress">
+                    <div class="progress-bar"><div class="progress-fill" style="width:${prog.pct}%"></div></div>
+                    <span>${prog.pct}% · ${prog.done}/${prog.total} steps</span>
+                </div>` : '';
+
+            let detailsHtml = '';
+            if (expanded) {
+                const checks = (run && run.steps) || {};
+                const stepsHtml = (act.steps || []).map((s, idx) => {
+                    const c = checks[s.id];
+                    return `
+                        <label class="act-step ${c ? 'done' : ''}">
+                            <input type="checkbox" ${c ? 'checked' : ''} onchange="toggleActivityStep('${act.id}','${s.id}', this.checked)">
+                            <span class="txt"><span class="lbl">${idx + 1}. ${actEsc(s.text)}</span>
+                                ${c ? `<span class="who">${actEsc(c.byName)} · ${actFormatStamp(c.at)}</span>` : ''}
+                            </span>
+                        </label>`;
+                }).join('');
+
+                const commentsHtml = comments
+                    .slice()
+                    .sort((a, b) => (a.at || '').localeCompare(b.at || ''))
+                    .map(c => `
+                        <div class="act-comment">
+                            <div class="who">${actEsc(c.byName)} · ${actFormatStamp(c.at)}</div>
+                            <div class="txt">${actEsc(c.text)}</div>
+                        </div>`).join('');
+
+                detailsHtml = `
+                    <div class="act-details">
+                        ${act.desc ? `<div class="act-desc">${actEsc(act.desc)}</div>` : ''}
+                        ${(act.steps || []).length ? `<div class="act-sub-title">Steps</div>${stepsHtml}` : ''}
+                        <div class="act-sub-title">Comments</div>
+                        ${commentsHtml || '<div style="font-size:13px; color:#999; margin-bottom:6px;">No comments yet.</div>'}
+                        <div class="act-comment-form">
+                            <input type="text" class="act-comment-input" id="actComment_${act.id}" placeholder="Add a comment..."
+                                onkeydown="if(event.key==='Enter'){addActivityComment('${act.id}');}">
+                            <button class="btn" style="padding:8px 12px;" onclick="addActivityComment('${act.id}')"><i class="fas fa-paper-plane"></i></button>
+                        </div>
+                        <div class="act-actions">
+                            ${status !== 'done' ? `
+                                <button class="btn ${status === 'paused' ? 'btn-secondary' : 'btn-warning'}" onclick="toggleActivityPause('${act.id}')">
+                                    <i class="fas ${status === 'paused' ? 'fa-play' : 'fa-pause'}"></i> ${status === 'paused' ? 'Resume' : 'Pause'}
+                                </button>` : ''}
+                            ${manager ? `
+                                <button class="btn btn-secondary" onclick="openActivityModal('${act.id}')"><i class="fas fa-pen"></i> Edit</button>
+                                <button class="btn btn-danger" style="padding:7px 12px; font-size:13px;" onclick="deleteActivity('${act.id}')"><i class="fas fa-trash"></i> Delete</button>
+                            ` : ''}
+                        </div>
+                    </div>`;
+            }
+
+            return `
+                <div class="act-card status-${status} ${due.overdue ? 'overdue' : ''}">
+                    <div class="act-head">
+                        <button class="act-check ${status === 'done' ? 'done' : ''}" onclick="toggleActivityComplete('${act.id}')"
+                            title="${status === 'done' ? 'Mark as not completed' : 'Mark as completed'}">
+                            <i class="fas fa-check"></i>
+                        </button>
+                        <div class="act-main" onclick="toggleActivityExpand('${act.id}')">
+                            <div class="act-name">${actEsc(act.name)}</div>
+                            <div class="act-meta">${metaBits.join('')}</div>
+                        </div>
+                        <button class="act-expand" onclick="toggleActivityExpand('${act.id}')">
+                            <i class="fas ${expanded ? 'fa-chevron-up' : 'fa-chevron-down'}"></i>
+                        </button>
+                    </div>
+                    ${progressHtml}
+                    ${statusLine}
+                    ${detailsHtml}
+                </div>`;
+        }
+
+        function toggleActivityExpand(id) {
+            if (actExpanded.has(id)) actExpanded.delete(id); else actExpanded.add(id);
+            renderActivities();
+        }
+
+        function setActivitiesFilter(f) {
+            actFilter = f;
+            renderActivities();
+        }
+
+        function setActivitiesDate(key) {
+            actViewDateKey = (key && key !== actTodayKey()) ? key : '';
+            renderActivities();
+        }
+
+        function shiftActivitiesDate(days) {
+            const d = actViewDate();
+            d.setDate(d.getDate() + days);
+            setActivitiesDate(toDateKey(d));
+        }
+
+        // ---------- Run updates (per period) ----------
+
+        async function actWriteRun(act, patch) {
+            const period = actPeriod(act, actViewDate());
+            const ref = fns.doc(db, 'activityRuns', actRunId(act, period));
+            await fns.setDoc(ref, {
+                activityId: act.id,
+                activityName: act.name,
+                frequency: act.frequency || 'daily',
+                periodKey: period.key,
+                dueKey: toDateKey(period.due),
+                updatedAt: new Date().toISOString(),
+                ...patch
+            }, { merge: true });
+            return period;
+        }
+
+        async function toggleActivityComplete(id) {
+            const act = state.activities.find(a => a.id === id);
+            if (!act) return;
+            const period = actPeriod(act, actViewDate());
+            const status = actStatus(actGetRun(act, period));
+            const me = actActor();
+            try {
+                if (status === 'done') {
+                    if (!confirm(`Mark "${act.name}" as not completed?`)) return;
+                    await actWriteRun(act, { status: 'pending', completedById: null, completedByName: null, completedAt: null });
+                    logAction('Activity reopened', `${act.name} (${period.key})`);
+                } else {
+                    await actWriteRun(act, {
+                        status: 'done',
+                        completedById: me.id,
+                        completedByName: me.name,
+                        completedAt: new Date().toISOString()
+                    });
+                    logAction('Activity completed', `${act.name} (${period.key})`);
+                }
+            } catch (err) {
+                alert('Could not update activity: ' + (err.message || err));
+            }
+        }
+
+        async function toggleActivityPause(id) {
+            const act = state.activities.find(a => a.id === id);
+            if (!act) return;
+            const period = actPeriod(act, actViewDate());
+            const status = actStatus(actGetRun(act, period));
+            const me = actActor();
+            try {
+                if (status === 'paused') {
+                    await actWriteRun(act, { status: 'pending' });
+                    logAction('Activity resumed', `${act.name} (${period.key})`);
+                } else {
+                    const reason = prompt('Reason for pausing (optional):', '');
+                    if (reason === null) return;
+                    const patch = {
+                        status: 'paused',
+                        pausedById: me.id,
+                        pausedByName: me.name,
+                        pausedAt: new Date().toISOString()
+                    };
+                    if (reason.trim()) {
+                        patch.comments = fns.arrayUnion({
+                            id: 'c_' + Date.now(),
+                            byId: me.id,
+                            byName: me.name,
+                            at: new Date().toISOString(),
+                            text: '⏸ ' + reason.trim()
+                        });
+                    }
+                    await actWriteRun(act, patch);
+                    actExpanded.add(id);
+                    logAction('Activity paused', `${act.name} (${period.key})${reason.trim() ? ': ' + reason.trim() : ''}`);
+                }
+            } catch (err) {
+                alert('Could not update activity: ' + (err.message || err));
+            }
+        }
+
+        async function toggleActivityStep(id, stepId, checked) {
+            const act = state.activities.find(a => a.id === id);
+            if (!act) return;
+            const me = actActor();
+            try {
+                await actWriteRun(act, {
+                    steps: { [stepId]: checked ? { byId: me.id, byName: me.name, at: new Date().toISOString() } : null }
+                });
+            } catch (err) {
+                alert('Could not update step: ' + (err.message || err));
+            }
+        }
+
+        async function addActivityComment(id) {
+            const act = state.activities.find(a => a.id === id);
+            const input = document.getElementById('actComment_' + id);
+            if (!act || !input) return;
+            const text = input.value.trim();
+            if (!text) return;
+            const me = actActor();
+            input.value = '';
+            try {
+                await actWriteRun(act, {
+                    comments: fns.arrayUnion({
+                        id: 'c_' + Date.now(),
+                        byId: me.id,
+                        byName: me.name,
+                        at: new Date().toISOString(),
+                        text
+                    })
+                });
+            } catch (err) {
+                input.value = text;
+                alert('Could not add comment: ' + (err.message || err));
+            }
+        }
+
+        // ---------- Create / edit / delete ----------
+
+        function updateActivityFrequencyFields() {
+            const f = document.getElementById('actFrequency').value;
+            document.getElementById('actWeeklyWrap').classList.toggle('app-hidden', f !== 'weekly');
+            document.getElementById('actMonthlyWrap').classList.toggle('app-hidden', f !== 'monthly');
+        }
+
+        function renumberActivitySteps() {
+            document.querySelectorAll('#actStepsEditor .act-step-row .num').forEach((n, i) => { n.textContent = (i + 1) + '.'; });
+        }
+
+        function addActivityStepRow(text, stepId) {
+            const wrap = document.getElementById('actStepsEditor');
+            const row = document.createElement('div');
+            row.className = 'act-step-row';
+            row.dataset.stepId = stepId || ('s_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6));
+            row.innerHTML = `
+                <span class="num"></span>
+                <input type="text" placeholder="Describe this step">
+                <button type="button" title="Remove step"><i class="fas fa-times"></i></button>`;
+            row.querySelector('input').value = text || '';
+            row.querySelector('button').onclick = () => { row.remove(); renumberActivitySteps(); };
+            row.querySelector('input').addEventListener('keydown', e => {
+                if (e.key === 'Enter') { e.preventDefault(); addActivityStepRow(); }
+            });
+            wrap.appendChild(row);
+            renumberActivitySteps();
+            if (!text) row.querySelector('input').focus();
+        }
+
+        function openActivityModal(editId) {
+            if (!canManageActivities()) return;
+            const act = editId ? state.activities.find(a => a.id === editId) : null;
+            document.getElementById('actEditId').value = act ? act.id : '';
+            document.getElementById('activityModalTitle').textContent = act ? 'Edit Activity' : 'New Activity';
+            document.getElementById('activitySaveLabel').textContent = act ? 'Save Changes' : 'Create Activity';
+            document.getElementById('actName').value = act ? act.name : '';
+            document.getElementById('actDesc').value = act ? (act.desc || '') : '';
+            document.getElementById('actFrequency').value = act ? (act.frequency || 'daily') : 'daily';
+            document.getElementById('actWeekday').value = act && act.weekday != null ? String(act.weekday) : '1';
+            document.getElementById('actMonthlyMode').value = act && act.monthlyMode ? act.monthlyMode : 'on';
+            document.getElementById('actMonthDay').value = act && act.monthDay ? act.monthDay : 1;
+            document.getElementById('actStepsEditor').innerHTML = '';
+            (act ? (act.steps || []) : []).forEach(s => addActivityStepRow(s.text, s.id));
+            updateActivityFrequencyFields();
+            document.getElementById('activityModalOverlay').classList.add('active');
+        }
+
+        function closeActivityModal() {
+            document.getElementById('activityModalOverlay').classList.remove('active');
+        }
+
+        function closeActivityModalOutside(e) {
+            if (e.target.id === 'activityModalOverlay') closeActivityModal();
+        }
+
+        async function saveActivity() {
+            if (!canManageActivities()) return;
+            const editId = document.getElementById('actEditId').value;
+            const name = document.getElementById('actName').value.trim();
+            const desc = document.getElementById('actDesc').value.trim();
+            const frequency = document.getElementById('actFrequency').value;
+            const weekday = parseInt(document.getElementById('actWeekday').value, 10);
+            const monthlyMode = document.getElementById('actMonthlyMode').value;
+            const monthDay = parseInt(document.getElementById('actMonthDay').value, 10);
+
+            if (!name) { alert('Please enter an activity name'); return; }
+            if (frequency === 'monthly' && (!monthDay || monthDay < 1 || monthDay > 31)) {
+                alert('Day of the month must be between 1 and 31');
+                return;
+            }
+
+            const steps = Array.from(document.querySelectorAll('#actStepsEditor .act-step-row'))
+                .map(r => ({ id: r.dataset.stepId, text: r.querySelector('input').value.trim() }))
+                .filter(s => s.text);
+
+            const data = {
                 name,
                 desc,
-                recurrence,
-                date,
-                priority,
-                assignee,
-                completed: false,
-                createdAt: new Date().toLocaleDateString('en-US')
-            });
-            logAction('Task created', name);
-
-            clearTaskForm();
-            closeTaskModal();
-        }
-
-        function clearTaskForm() {
-            document.getElementById('taskName').value = '';
-            document.getElementById('taskDesc').value = '';
-            document.getElementById('taskRecurrence').value = 'once';
-            document.getElementById('taskDate').value = '';
-            document.getElementById('taskPriority').value = 'medium';
-            document.getElementById('taskAssignee').value = '';
-        }
-
-        function toggleTask(id) {
-            const task = state.tasks.find(t => t.id === id);
-            if (task) {
-                fns.updateDoc(fns.doc(db, 'tasks', id), { completed: !task.completed });
-                logAction(!task.completed ? 'Task completed' : 'Task reopened', task.name);
-            }
-        }
-
-        function deleteTask(id) {
-            if (confirm('Delete this task?')) {
-                const task = state.tasks.find(t => t.id === id);
-                fns.deleteDoc(fns.doc(db, 'tasks', id));
-                logAction('Task deleted', task ? task.name : id);
-            }
-        }
-
-        function addProject() {
-            const name = document.getElementById('projectName').value.trim();
-            const desc = document.getElementById('projectDesc').value.trim();
-            const start = document.getElementById('projectStart').value;
-            const end = document.getElementById('projectEnd').value;
-
-            if (!name) {
-                alert('Please enter a project name');
-                return;
-            }
-
-            fns.addDoc(fns.collection(db, 'projects'), {
-                name,
-                desc,
-                start,
-                end,
-                progress: 0,
-                tasks: [],
-                createdAt: new Date().toLocaleDateString('en-US')
-            });
-            logAction('Project created', name);
-
-            clearProjectForm();
-        }
-
-        function clearProjectForm() {
-            document.getElementById('projectName').value = '';
-            document.getElementById('projectDesc').value = '';
-            document.getElementById('projectStart').value = '';
-            document.getElementById('projectEnd').value = '';
-        }
-
-        function deleteProject(id) {
-            if (confirm('Delete this project?')) {
-                const project = state.projects.find(p => p.id === id);
-                fns.deleteDoc(fns.doc(db, 'projects', id));
-                logAction('Project deleted', project ? project.name : id);
-            }
-        }
-
-        function addProjectTask() {
-            const projectId = document.getElementById('ptaskProjectId').value;
-            const name = document.getElementById('ptaskName').value.trim();
-            const desc = document.getElementById('ptaskDesc').value.trim();
-            const date = document.getElementById('ptaskDate').value;
-            const priority = document.getElementById('ptaskPriority').value;
-            const assignee = document.getElementById('ptaskAssignee').value;
-
-            if (!name) {
-                alert('Please enter a task name');
-                return;
-            }
-
-            const project = state.projects.find(p => p.id === projectId);
-            if (!project) return;
-
-            const newTask = {
-                ptid: 'pt_' + Date.now(),
-                name, desc, date, priority, assignee,
-                completed: false
+                frequency,
+                weekday: frequency === 'weekly' ? weekday : null,
+                monthlyMode: frequency === 'monthly' ? monthlyMode : null,
+                monthDay: frequency === 'monthly' ? monthDay : null,
+                steps,
+                updatedAt: new Date().toISOString()
             };
 
-            const updatedTasks = [...(project.tasks || []), newTask];
-            fns.updateDoc(fns.doc(db, 'projects', projectId), { tasks: updatedTasks });
-
-            document.getElementById('ptaskName').value = '';
-            document.getElementById('ptaskDesc').value = '';
-            document.getElementById('ptaskDate').value = '';
-            document.getElementById('ptaskPriority').value = 'medium';
-            document.getElementById('ptaskAssignee').value = '';
-            closeProjectTaskModal();
+            try {
+                if (editId) {
+                    await fns.updateDoc(fns.doc(db, 'activities', editId), data);
+                    logAction('Activity edited', name);
+                } else {
+                    const me = actActor();
+                    await fns.addDoc(fns.collection(db, 'activities'), {
+                        ...data,
+                        createdById: me.id,
+                        createdByName: me.name,
+                        createdAt: new Date().toISOString()
+                    });
+                    logAction('Activity created', `${name} (${frequency})`);
+                }
+                closeActivityModal();
+            } catch (err) {
+                alert('Could not save activity: ' + (err.message || err));
+            }
         }
 
-        function toggleProjectTask(projectId, ptid) {
-            const project = state.projects.find(p => p.id === projectId);
-            if (!project) return;
-            const updatedTasks = (project.tasks || []).map(t =>
-                t.ptid === ptid ? { ...t, completed: !t.completed } : t
-            );
-            fns.updateDoc(fns.doc(db, 'projects', projectId), { tasks: updatedTasks });
+        async function deleteActivity(id) {
+            if (!canManageActivities()) return;
+            const act = state.activities.find(a => a.id === id);
+            if (!act) return;
+            if (!confirm(`Delete "${act.name}"? Its completion history is kept.`)) return;
+            try {
+                await fns.deleteDoc(fns.doc(db, 'activities', id));
+                actExpanded.delete(id);
+                logAction('Activity deleted', act.name);
+            } catch (err) {
+                alert('Could not delete activity: ' + (err.message || err));
+            }
         }
 
-        function deleteProjectTask(projectId, ptid) {
-            const project = state.projects.find(p => p.id === projectId);
-            if (!project) return;
-            const updatedTasks = (project.tasks || []).filter(t => t.ptid !== ptid);
-            fns.updateDoc(fns.doc(db, 'projects', projectId), { tasks: updatedTasks });
-        }
+        // Re-render at midnight so "today" rolls over without reloading the app.
+        (function scheduleActivitiesMidnightRefresh() {
+            const now = new Date();
+            const next = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 5);
+            setTimeout(() => { renderActivities(); scheduleActivitiesMidnightRefresh(); }, next - now);
+        })();
 
         function toggleRotationAnchorField() {
             const val = document.getElementById('memberRotation').value;
@@ -4261,151 +4806,6 @@
                 const m = state.team.find(x => x.id === id);
                 fns.deleteDoc(fns.doc(db, 'team', id));
                 logAction('Team member deleted', m ? m.name : id);
-            }
-        }
-
-        function getPriorityBadge(priority) {
-            const map = { high: 'High', medium: 'Medium', low: 'Low' };
-            const className = `badge badge-${priority}`;
-            return `<span class="${className}">${map[priority]}</span>`;
-        }
-
-        function getRecurrenceBadge(recurrence) {
-            const map = { daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly', once: 'Once' };
-            const icon = { daily: 'fa-repeat', weekly: 'fa-calendar-week', monthly: 'fa-calendar-days', once: 'fa-calendar' }[recurrence];
-            const className = `badge badge-${recurrence === 'once' ? 'date' : recurrence}`;
-            return `<span class="${className}"><i class="fas ${icon}"></i> ${map[recurrence]}</span>`;
-        }
-
-        function formatDate(dateStr) {
-            if (!dateStr) return 'No date';
-            const date = new Date(dateStr + 'T00:00:00');
-            return date.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
-        }
-
-        function renderTasks() {
-            const taskList = document.getElementById('taskList');
-            if (state.tasks.length === 0) {
-                taskList.innerHTML = `
-                    <div class="empty-state">
-                        <i class="fas fa-inbox"></i>
-                        <p>No tasks yet. Create one to get started!</p>
-                    </div>
-                `;
-            } else {
-                taskList.innerHTML = state.tasks
-                    .sort((a, b) => !a.completed - !b.completed)
-                    .map(task => {
-                        const assigneeInfo = task.assignee ? assigneeMap[task.assignee] : null;
-                        return `
-                            <div class="card ${task.completed ? 'completed' : ''}">
-                                <div class="card-header">
-                                    <div class="card-title">
-                                        <div class="checkbox-wrapper">
-                                            <input type="checkbox" ${task.completed ? 'checked' : ''} onchange="toggleTask('${task.id}')">
-                                            <span>${task.name}</span>
-                                        </div>
-                                    </div>
-                                    ${getPriorityBadge(task.priority)}
-                                </div>
-                                ${task.desc ? `<p style="color: #666; margin-bottom: 10px; font-size: 14px;">${task.desc}</p>` : ''}
-                                <div class="card-meta">
-                                    <div class="meta-item">
-                                        ${getRecurrenceBadge(task.recurrence)}
-                                    </div>
-                                    <div class="meta-item">
-                                        <i class="fas fa-calendar"></i>
-                                        ${formatDate(task.date)}
-                                    </div>
-                                </div>
-                                ${assigneeInfo ? `
-                                    <div class="assignee-badge">
-                                        <div class="assignee-avatar">${assigneeInfo.initials}</div>
-                                        ${assigneeInfo.name}
-                                    </div>
-                                ` : ''}
-                                <div class="card-actions">
-                                    <button class="btn btn-danger" onclick="deleteTask('${task.id}')">
-                                        <i class="fas fa-trash"></i>
-                                        Delete
-                                    </button>
-                                </div>
-                            </div>
-                        `;
-                    })
-                    .join('');
-            }
-        }
-
-        function renderProjects() {
-            const projectList = document.getElementById('projectList');
-            if (state.projects.length === 0) {
-                projectList.innerHTML = `
-                    <div class="empty-state">
-                        <i class="fas fa-folder"></i>
-                        <p>No projects yet. Create one to get started!</p>
-                    </div>
-                `;
-            } else {
-                projectList.innerHTML = state.projects.map(project => {
-                    const tasks = project.tasks || [];
-                    const total = tasks.length;
-                    const done = tasks.filter(t => t.completed).length;
-                    const progress = total > 0 ? Math.round((done / total) * 100) : 0;
-
-                    const tasksHtml = tasks.length === 0
-                        ? `<p style="color:#999; font-size:13px; margin-top:8px;">No tasks yet for this project.</p>`
-                        : `<div class="project-tasks">` + tasks.map(t => {
-                            const assigneeInfo = t.assignee ? assigneeMap[t.assignee] : null;
-                            return `
-                                <div class="project-task-item ${t.completed ? 'completed' : ''}">
-                                    <div style="display:flex; align-items:center; gap:8px; flex:1;">
-                                        <input type="checkbox" ${t.completed ? 'checked' : ''} onchange="toggleProjectTask('${project.id}','${t.ptid}')">
-                                        <span class="pt-name">${t.name}</span>
-                                        ${assigneeInfo ? `<span style="color:#2563eb; font-size:11px;">(${assigneeInfo.name})</span>` : ''}
-                                    </div>
-                                    <button class="btn btn-danger" style="padding:4px 8px;" onclick="deleteProjectTask('${project.id}','${t.ptid}')">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
-                                </div>
-                            `;
-                        }).join('') + `</div>`;
-
-                    return `
-                        <div class="card">
-                            <div class="card-header">
-                                <div>
-                                    <div class="card-title">${project.name}</div>
-                                    ${project.desc ? `<p style="color: #666; margin-top: 6px; font-size: 14px;">${project.desc}</p>` : ''}
-                                </div>
-                            </div>
-                            <div class="progress-bar">
-                                <div class="progress-fill" style="width: ${progress}%"></div>
-                            </div>
-                            <div class="card-meta">
-                                <div class="meta-item">
-                                    <i class="fas fa-calendar-check"></i>
-                                    ${formatDate(project.start)} → ${formatDate(project.end)}
-                                </div>
-                                <div class="meta-item">
-                                    <i class="fas fa-chart-pie"></i>
-                                    Progress: ${progress}% (${done}/${total})
-                                </div>
-                            </div>
-                            ${tasksHtml}
-                            <button class="task-add-btn" onclick="openProjectTaskModal('${project.id}')">
-                                <i class="fas fa-plus"></i>
-                                Add task to project
-                            </button>
-                            <div class="card-actions">
-                                <button class="btn btn-danger" onclick="deleteProject('${project.id}')">
-                                    <i class="fas fa-trash"></i>
-                                    Delete
-                                </button>
-                            </div>
-                        </div>
-                    `;
-                }).join('');
             }
         }
 
