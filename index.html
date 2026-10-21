@@ -1007,6 +1007,10 @@
             background: #f0f4ff;
         }
 
+        .rotas-shift-card.is-cover {
+            border: 1px dashed #a5b4fc;
+        }
+
         .rotas-shift-card.is-me {
             background: #e7f5ff;
             border: 1px solid #2563eb;
@@ -1309,6 +1313,24 @@
         .sg-shift-assignee {
             color: #2563eb;
             font-weight: 600;
+        }
+
+        .sg-shift-counter {
+            color: #3730a3;
+            font-size: 10px;
+            margin-top: 1px;
+        }
+
+        /* Double coverage: this person's hours live on their main location, so the
+           covered location shows a lighter, dashed copy of the same shift. */
+        .sg-shift-item.sg-cover {
+            border-style: dashed;
+            border-color: #a5b4fc;
+            background: #f8fafc;
+        }
+
+        .sg-shift-item.sg-cover .sg-shift-time {
+            color: #6366f1;
         }
 
         .sg-shift-empty {
@@ -2489,6 +2511,10 @@
                     <input type="text" id="locationName" placeholder="Ex: Main Warehouse">
                 </div>
                 <div class="form-group">
+                    <label>Counters <span style="font-weight:400; color:#666;">(optional, separate with commas)</span></label>
+                    <input type="text" id="locationCounters" placeholder="Ex: Counter 1, Counter 2, Info desk">
+                </div>
+                <div class="form-group">
                     <label class="module-check" style="width:fit-content;">
                         <input type="checkbox" id="locationHasTarget" checked>
                         Has transactions target
@@ -2666,6 +2692,21 @@
                 <div class="form-group">
                     <label>Team Member</label>
                     <select id="assignMemberSelect"></select>
+                </div>
+                <div class="form-group" id="assignCounterWrap" style="display:none;">
+                    <label>Counter</label>
+                    <select id="assignCounterSelect"></select>
+                </div>
+                <div class="form-group" id="assignCoverageWrap" style="display:none;">
+                    <label>Also covering <span style="font-weight:400; color:#666;">(same time, other locations)</span></label>
+                    <div id="assignCoverageList" style="display:flex; flex-direction:column; gap:8px;"></div>
+                    <p style="font-size:12px; color:#666; margin:6px 0 0;">The hours are counted once, on the main location.</p>
+                </div>
+                <div class="form-group" id="assignTrainingWrap">
+                    <label class="module-check" style="width:fit-content;">
+                        <input type="checkbox" id="assignTraining">
+                        Mark as Training
+                    </label>
                 </div>
                 <div class="form-group" id="sickLeaveWrap" style="display:none;">
                     <label class="module-check" style="width:fit-content;">
@@ -3860,7 +3901,7 @@
             <div id="auditLogList"></div>
         </div>
 
-        <div class="app-version">GEBLL v-0.63</div>
+        <div class="app-version">GEBLL v-0.64</div>
     </div>
 
 
@@ -5606,10 +5647,112 @@
             }
             const maxOrder = state.locations.reduce((max, l) => Math.max(max, l.order ?? 0), -1);
             const hasTarget = document.getElementById('locationHasTarget').checked;
-            fns.addDoc(fns.collection(db, 'locations'), { name, order: maxOrder + 1, hasTarget });
-            logAction('Location created', `${name}${hasTarget ? '' : ' (no target)'}`);
+            const countersInput = document.getElementById('locationCounters');
+            const counters = parseCounterList(countersInput ? countersInput.value : '');
+            fns.addDoc(fns.collection(db, 'locations'), { name, order: maxOrder + 1, hasTarget, counters });
+            logAction('Location created', `${name}${hasTarget ? '' : ' (no target)'}${counters.length ? ` — ${counters.length} counter(s)` : ''}`);
             nameInput.value = '';
+            if (countersInput) countersInput.value = '';
             document.getElementById('locationHasTarget').checked = true;
+        }
+
+        // Counters are desks inside a location. They live on the location document
+        // itself: there are only a handful and they are always read with it.
+        // Each one keeps a stable id so renaming it never breaks saved shifts.
+        function newCounterId() {
+            return 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+        }
+
+        function escapeHtml(text) {
+            return String(text == null ? '' : text)
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        }
+
+        function parseCounterList(text) {
+            const seen = new Set();
+            return (text || '')
+                .split(',')
+                .map(s => s.trim())
+                .filter(s => {
+                    if (!s) return false;
+                    const key = s.toLowerCase();
+                    if (seen.has(key)) return false;
+                    seen.add(key);
+                    return true;
+                })
+                .map(name => ({ id: newCounterId(), name, active: true }));
+        }
+
+        function getLocationCounters(locationId, includeInactive) {
+            const loc = state.locations.find(l => l.id === locationId);
+            const list = (loc && Array.isArray(loc.counters)) ? loc.counters : [];
+            return includeInactive ? list : list.filter(c => c.active !== false);
+        }
+
+        function getCounterName(locationId, counterId) {
+            if (!counterId) return '';
+            const c = getLocationCounters(locationId, true).find(x => x.id === counterId);
+            return c ? c.name : '';
+        }
+
+        // A counter is only really gone when no shift ever used it. Otherwise it is
+        // deactivated, so old rotas and reports still show the right name.
+        function counterInUse(counterId) {
+            return state.assignments.some(a =>
+                a.counterId === counterId ||
+                (a.extraCoverage || []).some(x => x.counterId === counterId)
+            );
+        }
+
+        async function addCounterToLocation(locationId) {
+            const input = document.getElementById(`counterInput_${locationId}`);
+            if (!input) return;
+            const name = input.value.trim();
+            if (!name) return;
+            const loc = state.locations.find(l => l.id === locationId);
+            if (!loc) return;
+            const current = Array.isArray(loc.counters) ? loc.counters : [];
+            if (current.some(c => c.name.toLowerCase() === name.toLowerCase())) {
+                alert('That counter already exists in this location');
+                return;
+            }
+            const counters = [...current, { id: newCounterId(), name, active: true }];
+            await fns.updateDoc(fns.doc(db, 'locations', locationId), { counters });
+            logAction('Counter added', `${loc.name}: ${name}`);
+            input.value = '';
+        }
+
+        async function removeCounter(locationId, counterId) {
+            const loc = state.locations.find(l => l.id === locationId);
+            if (!loc) return;
+            const current = Array.isArray(loc.counters) ? loc.counters : [];
+            const counter = current.find(c => c.id === counterId);
+            if (!counter) return;
+
+            if (counterInUse(counterId)) {
+                if (!confirm(`"${counter.name}" is used in the schedule, so it cannot be deleted. Deactivate it instead? It will stay visible on existing shifts but cannot be assigned again.`)) return;
+                const counters = current.map(c => c.id === counterId ? { ...c, active: false } : c);
+                await fns.updateDoc(fns.doc(db, 'locations', locationId), { counters });
+                logAction('Counter deactivated', `${loc.name}: ${counter.name}`);
+                return;
+            }
+
+            if (!confirm(`Delete counter "${counter.name}"?`)) return;
+            const counters = current.filter(c => c.id !== counterId);
+            await fns.updateDoc(fns.doc(db, 'locations', locationId), { counters });
+            logAction('Counter deleted', `${loc.name}: ${counter.name}`);
+        }
+
+        async function reactivateCounter(locationId, counterId) {
+            const loc = state.locations.find(l => l.id === locationId);
+            if (!loc) return;
+            const current = Array.isArray(loc.counters) ? loc.counters : [];
+            const counter = current.find(c => c.id === counterId);
+            if (!counter) return;
+            const counters = current.map(c => c.id === counterId ? { ...c, active: true } : c);
+            await fns.updateDoc(fns.doc(db, 'locations', locationId), { counters });
+            logAction('Counter reactivated', `${loc.name}: ${counter.name}`);
         }
 
         // Locations created before a "hasTarget" flag existed count as having a target.
@@ -5685,6 +5828,7 @@
                             <input type="checkbox" ${loc.hasTarget !== false ? 'checked' : ''} onchange="toggleLocationTarget('${loc.id}', this.checked)">
                             Has transactions target
                         </label>
+                        ${renderLocationCounters(loc)}
                     </div>
                     <div class="team-actions">
                         <button class="btn btn-danger" onclick="deleteLocation('${loc.id}')" title="Delete">
@@ -5693,6 +5837,36 @@
                     </div>
                 </div>
             `).join('');
+        }
+
+        function renderLocationCounters(loc) {
+            const counters = Array.isArray(loc.counters) ? loc.counters : [];
+            const chips = counters.map(c => {
+                const inactive = c.active === false;
+                return `
+                    <span style="display:inline-flex; align-items:center; gap:5px; padding:3px 8px; border-radius:12px; font-size:12px; background:${inactive ? '#f1f5f9' : '#e0e7ff'}; color:${inactive ? '#94a3b8' : '#3730a3'};">
+                        <i class="fas fa-desktop" style="font-size:10px;"></i>
+                        ${escapeHtml(c.name)}${inactive ? ' (inactive)' : ''}
+                        ${inactive
+                            ? `<i class="fas fa-rotate-left" style="cursor:pointer;" title="Reactivate" onclick="reactivateCounter('${loc.id}','${c.id}')"></i>`
+                            : `<i class="fas fa-times" style="cursor:pointer;" title="Remove" onclick="removeCounter('${loc.id}','${c.id}')"></i>`}
+                    </span>`;
+            }).join('');
+
+            return `
+                <div style="margin-top:8px;">
+                    <div style="font-size:12px; color:#666; margin-bottom:4px;">Counters</div>
+                    <div style="display:flex; flex-wrap:wrap; gap:6px; align-items:center;">
+                        ${chips || '<span style="font-size:12px; color:#94a3b8;">None yet</span>'}
+                    </div>
+                    <div style="display:flex; gap:6px; margin-top:6px; max-width:320px;">
+                        <input type="text" id="counterInput_${loc.id}" placeholder="New counter" style="flex:1; font-size:12px; padding:5px 8px;"
+                            onkeydown="if(event.key==='Enter'){event.preventDefault();addCounterToLocation('${loc.id}');}">
+                        <button class="sg-assign-btn" style="padding:4px 10px;" onclick="addCounterToLocation('${loc.id}')" title="Add counter">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </div>
+                </div>`;
         }
 
         function populateLocationSelect() {
@@ -6277,7 +6451,15 @@
                 if (!shift) return;
                 const key = `${shift.locationId}|${a.dateKey}`;
                 if (!byLocDate[key]) byLocDate[key] = [];
-                byLocDate[key].push({ a, shift });
+                byLocDate[key].push({ a, shift, cover: false, locationId: shift.locationId });
+
+                // Double coverage: the same assignment also shows in the covered
+                // locations, marked as cover. Its hours still belong to the main one.
+                (a.extraCoverage || []).forEach(c => {
+                    const coverKey = `${c.locationId}|${a.dateKey}`;
+                    if (!byLocDate[coverKey]) byLocDate[coverKey] = [];
+                    byLocDate[coverKey].push({ a, shift, cover: true, locationId: c.locationId, counterId: c.counterId });
+                });
             });
 
             let html = '<div class="sg-cell sg-header">Location</div>';
@@ -6297,12 +6479,16 @@
                         .sort((x, y) => (x.shift.start + x.shift.end).localeCompare(y.shift.start + y.shift.end));
 
                     let cellHtml = '<div class="sg-cell">';
-                    items.forEach(({ a, shift }) => {
+                    items.forEach(({ a, shift, cover, counterId }) => {
                         const m = assigneeMap[a.memberId];
+                        const counterName = cover
+                            ? getCounterName(loc.id, counterId)
+                            : getCounterName(shift.locationId, a.counterId);
                         cellHtml += `
-                            <div class="sg-shift-item clickable ${a.published ? 'published' : 'draft'}" onclick="openAssignModal('${loc.id}','${dateKey}','${a.id}')">
-                                <div class="sg-shift-time">${shift.start}-${shift.end}</div>
-                                <div class="sg-shift-assignee">${m ? m.name : 'Unknown'} ${a.sickLeave ? '(Sick)' : ''}</div>
+                            <div class="sg-shift-item clickable ${a.published ? 'published' : 'draft'}${cover ? ' sg-cover' : ''}" onclick="openAssignModal('${shift.locationId}','${dateKey}','${a.id}')">
+                                <div class="sg-shift-time">${shift.start}-${shift.end}${cover ? ' · Cover' : ''}</div>
+                                <div class="sg-shift-assignee">${m ? m.name : 'Unknown'}${assignmentFlagLabels(a)}</div>
+                                ${counterName ? `<div class="sg-shift-counter">${escapeHtml(counterName)}</div>` : ''}
                             </div>
                         `;
                     });
@@ -6328,6 +6514,7 @@
         }
 
         let assignSaveInProgress = false;
+        let assignClashAcknowledged = null;
         // Times of the last saved shift, offered again for the next new shift.
         let lastShiftTimes = { start: '', end: '' };
 
@@ -6469,8 +6656,142 @@
             sickWrap.style.display = existing ? 'block' : 'none';
             sickCheckbox.checked = !!(existing && existing.sickLeave);
 
+            document.getElementById('assignTraining').checked = !!(existing && existing.training);
+
+            renderAssignCounterSelect(locId, existing ? existing.counterId : '');
+            renderAssignCoverage(locId, existing ? existing.extraCoverage : []);
+            assignClashAcknowledged = null;
+
             document.getElementById('assignWarning').style.display = 'none';
             document.getElementById('assignModalOverlay').classList.add('active');
+        }
+
+        function renderAssignCounterSelect(locationId, selectedCounterId) {
+            const wrap = document.getElementById('assignCounterWrap');
+            const select = document.getElementById('assignCounterSelect');
+            if (!wrap || !select) return;
+
+            const counters = getLocationCounters(locationId);
+            // A counter that was deactivated after this shift was saved still has to
+            // show up here, or editing the shift would silently drop it.
+            const extra = selectedCounterId && !counters.some(c => c.id === selectedCounterId)
+                ? getLocationCounters(locationId, true).filter(c => c.id === selectedCounterId)
+                : [];
+            const all = [...counters, ...extra];
+
+            if (all.length === 0) {
+                wrap.style.display = 'none';
+                select.innerHTML = '<option value="">No counter</option>';
+                return;
+            }
+            wrap.style.display = 'block';
+            select.innerHTML = '<option value="">No counter</option>' +
+                all.map(c => `<option value="${c.id}" ${c.id === selectedCounterId ? 'selected' : ''}>${escapeHtml(c.name)}${c.active === false ? ' (inactive)' : ''}</option>`).join('');
+        }
+
+        // Double coverage stays on this one assignment, so the hours, the daily limit
+        // and the transactions target all keep counting the shift exactly once.
+        function renderAssignCoverage(mainLocationId, existingCoverage) {
+            const wrap = document.getElementById('assignCoverageWrap');
+            const list = document.getElementById('assignCoverageList');
+            if (!wrap || !list) return;
+
+            const others = getOrderedLocations().filter(l => l.id !== mainLocationId);
+            if (others.length === 0) {
+                wrap.style.display = 'none';
+                list.innerHTML = '';
+                return;
+            }
+
+            const current = Array.isArray(existingCoverage) ? existingCoverage : [];
+            wrap.style.display = 'block';
+            list.innerHTML = others.map(loc => {
+                const saved = current.find(c => c.locationId === loc.id);
+                const counters = getLocationCounters(loc.id);
+                const counterOptions = counters.length
+                    ? `<select id="coverCounter_${loc.id}" style="margin-top:6px; font-size:12px;" ${saved ? '' : 'disabled'}>
+                            <option value="">No counter</option>
+                            ${counters.map(c => `<option value="${c.id}" ${saved && saved.counterId === c.id ? 'selected' : ''}>${escapeHtml(c.name)}</option>`).join('')}
+                       </select>`
+                    : '';
+                return `
+                    <div style="border:1px solid #e2e8f0; border-radius:8px; padding:8px 10px;">
+                        <label class="module-check" style="width:fit-content;">
+                            <input type="checkbox" id="coverLoc_${loc.id}" ${saved ? 'checked' : ''}
+                                onchange="onCoverageToggle('${loc.id}', this.checked)">
+                            ${escapeHtml(loc.name)}
+                        </label>
+                        ${counterOptions}
+                    </div>`;
+            }).join('');
+        }
+
+        function onCoverageToggle(locationId, checked) {
+            const select = document.getElementById(`coverCounter_${locationId}`);
+            if (select) {
+                select.disabled = !checked;
+                if (!checked) select.value = '';
+            }
+        }
+
+        function collectAssignCoverage(mainLocationId) {
+            const coverage = [];
+            getOrderedLocations().forEach(loc => {
+                if (loc.id === mainLocationId) return;
+                const checkbox = document.getElementById(`coverLoc_${loc.id}`);
+                if (!checkbox || !checkbox.checked) return;
+                const select = document.getElementById(`coverCounter_${loc.id}`);
+                coverage.push({ locationId: loc.id, counterId: select ? select.value : '' });
+            });
+            return coverage;
+        }
+
+        // Soft check: two people on the same counter at the same time is usually a
+        // mistake, but there are days when it is on purpose, so it only warns.
+        function findCounterClash(locationId, counterId, dateKey, start, end, excludeAssignmentId) {
+            if (!counterId) return null;
+            // Shifts that run past midnight end "before" they start on the clock.
+            const spanEnd = (s, e) => timeToMinutes(e) <= timeToMinutes(s) ? timeToMinutes(e) + 24 * 60 : timeToMinutes(e);
+            const newStart = timeToMinutes(start);
+            const newEnd = spanEnd(start, end);
+            const shiftById = {};
+            state.shifts.forEach(s => { shiftById[s.id] = s; });
+
+            for (const a of state.assignments) {
+                if (a.dateKey !== dateKey || a.id === excludeAssignmentId) continue;
+                const shift = shiftById[a.shiftId];
+                if (!shift) continue;
+
+                const spots = [{ locationId: shift.locationId, counterId: a.counterId }]
+                    .concat((a.extraCoverage || []).map(c => ({ locationId: c.locationId, counterId: c.counterId })));
+                if (!spots.some(s => s.locationId === locationId && s.counterId === counterId)) continue;
+
+                if (newStart < spanEnd(shift.start, shift.end) && timeToMinutes(shift.start) < newEnd) {
+                    const m = assigneeMap[a.memberId];
+                    return { name: m ? m.name : 'Someone', times: `${shift.start}-${shift.end}` };
+                }
+            }
+            return null;
+        }
+
+        // One place decides how Sick and Training are shown, so every view matches.
+        function assignmentFlagLabels(a) {
+            const flags = [];
+            if (a.sickLeave) flags.push('Sick');
+            if (a.training) flags.push('Training');
+            return flags.length ? ` (${flags.join(', ')})` : '';
+        }
+
+        function describeAssignExtras(mainLocationId, counterId, extraCoverage) {
+            const parts = [];
+            const counterName = getCounterName(mainLocationId, counterId);
+            if (counterName) parts.push(counterName);
+            (extraCoverage || []).forEach(c => {
+                const loc = state.locations.find(l => l.id === c.locationId);
+                const name = getCounterName(c.locationId, c.counterId);
+                parts.push(`also ${loc ? loc.name : c.locationId}${name ? ` / ${name}` : ''}`);
+            });
+            return parts.length ? ` [${parts.join(', ')}]` : '';
         }
 
         function closeAssignModal() {
@@ -6530,8 +6851,28 @@
             }
 
             const sickLeave = document.getElementById('assignSickLeave').checked;
+            const training = document.getElementById('assignTraining').checked;
+            const counterId = (document.getElementById('assignCounterSelect') || {}).value || '';
+            const extraCoverage = collectAssignCoverage(pendingAssign.locationId);
             const loc = state.locations.find(l => l.id === pendingAssign.locationId);
             const locName = loc ? loc.name : '';
+
+            // Counter clashes only warn. Confirming once lets the save go through.
+            const clashSpots = [{ locationId: pendingAssign.locationId, counterId }]
+                .concat(extraCoverage.map(c => ({ locationId: c.locationId, counterId: c.counterId })));
+            for (const spot of clashSpots) {
+                const clash = findCounterClash(spot.locationId, spot.counterId, dateKey, start, end, pendingAssign.assignmentId);
+                if (clash) {
+                    const spotLoc = state.locations.find(l => l.id === spot.locationId);
+                    const label = `${getCounterName(spot.locationId, spot.counterId)}${spotLoc ? ` (${spotLoc.name})` : ''}`;
+                    const signature = `${spot.locationId}|${spot.counterId}|${start}|${end}`;
+                    if (assignClashAcknowledged !== signature) {
+                        assignClashAcknowledged = signature;
+                        return showWarning(`${clash.name} is already on ${label} at ${clash.times}. Press Save again to keep both.`);
+                    }
+                }
+            }
+            assignClashAcknowledged = null;
             const saveBtn = document.getElementById('assignSaveBtn');
             const saveBtnHtml = saveBtn.innerHTML;
 
@@ -6552,7 +6893,7 @@
                     const timesChanged = previousTimes !== times;
 
                     await fns.updateDoc(fns.doc(db, 'assignments', pendingAssign.assignmentId), {
-                        memberId, sickLeave, shiftId: slot.id
+                        memberId, sickLeave, training, counterId, extraCoverage, shiftId: slot.id
                     });
 
                     if (previousMemberId && previousMemberId !== memberId) {
@@ -6568,7 +6909,7 @@
                             const change = timesChanged ? ` Now ${times} (was ${previousTimes}).` : '';
                             await createNotification(memberId, `Your shift on ${dateKey} (${times}, ${locName}) was updated.${change}${sickLeave ? ' Marked as Sick Leave.' : ''}`);
                         }
-                        await logAction('Shift updated', `${dateKey} ${timesChanged ? previousTimes + ' → ' : ''}${times} (${locName}) for ${m ? m.name : memberId}${sickLeave ? ' — marked Sick Leave' : ''}`);
+                        await logAction('Shift updated', `${dateKey} ${timesChanged ? previousTimes + ' → ' : ''}${times} (${locName})${describeAssignExtras(pendingAssign.locationId, counterId, extraCoverage)} for ${m ? m.name : memberId}${sickLeave ? ' — marked Sick Leave' : ''}${training ? ' — marked Training' : ''}`);
                     }
                 } else {
                     await fns.addDoc(fns.collection(db, 'assignments'), {
@@ -6576,12 +6917,15 @@
                         dateKey,
                         memberId,
                         sickLeave: false,
+                        training,
+                        counterId,
+                        extraCoverage,
                         published: false
                     });
                     lastShiftTimes = { start, end };
                     // New shifts always start as a draft, so no notification here —
                     // the member is told when the rota is published.
-                    await logAction('Shift assigned', `${dateKey} ${times} (${locName}) to ${m ? m.name : memberId}`);
+                    await logAction('Shift assigned', `${dateKey} ${times} (${locName})${describeAssignExtras(pendingAssign.locationId, counterId, extraCoverage)} to ${m ? m.name : memberId}${training ? ' — Training' : ''}`);
                 }
 
                 closeAssignModal();
@@ -6632,7 +6976,8 @@
                         ? `<button class="task-add-btn" onclick="closeDayDetailModal(); openAssignModal('${shift.id}','${dateKey}')"><i class="fas fa-plus"></i> Assign</button>`
                         : assigns.map(a => {
                             const m = assigneeMap[a.memberId];
-                            return `<div class="sg-shift-assignee" style="cursor:pointer; margin-top:4px;" onclick="closeDayDetailModal(); openAssignModal('${shift.id}','${dateKey}','${a.id}')">${m ? m.name : 'Unknown'} ${a.sickLeave ? '(Sick)' : ''}</div>`;
+                            const counterName = getCounterName(shift.locationId, a.counterId);
+                            return `<div class="sg-shift-assignee" style="cursor:pointer; margin-top:4px;" onclick="closeDayDetailModal(); openAssignModal('${shift.id}','${dateKey}','${a.id}')">${m ? m.name : 'Unknown'}${assignmentFlagLabels(a)}${counterName ? ` — ${escapeHtml(counterName)}` : ''}</div>`;
                         }).join('');
 
                     return `
@@ -6671,6 +7016,24 @@
                 .sort((a, b) => (a.dateKey + a.shift.start).localeCompare(b.dateKey + b.shift.start));
         }
 
+        // "Main Warehouse / Counter 2 + Branch B" — where this person actually sits.
+        function describeAssignmentPlace(assignment, loc) {
+            const locationId = loc ? loc.id : null;
+            let text = loc ? loc.name : '';
+            const counterName = getCounterName(locationId, assignment.counterId);
+            if (counterName) text += ` / ${counterName}`;
+
+            const covers = (assignment.extraCoverage || []).map(c => {
+                const other = state.locations.find(l => l.id === c.locationId);
+                const name = getCounterName(c.locationId, c.counterId);
+                return `${other ? other.name : ''}${name ? ` / ${name}` : ''}`;
+            }).filter(Boolean);
+
+            if (covers.length) text += ` + ${covers.join(' + ')}`;
+            if (assignment.training) text += ' · Training';
+            return text;
+        }
+
         function renderMyRota() {
             const nextEl = document.getElementById('myNextShift');
             const listEl = document.getElementById('myUpcomingShifts');
@@ -6695,7 +7058,7 @@
                     <div class="next-shift-card">
                         <div class="ns-label">My next shift</div>
                         <div class="ns-time">${next.shift.start} - ${next.shift.end}</div>
-                        <div class="ns-meta"><i class="fas fa-map-marker-alt"></i> ${next.loc ? next.loc.name : ''} &nbsp; • &nbsp; ${next.dateKey}</div>
+                        <div class="ns-meta"><i class="fas fa-map-marker-alt"></i> ${escapeHtml(describeAssignmentPlace(next, next.loc))} &nbsp; • &nbsp; ${next.dateKey}</div>
                     </div>
                 `;
 
@@ -6706,7 +7069,7 @@
                         <div class="upcoming-shift-item">
                             <div>
                                 <div class="sg-shift-time">${a.shift.start} - ${a.shift.end}</div>
-                                <div style="color:#666; font-size:12px;">${a.loc ? a.loc.name : ''}</div>
+                                <div style="color:#666; font-size:12px;">${escapeHtml(describeAssignmentPlace(a, a.loc))}</div>
                             </div>
                             <div style="color:#333; font-weight:600; font-size:13px;">${a.dateKey}</div>
                         </div>
@@ -6793,24 +7156,31 @@
 
                 let locBlocks = '';
                 getOrderedLocations().forEach(loc => {
-                    const locAssignments = dayAssignments.filter(a => {
+                    // A shift shows under its own location and under every location
+                    // the same person is covering at that time.
+                    const locAssignments = [];
+                    dayAssignments.forEach(a => {
                         const shift = state.shifts.find(s => s.id === a.shiftId);
-                        return shift && shift.locationId === loc.id;
-                    }).sort((a, b) => {
-                        const shiftA = state.shifts.find(s => s.id === a.shiftId);
-                        const shiftB = state.shifts.find(s => s.id === b.shiftId);
-                        return (shiftA ? shiftA.start : '').localeCompare(shiftB ? shiftB.start : '');
+                        if (!shift) return;
+                        if (shift.locationId === loc.id) {
+                            locAssignments.push({ a, shift, cover: false, counterId: a.counterId });
+                            return;
+                        }
+                        const cover = (a.extraCoverage || []).find(c => c.locationId === loc.id);
+                        if (cover) locAssignments.push({ a, shift, cover: true, counterId: cover.counterId });
                     });
+                    locAssignments.sort((x, y) => x.shift.start.localeCompare(y.shift.start));
                     if (locAssignments.length === 0) return;
 
-                    const cards = locAssignments.map(a => {
-                        const shift = state.shifts.find(s => s.id === a.shiftId);
+                    const cards = locAssignments.map(({ a, shift, cover, counterId }) => {
                         const m = assigneeMap[a.memberId];
                         const isMe = currentMember && a.memberId === currentMember.id;
+                        const counterName = getCounterName(loc.id, counterId);
                         return `
-                            <div class="rotas-shift-card ${isMe ? 'is-me' : ''}" onclick="onRotaShiftClick('${a.id}')">
-                                <div class="sg-shift-time">${shift.start}-${shift.end}</div>
-                                <div>${m ? m.name : 'Unknown'} ${a.sickLeave ? '(Sick)' : ''}</div>
+                            <div class="rotas-shift-card ${isMe ? 'is-me' : ''}${cover ? ' is-cover' : ''}" onclick="onRotaShiftClick('${a.id}')">
+                                <div class="sg-shift-time">${shift.start}-${shift.end}${cover ? ' · Cover' : ''}</div>
+                                <div>${m ? m.name : 'Unknown'}${assignmentFlagLabels(a)}</div>
+                                ${counterName ? `<div class="sg-shift-counter">${escapeHtml(counterName)}</div>` : ''}
                             </div>
                         `;
                     }).join('');
@@ -8550,7 +8920,9 @@
             const byMember = {};
             let total = 0;
             state.assignments.forEach(orig => {
-                if (orig.sickLeave || !orig.memberId || !orig.dateKey || orig.dateKey.slice(0, 7) !== periodKey) return;
+                // Training shifts produce no transactions, so they carry no target
+                // weight either — same treatment as sick leave.
+                if (orig.sickLeave || orig.training || !orig.memberId || !orig.dateKey || orig.dateKey.slice(0, 7) !== periodKey) return;
                 const shift = shiftById[orig.shiftId];
                 if (!shift || !locationHasTarget(shift.locationId)) return;
                 const w = calcShiftWeight(orig.dateKey, shift, settings);
@@ -8678,7 +9050,9 @@
             const shiftById = {};
             state.shifts.forEach(sh => { shiftById[sh.id] = sh; });
             state.assignments.forEach(a => {
-                if (a.sickLeave || !daysWithResults.has(a.dateKey)) return;
+                // Training hours would drag the transactions-per-hour rate down and
+                // distort the weekday factors, so they are left out here too.
+                if (a.sickLeave || a.training || !daysWithResults.has(a.dateKey)) return;
                 const shift = shiftById[a.shiftId];
                 if (!shift) return;
                 const gross = calcGrossMinutes(shift.start, shift.end);
@@ -11693,6 +12067,7 @@
             const head = ['DOW', 'Date'].concat(members.map(m => m.name.split(' ')[0].substring(0, 10)));
             const body = [];
             const sickCells = new Set();
+            const trainingCells = new Set();
             const leaveCells = new Set();
 
             for (let d = 1; d <= daysInMonth; d++) {
@@ -11712,6 +12087,7 @@
                             .sort((a, b) => a.start.localeCompare(b.start));
                         const span = shifts.length > 0 ? `${shifts[0].start}-${shifts[shifts.length - 1].end}` : '';
                         if (dayAssignments.some(a => a.sickLeave)) sickCells.add(`${d - 1}|${colIdx + 2}`);
+                        else if (dayAssignments.some(a => a.training)) trainingCells.add(`${d - 1}|${colIdx + 2}`);
                         row.push(span);
                         return;
                     }
@@ -11755,6 +12131,7 @@
                         const key = `${rowIdx}|${colIdx}`;
                         if (leaveCells.has(key)) return { fill: [233, 213, 255], text: [107, 33, 168] };
                         if (sickCells.has(key)) return { fill: [254, 202, 202], text: [153, 27, 27] };
+                        if (trainingCells.has(key)) return { fill: [224, 231, 255], text: [55, 48, 163] };
                         const text = cellText(raw);
                         if (text === 'Off') return { fill: [220, 252, 231], text: [22, 101, 52] };
                         if (text === 'Holiday') return { fill: [254, 243, 199], text: [146, 64, 14] };
