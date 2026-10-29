@@ -2701,7 +2701,7 @@
             </div>
             <p style="font-size:12px; color:#999; margin-top:10px;">
                 Tap <strong>+</strong> in a location/day to add a shift. Tap an existing shift to edit, publish or remove it.<br>
-                Drag a shift to another day or location to move it (on a phone: press and hold, then drag). Hold <strong>Alt / ⌥</strong> when dropping to copy it instead. A moved shift goes back to draft.
+                Drag a shift to another day or location to move it (on a phone: press and hold, then drag). On a computer, hold <strong>Alt / ⌥</strong> when dropping to copy it instead; on a phone you are asked whether to move or copy. A moved shift goes back to draft.
             </p>
         </div>
 
@@ -3969,7 +3969,7 @@
             <div id="auditLogList"></div>
         </div>
 
-        <div class="app-version">GEBLL v-0.65</div>
+        <div class="app-version">GEBLL v-0.66</div>
     </div>
 
 
@@ -6718,8 +6718,14 @@
             const target = d.target;
             const id = d.id;
             const copy = d.copy;
+            const isTouch = d.isTouch;
             schedCleanup();
-            if (target) moveScheduledAssignment(id, target.dataset.dropLoc, target.dataset.dropDate, copy);
+            if (!target) return;
+            const toLoc = target.dataset.dropLoc;
+            const toDate = target.dataset.dropDate;
+            // Phones have no Alt key, so they get a choice instead.
+            if (isTouch) askMoveOrCopy(id, toLoc, toDate);
+            else moveScheduledAssignment(id, toLoc, toDate, copy);
         }
 
         // --- mouse ---
@@ -6776,6 +6782,53 @@
                 e.stopPropagation();
             }
         }, true);
+
+        function askMoveOrCopy(assignmentId, toLocId, toDateKey) {
+            const a = state.assignments.find(x => x.id === assignmentId);
+            const shift = a ? state.shifts.find(s => s.id === a.shiftId) : null;
+            if (!a || !shift) return;
+            if (shift.locationId === toLocId && a.dateKey === toDateKey) return;
+            // The drag already ended with preventDefault, so no stray click is coming:
+            // the first tap on a button below must count.
+            schedSuppressClick = false;
+
+            const m = assigneeMap[a.memberId];
+            const toLoc = state.locations.find(l => l.id === toLocId);
+            const label = dateKeyToDate(toDateKey).toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short' });
+
+            const old = document.getElementById('sgMoveCopyOverlay');
+            if (old) old.remove();
+            const overlay = document.createElement('div');
+            overlay.id = 'sgMoveCopyOverlay';
+            overlay.className = 'modal-overlay active';
+            overlay.innerHTML = `
+                <div class="modal-box" style="max-width:340px;">
+                    <div class="section-title" style="margin-bottom:6px;">
+                        <i class="fas fa-up-down-left-right"></i> ${escapeHtml(m ? m.name : 'Shift')}
+                    </div>
+                    <p style="font-size:13px; color:#666; margin-bottom:16px;">
+                        ${shift.start}-${shift.end} → ${escapeHtml(label)}${toLoc ? ', ' + escapeHtml(toLoc.name) : ''}
+                    </p>
+                    <button type="button" class="btn" data-choice="move" style="width:100%; justify-content:center; margin-bottom:8px;">
+                        <i class="fas fa-arrow-right"></i> Move
+                    </button>
+                    <button type="button" class="btn btn-success" data-choice="copy" style="width:100%; justify-content:center; margin-bottom:8px;">
+                        <i class="fas fa-copy"></i> Copy
+                    </button>
+                    <button type="button" class="btn btn-secondary" data-choice="cancel" style="width:100%; justify-content:center;">
+                        Cancel
+                    </button>
+                </div>`;
+            document.body.appendChild(overlay);
+            overlay.addEventListener('click', (e) => {
+                const btn = e.target.closest('[data-choice]');
+                if (!btn && e.target !== overlay) return;
+                const choice = btn ? btn.dataset.choice : 'cancel';
+                overlay.remove();
+                if (choice === 'move') moveScheduledAssignment(assignmentId, toLocId, toDateKey, false);
+                if (choice === 'copy') moveScheduledAssignment(assignmentId, toLocId, toDateKey, true);
+            });
+        }
 
         let schedUndoTimer = null;
 
