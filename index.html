@@ -1449,6 +1449,73 @@
             cursor: pointer;
         }
 
+        /* Drag & drop in Schedule (v-0.65) */
+        .sg-shift-item[data-drag-id] {
+            -webkit-user-select: none;
+            user-select: none;
+            -webkit-touch-callout: none;
+        }
+
+        .sg-shift-item.sg-dragging {
+            opacity: 0.35;
+        }
+
+        .sg-cell.sg-drop-target {
+            background: #e8efff;
+            outline: 2px dashed #2563eb;
+            outline-offset: -3px;
+        }
+
+        .sg-drag-ghost {
+            position: fixed;
+            z-index: 300;
+            pointer-events: none;
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.25);
+            transform: rotate(-2deg);
+            opacity: 0.95;
+        }
+
+        .sg-drag-ghost .sg-ghost-copy {
+            display: none;
+            margin-top: 3px;
+            font-size: 10px;
+            font-weight: 700;
+            color: #16a34a;
+        }
+
+        .sg-drag-ghost.copying .sg-ghost-copy {
+            display: block;
+        }
+
+        .sg-undo-toast {
+            position: fixed;
+            left: 50%;
+            bottom: 24px;
+            transform: translateX(-50%);
+            z-index: 400;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            background: #1e293b;
+            color: white;
+            padding: 10px 14px;
+            border-radius: 10px;
+            font-size: 13px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+            max-width: calc(100vw - 32px);
+        }
+
+        .sg-undo-toast button {
+            background: none;
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            color: white;
+            border-radius: 6px;
+            padding: 5px 10px;
+            font-weight: 700;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
         .sg-assign-btn {
             background: none;
             border: none;
@@ -2633,7 +2700,8 @@
                 <div id="scheduleGrid" class="schedule-grid"></div>
             </div>
             <p style="font-size:12px; color:#999; margin-top:10px;">
-                Tap <strong>+</strong> in a location/day to add a shift. Tap an existing shift to edit, publish or remove it.
+                Tap <strong>+</strong> in a location/day to add a shift. Tap an existing shift to edit, publish or remove it.<br>
+                Drag a shift to another day or location to move it (on a phone: press and hold, then drag). Hold <strong>Alt / ⌥</strong> when dropping to copy it instead. A moved shift goes back to draft.
             </p>
         </div>
 
@@ -3901,7 +3969,7 @@
             <div id="auditLogList"></div>
         </div>
 
-        <div class="app-version">GEBLL v-0.64</div>
+        <div class="app-version">GEBLL v-0.65</div>
     </div>
 
 
@@ -6427,6 +6495,8 @@
         function renderSchedule() {
             const grid = document.getElementById('scheduleGrid');
             if (!grid) return;
+            // Re-drawing in the middle of a drag would remove the shift being dragged.
+            if (schedDrag && schedDrag.active) { scheduleRenderPending = true; return; }
 
             const dates = getScheduleDates();
             updateScheduleRangeLabel(dates);
@@ -6478,14 +6548,14 @@
                     const items = (byLocDate[`${loc.id}|${dateKey}`] || [])
                         .sort((x, y) => (x.shift.start + x.shift.end).localeCompare(y.shift.start + y.shift.end));
 
-                    let cellHtml = '<div class="sg-cell">';
+                    let cellHtml = `<div class="sg-cell" data-drop-loc="${loc.id}" data-drop-date="${dateKey}">`;
                     items.forEach(({ a, shift, cover, counterId }) => {
                         const m = assigneeMap[a.memberId];
                         const counterName = cover
                             ? getCounterName(loc.id, counterId)
                             : getCounterName(shift.locationId, a.counterId);
                         cellHtml += `
-                            <div class="sg-shift-item clickable ${a.published ? 'published' : 'draft'}${cover ? ' sg-cover' : ''}" onclick="openAssignModal('${shift.locationId}','${dateKey}','${a.id}')">
+                            <div class="sg-shift-item clickable ${a.published ? 'published' : 'draft'}${cover ? ' sg-cover' : ''}" ${cover ? '' : `data-drag-id="${a.id}"`} onclick="openAssignModal('${shift.locationId}','${dateKey}','${a.id}')">
                                 <div class="sg-shift-time">${shift.start}-${shift.end}${cover ? ' · Cover' : ''}</div>
                                 <div class="sg-shift-assignee">${m ? m.name : 'Unknown'}${assignmentFlagLabels(a)}</div>
                                 ${counterName ? `<div class="sg-shift-counter">${escapeHtml(counterName)}</div>` : ''}
@@ -6502,6 +6572,346 @@
             });
 
             grid.innerHTML = html;
+        }
+
+        // ===== SCHEDULE DRAG & DROP (v-0.65) =====
+        // Mouse: drag straight away (Alt / ⌥ / Ctrl held on drop = copy).
+        // Touch: press and hold ~0.4 s, then drag. Only the main copy of a shift can be
+        // dragged; the dashed "Cover" copies follow it.
+
+        let schedDrag = null;
+        let scheduleRenderPending = false;
+        let schedSuppressClick = false;
+        const SCHED_HOLD_MS = 400;
+
+        function schedDragStart(item, x, y, isTouch) {
+            schedDrag = {
+                id: item.dataset.dragId,
+                item,
+                startX: x,
+                startY: y,
+                x, y,
+                isTouch,
+                active: false,
+                copy: false,
+                ghost: null,
+                target: null,
+                holdTimer: null,
+                raf: null
+            };
+            if (isTouch) {
+                schedDrag.holdTimer = setTimeout(() => {
+                    if (schedDrag && !schedDrag.active) {
+                        schedActivate();
+                        if (navigator.vibrate) { try { navigator.vibrate(15); } catch (e) {} }
+                    }
+                }, SCHED_HOLD_MS);
+            }
+        }
+
+        function schedActivate() {
+            const d = schedDrag;
+            d.active = true;
+            const rect = d.item.getBoundingClientRect();
+            d.offsetX = d.startX - rect.left;
+            d.offsetY = d.startY - rect.top;
+            const ghost = d.item.cloneNode(true);
+            ghost.removeAttribute('onclick');
+            ghost.removeAttribute('data-drag-id');
+            ghost.classList.add('sg-drag-ghost');
+            ghost.style.width = rect.width + 'px';
+            ghost.insertAdjacentHTML('beforeend', '<div class="sg-ghost-copy"><i class="fas fa-plus"></i> Copy</div>');
+            document.body.appendChild(ghost);
+            d.ghost = ghost;
+            d.item.classList.add('sg-dragging');
+            schedPositionGhost();
+            schedAutoScrollLoop();
+        }
+
+        function schedPositionGhost() {
+            const d = schedDrag;
+            if (!d || !d.ghost) return;
+            d.ghost.style.left = (d.x - d.offsetX) + 'px';
+            d.ghost.style.top = (d.y - d.offsetY) + 'px';
+            d.ghost.classList.toggle('copying', d.copy);
+            schedUpdateTarget();
+        }
+
+        function schedUpdateTarget() {
+            const d = schedDrag;
+            const el = document.elementFromPoint(d.x, d.y);
+            const cell = el ? el.closest('#scheduleGrid [data-drop-loc]') : null;
+            if (cell !== d.target) {
+                if (d.target) d.target.classList.remove('sg-drop-target');
+                d.target = cell;
+                if (cell) cell.classList.add('sg-drop-target');
+            }
+        }
+
+        // Scrolls the grid sideways and the page up/down when the finger or mouse
+        // reaches an edge, so far-away days can be reached in one drag.
+        function schedAutoScrollLoop() {
+            const d = schedDrag;
+            if (!d || !d.active) return;
+            const wrap = document.getElementById('scheduleGridWrap');
+            const edge = 45, speed = 14;
+            let moved = false;
+            if (wrap) {
+                const r = wrap.getBoundingClientRect();
+                if (d.x < r.left + edge && wrap.scrollLeft > 0) { wrap.scrollLeft -= speed; moved = true; }
+                else if (d.x > r.right - edge && wrap.scrollLeft < wrap.scrollWidth - wrap.clientWidth) { wrap.scrollLeft += speed; moved = true; }
+            }
+            if (d.y < edge) { window.scrollBy(0, -speed); moved = true; }
+            else if (d.y > window.innerHeight - edge) { window.scrollBy(0, speed); moved = true; }
+            if (moved) schedUpdateTarget();
+            d.raf = requestAnimationFrame(schedAutoScrollLoop);
+        }
+
+        function schedMove(x, y, copyKey) {
+            const d = schedDrag;
+            if (!d) return;
+            d.x = x; d.y = y;
+            if (copyKey !== undefined) d.copy = copyKey;
+            if (!d.active) {
+                const dist = Math.hypot(x - d.startX, y - d.startY);
+                if (d.isTouch) {
+                    // Moving before the hold time is up means the user is scrolling.
+                    if (dist > 8) schedCancel();
+                    return;
+                }
+                if (dist < 5) return;
+                schedActivate();
+            }
+            schedPositionGhost();
+        }
+
+        function schedCleanup() {
+            const d = schedDrag;
+            if (!d) return;
+            clearTimeout(d.holdTimer);
+            if (d.raf) cancelAnimationFrame(d.raf);
+            if (d.ghost) d.ghost.remove();
+            if (d.target) d.target.classList.remove('sg-drop-target');
+            d.item.classList.remove('sg-dragging');
+            const wasActive = d.active;
+            schedDrag = null;
+            if (wasActive) {
+                // The tap that ends a drag must not open the shift pop-up.
+                schedSuppressClick = true;
+                setTimeout(() => { schedSuppressClick = false; }, 400);
+            }
+            if (scheduleRenderPending) {
+                scheduleRenderPending = false;
+                renderSchedule();
+            }
+        }
+
+        function schedCancel() {
+            schedCleanup();
+        }
+
+        function schedEnd(copyKey) {
+            const d = schedDrag;
+            if (!d) return;
+            if (!d.active) { schedCleanup(); return; }
+            if (copyKey !== undefined) d.copy = copyKey;
+            const target = d.target;
+            const id = d.id;
+            const copy = d.copy;
+            schedCleanup();
+            if (target) moveScheduledAssignment(id, target.dataset.dropLoc, target.dataset.dropDate, copy);
+        }
+
+        // --- mouse ---
+        document.addEventListener('mousedown', (e) => {
+            if (e.button !== 0) return;
+            const item = e.target.closest('#scheduleGrid [data-drag-id]');
+            if (!item) return;
+            e.preventDefault(); // no text selection while dragging
+            schedDragStart(item, e.clientX, e.clientY, false);
+        });
+        document.addEventListener('mousemove', (e) => {
+            if (schedDrag && !schedDrag.isTouch) schedMove(e.clientX, e.clientY, e.altKey || e.ctrlKey || e.metaKey);
+        });
+        document.addEventListener('mouseup', (e) => {
+            if (schedDrag && !schedDrag.isTouch) schedEnd(e.altKey || e.ctrlKey || e.metaKey);
+        });
+        document.addEventListener('keydown', (e) => {
+            if (!schedDrag) return;
+            if (e.key === 'Escape') { schedCancel(); return; }
+            if (e.key === 'Alt' || e.key === 'Control' || e.key === 'Meta') { schedDrag.copy = true; schedPositionGhost(); }
+        });
+        document.addEventListener('keyup', (e) => {
+            if (schedDrag && (e.key === 'Alt' || e.key === 'Control' || e.key === 'Meta')) { schedDrag.copy = false; schedPositionGhost(); }
+        });
+
+        // --- touch (press and hold) ---
+        document.addEventListener('touchstart', (e) => {
+            if (e.touches.length !== 1) { if (schedDrag) schedCancel(); return; }
+            const item = e.target.closest('#scheduleGrid [data-drag-id]');
+            if (!item) return;
+            const t = e.touches[0];
+            schedDragStart(item, t.clientX, t.clientY, true);
+        }, { passive: true });
+        document.addEventListener('touchmove', (e) => {
+            if (!schedDrag || !schedDrag.isTouch) return;
+            const t = e.touches[0];
+            if (schedDrag.active) e.preventDefault(); // stop the page scrolling under the finger
+            schedMove(t.clientX, t.clientY);
+        }, { passive: false });
+        document.addEventListener('touchend', (e) => {
+            if (!schedDrag || !schedDrag.isTouch) return;
+            if (schedDrag.active) e.preventDefault();
+            schedEnd();
+        }, { passive: false });
+        document.addEventListener('touchcancel', () => { if (schedDrag) schedCancel(); });
+        document.addEventListener('contextmenu', (e) => {
+            if (schedDrag && schedDrag.isTouch) e.preventDefault();
+        });
+
+        document.addEventListener('click', (e) => {
+            if (schedSuppressClick) {
+                schedSuppressClick = false;
+                e.preventDefault();
+                e.stopPropagation();
+            }
+        }, true);
+
+        let schedUndoTimer = null;
+
+        function showScheduleUndo(message, undoFn) {
+            let toast = document.getElementById('sgUndoToast');
+            if (toast) toast.remove();
+            clearTimeout(schedUndoTimer);
+            toast = document.createElement('div');
+            toast.id = 'sgUndoToast';
+            toast.className = 'sg-undo-toast';
+            toast.innerHTML = `<span>${escapeHtml(message)}</span><button type="button"><i class="fas fa-rotate-left"></i> Undo</button>`;
+            document.body.appendChild(toast);
+            toast.querySelector('button').onclick = async () => {
+                toast.remove();
+                clearTimeout(schedUndoTimer);
+                try {
+                    await undoFn();
+                } catch (err) {
+                    alert('Could not undo: ' + (err.message || err));
+                }
+            };
+            schedUndoTimer = setTimeout(() => toast.remove(), 8000);
+        }
+
+        // Moves (or copies) one assignment to another day and/or location. Runs the same
+        // checks as saving a shift: leave and holidays block, the 7h55 daily limit blocks,
+        // a rotation day off and counter clashes only warn. Moved shifts go back to draft,
+        // so the person is told when the rota is published again.
+        async function moveScheduledAssignment(assignmentId, toLocId, toDateKey, copy) {
+            const a = state.assignments.find(x => x.id === assignmentId);
+            const shift = a ? state.shifts.find(s => s.id === a.shiftId) : null;
+            if (!a || !shift || !toLocId || !toDateKey) return;
+
+            const sameLoc = shift.locationId === toLocId;
+            const sameDay = a.dateKey === toDateKey;
+            if (sameLoc && sameDay) return;
+
+            const member = state.team.find(m => m.id === a.memberId);
+            const name = member ? member.name : 'This member';
+            const fromLoc = state.locations.find(l => l.id === shift.locationId);
+            const toLoc = state.locations.find(l => l.id === toLocId);
+            const times = `${shift.start}-${shift.end}`;
+
+            if (!copy && !sameDay && state.resultLines.some(l => l.assignmentId === a.id)) {
+                alert(`This shift already has results entered for ${a.dateKey}, so it cannot be moved to another day. Copy it instead (hold Alt / ⌥) or remove the results first.`);
+                return;
+            }
+
+            if (!sameDay || copy) {
+                const leave = getLongTermLeaveForDate(a.memberId, toDateKey);
+                if (leave) {
+                    alert(`${name} is on ${LEAVE_TYPE_LABELS[leave.type] || 'leave'} on ${toDateKey}.`);
+                    return;
+                }
+                if (isOnApprovedVacation(a.memberId, toDateKey)) {
+                    alert(`${name} is on approved holidays on ${toDateKey}.`);
+                    return;
+                }
+                const existingMinutes = getMemberDayMinutes(a.memberId, toDateKey, copy ? null : a.id);
+                const netMinutes = existingMinutes + shift.grossMinutes - 30;
+                if (netMinutes > 475) {
+                    alert(`${name} would have ${formatMinutes(netMinutes)} net on ${toDateKey}, exceeding the 7h55 daily limit.`);
+                    return;
+                }
+            }
+
+            // Counters belong to one location: changing location drops the counter.
+            const counterId = sameLoc ? (a.counterId || '') : '';
+            const extraCoverage = (a.extraCoverage || []).filter(c => c.locationId !== toLocId);
+
+            const warnings = [];
+            if (!sameDay && member && getRotationStatusLabel(member, dateKeyToDate(toDateKey)) === 'Day off (rotation)') {
+                warnings.push(`${toDateKey} is a rotation day off for ${name}.`);
+            }
+            if (!sameLoc && a.counterId) {
+                const counterName = getCounterName(shift.locationId, a.counterId);
+                if (counterName) warnings.push(`The counter "${counterName}" belongs to ${fromLoc ? fromLoc.name : 'the old location'} and will be removed.`);
+            }
+            if (extraCoverage.length !== (a.extraCoverage || []).length) {
+                warnings.push(`${toLoc ? toLoc.name : 'The new location'} was a covered location; that cover is removed because it is now the main location.`);
+            }
+            const spots = [{ locationId: toLocId, counterId }].concat(extraCoverage.map(c => ({ locationId: c.locationId, counterId: c.counterId })));
+            spots.forEach(spot => {
+                const clash = findCounterClash(spot.locationId, spot.counterId, toDateKey, shift.start, shift.end, copy ? null : a.id);
+                if (clash) warnings.push(`${clash.name} is already on ${getCounterName(spot.locationId, spot.counterId)} at ${clash.times}.`);
+            });
+            if (!copy && a.published) {
+                warnings.push('This shift is published. It goes back to draft, and the person is told when you publish again.');
+            }
+            if (warnings.length && !confirm(warnings.join('\n\n') + `\n\n${copy ? 'Copy' : 'Move'} anyway?`)) return;
+
+            try {
+                const slot = sameLoc ? shift : await findOrCreateShiftSlot(shift.start, shift.end, toLocId);
+                const where = `${toDateKey} ${times} (${toLoc ? toLoc.name : ''})`;
+
+                if (copy) {
+                    const ref = await fns.addDoc(fns.collection(db, 'assignments'), {
+                        shiftId: slot.id,
+                        dateKey: toDateKey,
+                        memberId: a.memberId,
+                        sickLeave: false,
+                        training: !!a.training,
+                        counterId,
+                        extraCoverage,
+                        published: false
+                    });
+                    await logAction('Shift copied', `${a.dateKey} ${times} (${fromLoc ? fromLoc.name : ''}) → ${where} for ${name}`);
+                    showScheduleUndo(`Copied ${name}'s shift to ${toDateKey}.`, async () => {
+                        await fns.deleteDoc(fns.doc(db, 'assignments', ref.id));
+                        await logAction('Shift copy undone', `${where} for ${name}`);
+                    });
+                } else {
+                    const before = {
+                        shiftId: a.shiftId,
+                        dateKey: a.dateKey,
+                        counterId: a.counterId || '',
+                        extraCoverage: a.extraCoverage || [],
+                        published: !!a.published
+                    };
+                    await fns.updateDoc(fns.doc(db, 'assignments', a.id), {
+                        shiftId: slot.id,
+                        dateKey: toDateKey,
+                        counterId,
+                        extraCoverage,
+                        published: false
+                    });
+                    await logAction('Shift moved', `${a.dateKey} ${times} (${fromLoc ? fromLoc.name : ''}) → ${where} for ${name}${before.published ? ' — back to draft' : ''}`);
+                    showScheduleUndo(`Moved ${name}'s shift to ${toDateKey}${sameLoc ? '' : ', ' + (toLoc ? toLoc.name : '')}.`, async () => {
+                        if (!state.assignments.some(x => x.id === a.id)) return;
+                        await fns.updateDoc(fns.doc(db, 'assignments', a.id), before);
+                        await logAction('Shift move undone', `${name}: back to ${before.dateKey} ${times}`);
+                    });
+                }
+            } catch (err) {
+                alert('The shift could not be moved: ' + (err.message || err));
+            }
         }
 
         function toggleScheduleGroup(groupKey) {
