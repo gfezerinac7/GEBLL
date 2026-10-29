@@ -1617,6 +1617,126 @@
             display: flex;
         }
 
+        /* Compact pop-ups (v-0.67): everything should fit on one screen */
+        .modal-overlay {
+            padding: 10px;
+        }
+
+        .modal-box .modal-header {
+            margin-bottom: 10px !important;
+        }
+
+        .modal-box .section-title {
+            font-size: 16px;
+        }
+
+        .modal-box .modal-header + p {
+            margin-bottom: 8px !important;
+        }
+
+        .modal-box .form-group {
+            margin-bottom: 9px;
+        }
+
+        .modal-box .form-group label {
+            margin-bottom: 3px;
+            font-size: 13px;
+        }
+
+        .modal-box .form-group input,
+        .modal-box .form-group select,
+        .modal-box .form-group textarea {
+            padding: 7px 10px;
+        }
+
+        .modal-box .form-row {
+            gap: 10px;
+        }
+
+        .modal-box .btn {
+            padding: 9px 16px;
+        }
+
+        .modal-box .login-error {
+            margin: 4px 0 8px;
+        }
+
+        /* New Shift */
+        .as-row {
+            display: flex;
+            gap: 10px;
+            align-items: flex-start;
+        }
+
+        .as-row > .form-group {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .as-row > .as-length {
+            flex: 1.15;
+        }
+
+        .as-checks {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 9px;
+        }
+
+        .as-checks > .form-group {
+            margin-bottom: 0;
+        }
+
+        .as-buttons {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .as-buttons > .btn {
+            margin-top: 0 !important;
+            min-width: 0;
+            padding-left: 8px;
+            padding-right: 8px;
+        }
+
+        .as-cover-list {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-auto-flow: row dense;
+            gap: 6px;
+        }
+
+        .as-cover-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 4px 6px;
+            min-width: 0;
+        }
+
+        .as-cover-item.as-cover-wide {
+            grid-column: 1 / -1;
+        }
+
+        .as-cover-item .module-check {
+            padding: 4px 8px;
+            min-width: 0;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+        }
+
+        .modal-box .as-cover-item select {
+            flex: 1;
+            min-width: 0;
+            padding: 4px 6px;
+            font-size: 12px;
+        }
+
         .modal-box {
             background: white;
             border-radius: 16px;
@@ -1624,6 +1744,7 @@
             max-width: 480px;
             width: 100%;
             max-height: 85vh;
+            max-height: calc(100dvh - 20px);
             overflow-y: auto;
         }
 
@@ -2739,62 +2860,67 @@
                     <button class="modal-close" onclick="closeAssignModal()"><i class="fas fa-times"></i></button>
                 </div>
                 <p id="assignModalSubtitle" style="color:#666; font-size:13px; margin-bottom:14px;"></p>
-                <div class="form-row">
+                <div class="as-row">
                     <div class="form-group">
-                        <label>Start Time</label>
+                        <label>Start</label>
                         <input type="time" id="assignStart" oninput="onAssignTimeChange('start')">
                     </div>
                     <div class="form-group">
-                        <label>End Time</label>
+                        <label>End</label>
                         <input type="time" id="assignEnd" oninput="onAssignTimeChange('end')">
                     </div>
-                </div>
-                <div class="form-group">
-                    <label>Shift length</label>
-                    <div style="display:flex; gap:8px; align-items:center;">
-                        <input type="number" id="assignDurationHours" min="0" max="23" placeholder="Hours" style="flex:1;" oninput="onAssignDurationChange()">
-                        <input type="number" id="assignDurationMinutes" min="0" max="59" placeholder="Minutes" style="flex:1;" oninput="onAssignDurationChange()">
+                    <div class="form-group as-length">
+                        <label>Length</label>
+                        <div style="display:flex; gap:4px;">
+                            <input type="number" id="assignDurationHours" min="0" max="23" placeholder="h" style="flex:1; min-width:0; padding-left:6px; padding-right:4px;" oninput="onAssignDurationChange()">
+                            <input type="number" id="assignDurationMinutes" min="0" max="59" placeholder="m" style="flex:1; min-width:0; padding-left:6px; padding-right:4px;" oninput="onAssignDurationChange()">
+                        </div>
                     </div>
-                    <p id="assignDurationInfo" style="font-size:12px; color:#666; margin:6px 0 0;"></p>
                 </div>
-                <div class="form-group">
-                    <label>Team Member</label>
-                    <select id="assignMemberSelect"></select>
-                </div>
-                <div class="form-group" id="assignCounterWrap" style="display:none;">
-                    <label>Counter</label>
-                    <select id="assignCounterSelect"></select>
+                <p id="assignDurationInfo" style="font-size:12px; color:#666; margin:-4px 0 8px;"></p>
+                <div class="as-row">
+                    <div class="form-group">
+                        <label>Team Member</label>
+                        <select id="assignMemberSelect"></select>
+                    </div>
+                    <div class="form-group" id="assignCounterWrap" style="display:none;">
+                        <label>Counter</label>
+                        <select id="assignCounterSelect"></select>
+                    </div>
                 </div>
                 <div class="form-group" id="assignCoverageWrap" style="display:none;">
-                    <label>Also covering <span style="font-weight:400; color:#666;">(same time, other locations)</span></label>
-                    <div id="assignCoverageList" style="display:flex; flex-direction:column; gap:8px;"></div>
-                    <p style="font-size:12px; color:#666; margin:6px 0 0;">The hours are counted once, on the main location.</p>
+                    <label>Also covering <span style="font-weight:400; color:#666;">(same time; hours count once, on the main location)</span></label>
+                    <div id="assignCoverageList" class="as-cover-list"></div>
                 </div>
-                <div class="form-group" id="assignTrainingWrap">
-                    <label class="module-check" style="width:fit-content;">
-                        <input type="checkbox" id="assignTraining">
-                        Mark as Training
-                    </label>
-                </div>
-                <div class="form-group" id="sickLeaveWrap" style="display:none;">
-                    <label class="module-check" style="width:fit-content;">
-                        <input type="checkbox" id="assignSickLeave">
-                        Mark as Sick Leave
-                    </label>
+                <div class="as-checks">
+                    <div class="form-group" id="assignTrainingWrap">
+                        <label class="module-check" style="width:fit-content; margin:0;">
+                            <input type="checkbox" id="assignTraining">
+                            Training
+                        </label>
+                    </div>
+                    <div class="form-group" id="sickLeaveWrap" style="display:none;">
+                        <label class="module-check" style="width:fit-content; margin:0;">
+                            <input type="checkbox" id="assignSickLeave">
+                            Sick Leave
+                        </label>
+                    </div>
                 </div>
                 <p id="assignWarning" class="login-error" style="display:none;"></p>
                 <button class="btn" id="assignSaveBtn" style="width:100%; justify-content:center;" onclick="confirmAssign()">
                     <i class="fas fa-check"></i>
                     Save shift
                 </button>
-                <button class="btn btn-success" id="publishSingleBtn" style="width:100%; justify-content:center; margin-top:8px; display:none;" onclick="togglePublishSingleAssignment()">
-                    <i class="fas fa-eye"></i>
-                    Publish this shift
-                </button>
-                <button class="btn btn-danger" id="unassignBtn" style="width:100%; justify-content:center; margin-top:8px; display:none;" onclick="confirmUnassign()">
-                    <i class="fas fa-trash"></i>
-                    Remove shift
-                </button>
+                <div class="as-buttons">
+                    <button class="btn btn-success" id="publishSingleBtn" style="width:100%; justify-content:center; display:none;" onclick="togglePublishSingleAssignment()">
+                        <i class="fas fa-eye"></i>
+                        Publish
+                    </button>
+                    <button class="btn btn-danger" id="unassignBtn" style="width:100%; justify-content:center; display:none;" onclick="confirmUnassign()">
+                        <i class="fas fa-trash"></i>
+                        Remove
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -2975,7 +3101,7 @@
                     <button class="modal-close" onclick="requestCloseResultsModal()"><i class="fas fa-times"></i></button>
                 </div>
 
-                <div class="form-section" style="margin-bottom:16px;">
+                <div class="form-section" style="margin-bottom:10px;">
                     <div class="form-row">
                         <div class="form-group">
                             <label>Received currency</label>
@@ -2996,15 +3122,17 @@
                             <input type="number" id="txDeliveredAmount" step="0.01" min="0" placeholder="0.00">
                         </div>
                     </div>
-                    <div class="form-group">
-                        <label>Discount code</label>
-                        <select id="txDiscountCode"></select>
-                    </div>
-                    <div class="form-group">
-                        <label class="module-check" style="width:fit-content;">
-                            <input type="checkbox" id="txBbg">
-                            BBG sold
-                        </label>
+                    <div class="as-row" style="align-items:flex-end;">
+                        <div class="form-group">
+                            <label>Discount code</label>
+                            <select id="txDiscountCode"></select>
+                        </div>
+                        <div class="form-group" style="flex:0 0 auto;">
+                            <label class="module-check" style="width:fit-content; margin:0 0 2px; padding:7px 12px;">
+                                <input type="checkbox" id="txBbg">
+                                BBG sold
+                            </label>
+                        </div>
                     </div>
                     <button class="btn" style="width:100%; justify-content:center;" onclick="addResultLine()">
                         <i class="fas fa-plus"></i>
@@ -3022,7 +3150,7 @@
                     <div class="vb-stat"><div class="vb-number" id="resultsTotalBbg">0</div><div class="vb-label">BBG</div></div>
                 </div>
 
-                <button class="btn" id="resultsSaveBtn" style="width:100%; justify-content:center; margin-top:14px;" onclick="saveResultLines()">
+                <button class="btn" id="resultsSaveBtn" style="width:100%; justify-content:center; margin-top:10px;" onclick="saveResultLines()">
                     <i class="fas fa-check"></i>
                     Save results
                 </button>
@@ -3969,7 +4097,7 @@
             <div id="auditLogList"></div>
         </div>
 
-        <div class="app-version">GEBLL v-0.66</div>
+        <div class="app-version">GEBLL v-0.67</div>
     </div>
 
 
@@ -7095,16 +7223,16 @@
                 buildAssignMemberOptions(dateKey, existing ? existing.memberId : null, existing ? existing.id : null);
 
             const unassignBtn = document.getElementById('unassignBtn');
-            unassignBtn.style.display = existing ? 'block' : 'none';
+            unassignBtn.style.display = existing ? 'inline-flex' : 'none';
 
             const publishBtn = document.getElementById('publishSingleBtn');
             if (existing) {
-                publishBtn.style.display = 'block';
+                publishBtn.style.display = 'inline-flex';
                 if (existing.published) {
-                    publishBtn.innerHTML = '<i class="fas fa-eye-slash"></i> Unpublish this shift';
+                    publishBtn.innerHTML = '<i class="fas fa-eye-slash"></i> Unpublish';
                     publishBtn.className = 'btn btn-secondary';
                 } else {
-                    publishBtn.innerHTML = '<i class="fas fa-eye"></i> Publish this shift';
+                    publishBtn.innerHTML = '<i class="fas fa-eye"></i> Publish';
                     publishBtn.className = 'btn btn-success';
                 }
                 publishBtn.style.width = '100%';
@@ -7172,14 +7300,14 @@
                 const saved = current.find(c => c.locationId === loc.id);
                 const counters = getLocationCounters(loc.id);
                 const counterOptions = counters.length
-                    ? `<select id="coverCounter_${loc.id}" style="margin-top:6px; font-size:12px;" ${saved ? '' : 'disabled'}>
+                    ? `<select id="coverCounter_${loc.id}" title="Counter" ${saved ? '' : 'disabled'}>
                             <option value="">No counter</option>
                             ${counters.map(c => `<option value="${c.id}" ${saved && saved.counterId === c.id ? 'selected' : ''}>${escapeHtml(c.name)}</option>`).join('')}
                        </select>`
                     : '';
                 return `
-                    <div style="border:1px solid #e2e8f0; border-radius:8px; padding:8px 10px;">
-                        <label class="module-check" style="width:fit-content;">
+                    <div class="as-cover-item${counters.length ? ' as-cover-wide' : ''}">
+                        <label class="module-check" style="margin:0;" title="${escapeHtml(loc.name)}">
                             <input type="checkbox" id="coverLoc_${loc.id}" ${saved ? 'checked' : ''}
                                 onchange="onCoverageToggle('${loc.id}', this.checked)">
                             ${escapeHtml(loc.name)}
