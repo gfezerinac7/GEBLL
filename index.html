@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GEBLL</title>
+    <title>GEDK</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -590,6 +590,61 @@
         .topbar-logo {
             height: 30px;
             width: auto;
+        }
+
+        .wp-switcher {
+            margin-left: 10px;
+            padding: 5px 8px;
+            border-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.45);
+            background: rgba(255,255,255,0.15);
+            color: inherit;
+            font-size: 13px;
+            font-weight: 600;
+            max-width: 170px;
+        }
+        .wp-switcher option { color: #222; }
+        .wp-name-label {
+            margin-left: 10px;
+            font-size: 13px;
+            font-weight: 600;
+            opacity: 0.9;
+        }
+        .wp-badge {
+            display: inline-block;
+            font-size: 11px;
+            padding: 1px 7px;
+            border-radius: 10px;
+            background: #e7f0ff;
+            color: #1d4ed8;
+            margin: 2px 3px 0 0;
+        }
+        .wp-access-box {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px 14px;
+        }
+        .wp-access-box label {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-weight: 400;
+            margin: 0;
+        }
+        .wp-row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .wp-row input {
+            flex: 1;
+            min-width: 0;
+            padding: 10px 12px;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            font-size: 14px;
+            background: #fff;
         }
 
         .topbar-appname {
@@ -2259,7 +2314,9 @@
         <div class="user-bar">
             <div class="user-bar-brand">
                 <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAACqAAAALQCAYAAAD13SNBAABLdklEQVR4nOzdeZhlZ1ku7uftzJ2EDIRAQsIQSBBk9gRRZkQQEBmUg4rIJHoUUMAfchDFARRQxAkPgh5AhIPicCKDjEcGA0iYBBkMYRCSAAmBhAyQqfv9/VGlhrZ2dw1r1aq9676va1+VrF37+Z5VXbt2Xbvf/lYCAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAi6ymLgAAAAAAe9PdJyW5dpKjkhyUZP8k+y3fKsmOfOv7XLuT9PLHXcu3q5NcvvzxquX//lJVfXFzzgIAAAAAABaLAVQAAAAAJtfd+yW5TZKbJDkmyeFJjkhywyQ3TvKdWRo4HWS5JGcn+XSSTy3/9yVJzl/+7/dWVQ+0FgAAAAAALCQDqAAAAABMortvleSuSU5JcrMkN83SAOqUPpvki0m+kOTiJF9O8oEkb6mqq6YsBgAAAAAAW4kBVAAAAAA2RXcfmeSHszR0euMkJya5/pSdVumiJOck+ViStyR5pWFUAAAAAAC2OwOoAAAAAIymuw9KcqckT1r+eFiSA6fstEFXJbkkyWeSvDHJ/05yTlXtnrTVguvub0ty66l7sC7fTPLuqvra1EUAAAAAgGEZQAUAAABgUN19SJKjkjwlyY8kOS6L+z7UriTnJvnLJH+Q5MtVdfW0lRZLdx+bpZ1nb5nkionrsDaVZEeSX6uq50xdBgAAAAAY1v5TFwAAAABgMXT3UUnukeTpSf7bxHU2y35JbpDkqUmekOT13f2MJOdX1dcnbbY4jszSEPN+SXZOW4V1OmLqAgAAAADA8HZMXQAAAACA+dbd1+3uH0vy90n+Jttn+HRPhyR5aJJPJfmb7v7v3X3CxJ0AAAAAAGAUdkAFAAAAYF26+/gk35/k0UnuOHGdreZ7lm8f7u6/TnJaVX1i4k4AAAAAADAYA6gAAAAArEl375/kMUmemOQWcZWdvbnd8u1x3f3qJH9YVV+auBMAAAAAAGyYvxwAAAAAYNW6+9uTvDnJ7yW5Zby/tFo3SvL0JO/p7sd0d03cBwAAAAAANsQOqAAAAADsU3cfkOT/S/ILSY6cts1cu1GSP07yY9392Kr63MR9YGF0958mufnUPVi1XUleU1UvnLoIAAAAAOtjABUAAACAmbp7vyQ3THJakltN22ZhHJDkHkk+1t3PS/K7VXXJxJ1gEXx/kutOXYI1uSCJAVQAAACAOeUSaQAAAACsqLt3JvmlJB+L4dMx7Ezya0n+qruvN3UZmGfdXUmunroHa/aNqQsAAAAAsH4GUAEAAAD4L7r72CQvS/KrSQ6Zts3Cu0+S93S3IV8AAAAAAOaGAVQAAAAAvkV3n5rktUn++9RdtpEbJ/nH7v6F7vaeHQAAAAAAW543swEAAAD4D9396CR/k+Q7p+6yDR2R5FlJXtndB05dBgAAAAAA9mb/qQsAAAAAsDV09/OSPCHJzqm7bGMHJnlYkiO6+8FVdeXUhQAAAAAAYCV2QAUAAAAg3f2nSZ4aw6dbwY4k35fkL7r7oKnLAAAAAADASgygAgAAAGxj3b2ju1+a5LFJauo+/IcdSR6c5KWGUAEAAAAA2Ir2n7oAAAAAANNYHmx8SZIfn7rLKnwzyVeTXJjk60muXL5dsfzx8iRXJzksyUHLtwOzNMh5wPLHw5IcneT4Te6+ET+apLv7MVV15dRlAAAAAADg3xlABQAAANiGuvuwJL+frTt8ek6STy3fzkvymSQfr6oPrTewu3ck+Y4kt01ySpIjk5yQ5KQkN87SoOpW9PAkV3T346pq99RlAAAAAAAgMYAKAAAAsO109+FJfjfJY6bucg27knwoyZuTfCHJR5OcUVU91ALLw5vvX779h+6+ZZKTkxyX5NuT3CPJzYdadyCPTPKxLP25AQAAAADA5AygAgAAAGwj3X1Ikt9K8tipuyy7LMn/TvL6JB+rqi9tdoGq+liWhjuTJN190yztinr/JA/J0i6pU9svyS929/uq6j1Tl4E1snMvAAAAACwgA6gAAAAA28svJPkfU5dIckaS30tyepLzq+qKaev8p6r6dJJPd/e7kvx2loZRH5XkYUl2TljtmCR/3N33rKoLJuyxiAbbaZf/4vIkX5y6BAAAAAAwPAOoAAAAANtEdz8gydMnrnFWkqcmeWNVXTlxl72qqsuTnJPknO5+b5a+dk9L8vgkB05U69uTvLi7H77cj415bZKfS3J1kpq4y6L6ZpKLpi4BAAAAAAzPACoAAADANtDdN0jyyiQHTbD87iRnJ3lmkldW1dxdjruqrkpyXpKndPfvJPmjJN+Xzf967kjyA0l+tLtfPo9fyy3m7Kr6t6lLAAAAAADMox1TFwAAAABgXN19aJJ3JLnWBMt/LckfJjmlql6xCAOTVXVuVT0oyZ2TvCnJZZtcYf8kz0ty0iavCzA0Ow8DAAAAzDEDqAAAAAALrLt3JHldkhtv8tJXJ3l/kodW1ZOq6spNXn90VfWBqrpvkv+e5J82efljkjyxu13hCJhnfoYBAAAAzDEDqAAAAACL7YVJ7rbJa16a5JlJ7lVV/7DJa2+6qvr7JA9J8jdJdm3i0o9PcutNXA9gaO+augAAAAAA62cAFQAAAGBBdfeDkzwim/se0FeSfG+S51XVxZu47qSq6ktZ2gn1BUk2a7fX/ZK8oLtdwpptr6o6S88J5sfzk7x06hIAAAAArJ/L2wAAAAAsoO4+MUu7kB62icuekaWB17OWh8G2lara3d1PS/L+JP87yeGbsOzdsjT4+pebsBZsdWdmc55320kl2TlC7p8meUZVbdbAPgAAAAAjMIAKAAAAsGC6+4AkT0ly281aMsnfJXlcVV2wSWtuSVXV3f3XST6U5O1JTtyEZf+gu/+vQS7IfZIcM3WJBXF1kq8meUKS3x04+3VJfqqqdg+cCwAAAAAAAAAArFd3V3ffvrsv681xdXe/aHnolWvo7ut3979t0p/Dk6Y+37F09yndfd5IX7cXTn1+sFV19526+8qBn3OnT31eAAAAAAxnx9QFAAAAABjUtZO8MuNcMnlPu7J0qfknVtVVm7DeXKmqc7O0e+DXN2G5R2zCGsA20d0nJfnbJEP+44KPJbn/gHkAAAAATMwAKgAAAMCC6O5K8uQkN9+M5ZK8OMnjq+rqTVhvLlXV65O8MMmVIy/1bd39oJHXALaB7j4yS/+Q4dgBY89O8uNVtRkD+QAAAABsEgOoAAAAAIvjpkmeuklr/U6SJxs+XZVfTvLakdfYmeSxI68BbA8vTvJdA+ZdlORnq+rDA2YCAAAAsAUYQAUAAABYHH+cYS+XPMufJPmVqhp7V8+FUFWd5CeTfHDkpb6zu+808hrAAuvu5yZ58MCxz6yq0wbOBAAAAGALMIAKAAAAsAC6+85J7rYJS70zyTOq6hubsNbCqKoLk/xokstGXOY6SR40Yj6wwLr7MUmekGH/IcMLkrxowDwAAAAAthADqAAAAACL4beT7DfyGmcn+cmq+srI6yykqvpUkueNvMy9uvt6I68BLJju/vYsvY4cOmDsP2Vpt+yrB8wEAAAAYAsxgAoAAAAw57r7YUluP/IyX0/yqOUhStbvOUm+NGL+yRn/ewFYIN19SJI3JDl6wNgLkzymqi4dMBMAAACALcYAKgAAAMAc6+6dSR6f5MARl7k6yW9V1T+MuMa2sLwT4G+NuMShSW49Yj6wQLr7gCRvTXLDAWOvztJu2Z8cMBMAAACALcgAKgAAAMB8e1CSu4y8xoeTPH/kNbaTlyU5a8T8B3X3dUfMBxbHrya508CZv1VVfz1wJgAAAABbkAFUAAAAgDnV3UcleczIy3wjyeOr6sqR19k2qurrSV4w4hJ3SHL8iPnAAuju+yV50sCxb0zymwNnAgAAALBFGUAFAAAAmF/fkeR7Rl7jj6vq/SOvsR29LslYl6euJHccKRtYAN19cpLfT7JzwNizkvxcVV02YCYAAAAAW5gBVAAAAID59QMj538uyTNGXmNbqqpzk/yvEZd4eHcfPmI+MKe6++Akf5DkpgPGXpnkZ6rqrAEzAQAAANjiDKACAAAAzKHu/rYkDxx5mUdW1eUjr7GdvT/JV0fK/q4kR4+UDcyp7q4kT8qwu2fvTvIrSd4+YCYAAAAAc8AAKgAAAMB8+vYkNxgx/11JPjhiPsnHknxgpOwdSQ4aKRuYX9+Z5BeTHDBg5nuSvLiqdg2YCQAAAMAcMIAKAAAAMGe6+9AkPzfyMr9dVd8YeY1traouy9Lg1ljuv7zbIUC6+8QkL0ly+ICxX07ylKq6cMBMAAAAAOaEAVQAAACA+XNSli6xPpbTk7x3xHz+0xlJxhrcemCS/UfKBuZIdx+c5NlJbjVg7FVJnlNV7x8wEwAAAIA5YgAVAAAAYI50935JfirjDhb+SVV9dcR8/tNbknx6pOzbZNjLbAPz6xHLtyG9MckLB84EAAAAYI4YQAUAAACYLwck+dER8z+Q5K0j5nMNVbU7yb+MFH94kp0jZQNzortvn+QPktSAseckecTyzzAAAAAAtikDqAAAAADz5duSHDVi/huq6ksj5vNfvSnJ5SPk7khy1xFygTnR3YcleXWSgweMvTLJQ6vq4gEzAQAAAJhDY16qDQAAAIDhPX7E7AuTvG3EfFZQVX/V3f8rydA7CR6U5LZJ/nbgXGB+/FqSmwyc+TtJ3j9wJgAAAABzyAAqAAAAwJzo7kryfSMu8f4kZ4yYzwxVdZ3u3jlw7FVVddXAmcCc6O57JfnJJPsNGPvuJM+pql0DZgIAAAAwpwygAgAAAMyPayc5dqTsK5P8Q1VdOVI++1BV35i6A7AYuvvYJL+R5LABY7+a5MlVdcmAmQAAAADMsR1TFwAAAABg1X46yQEjZV+Y5KUjZQOwuX46yR0GznxpVb1/4EwAAAAA5pgBVAAAAID58b1JaqTsj1fVV0bKBmCTdPfdkzxh4Nj3JHnBwJkAAAAAzDkDqAAAAABzoLuPSHLySPG7k7xhpGwANkl3XyvJryQ5ZsDYS5P8RlV9ecBMAAAAABaAAVQAAACA+fCQJEeMlH1lkpePlA3A5vnZJHcfOPNVVfX3A2cCAAAAsAAMoAIAAADMh1OTHDJS9leq6msjZQOwCbr75kmePnDsF5L8wsCZAAAAACwIA6gAAAAA8+HEEbM/OmI2ACPr7krymiQ7h4xN8piqunjATAAAAAAWiAFUAAAAgPlw3IjZfzpiNgDje06SWw6c+ZKq+n8DZwIAAACwQAygAgAAAGxx3X3HJNcZKX5XkneOlA3AyJZfI544cOwnkvzPgTMBAAAAWDAGUAEAAAC2vlsmucFI2RckuWKkbABG1N07kvxukp0DRz+lqi4aOBMAAACABWMAFQAAAGDrG2v4NEn+OcnVI+YDMJ6fTHL7gTP/T5J3DJwJAAAAwAIygAoAAACw9R03YvbbYgAVYO5098lJnpLkwAFjL07y/KqyMzYAAAAA+2QAFQAAAGAL6+6jk5wy4hL/WFW7R8wHYGDdvV+SJyU5ecjYJM9L8tEBMwEAAABYYAZQAQAAALa2U5LcaMT880fMBmAcpyZ5xMCZ/5rk5VW1a+BcAAAAABaUAVQAAACAre06SW4wUvZVSQwaAcyR7r5Wkt9IcviAsZcleXZVfXHATAAAAAAWnAFUAAAAgK3tiBGzz07yzRHzARhQd1eSey7fhvS+JH85cCYAAAAAC84AKgAAAMDWdtiI2e9McvmI+QAM63pJXjZw5iVJ/mdV2REbAAAAgDUxgAoAAACwtR08YvanquqSEfNhqzu8u71Hyjz51SRHDpz5iqp6/8CZAAAAAGwD+09dAAAAAIC9OnTE7E+PmA3z4KFJbtPdl01dZM4ckeS5VfXKqYtsJ919hyQ/MXDseUmePHAmAAAAANuEAVQAAACAre2GI2bb/ZTt7pAkt5m6xJy60dQFtpPu3j/Jn2X4q5o9raquGjgTAAAAgG3C5aUAAAAAtqjuPiHJcSMusWvEbGCx9dQFtpmnJvm2gTM/nORVA2cCAAAAsI0YQAUAAADYuo5IcvKI+ZePmA3AALr7pCRPGCH6l6vq6hFyAQAAANgmDKACAAAAbF2HJTllxHyXXQbY+n4+yfEDZ745yTsGzgQAAABgmzGACgAAALB1HZSkRsreleTKkbIBGEB3f0eSHxwh+veq6rIRcgEAAADYRvafugAAAAAAM4353s2VSRbq0svdfUiSZya5bsYb3J1X5yZ5SVV9YeoiwJo8MUs/04b0miSnD5wJAAAAwDZkABUAAABg69pvxOyrk+weMX8KN0jytBg+neXDSQygwpzo7lOT/MDAsVck+eOqunTgXAAAAAC2oR1TFwAAAABgpjHfu7k6SY+YP4UDY/h0b3ZOXQBYne4+KMnTkxw1cPSrkvzjwJkAAAAAbFMGUAEAAAC2rjGHKS/J0hAqAFtId1eSWyW538DRX0vywqrysx8AAACAQRhABQAAANi6xnzv5mNJdo+YD8D6HJLkxUkOGjCzk/x1VX14wEwAAAAAtjkDqAAAAABb15jv3VyR5Msj5gOwPvdLcvuBMy9J8uyBMwEAAADY5gygAgAAAGxPV1TVpVOXAOA/dffOJH8wQvRrq+rsEXIBAAAA2MYMoAIAAABsXTVi9uUjZgOwPk9JctzAmVck+bmBMwEAAADAACoAAADAFjbmAOp+I2YDsEbdfUySnx8h+u+q6msj5AIAAACwzRlABQAAANiedk5dAIBv8UtJrjVwZif52YEzAQAAACCJAVQAAACArWz3iNkHdvdNRswHYJW6+0ZJfiTDv2f/6iQXDJwJAAAAAEkMoAIAAABsV0fFe0MAW8XPJDl2hNxnVdWuEXIBAAAAwF8yAAAAAGxhPWL2tyXZb8R8YLH5+TGQ5d2oHzJC9J8n+bcRcgEAAAAgiQFUAAAAgK1szAHU/eO9IWB9Lk1yztQlFsjDktxk4MxO8idVdfnAuQAAAADwH/afugAAAAAAM+0eMfug2MEQ3pXk2Vl6rnk+rN4lST42dYlF0N0nJXn4CNGvSfLhEXIBAAAA4D8YQAUAAADYusYeQD1wxHyYB5+sqrdOXYJt7QFJbjFw5q4kr6mqSwfOBQAAAIBv4TJrAAAAAFvXrhGzd8Q/Toarpy7A9tXd10vy+BGiP5DkHSPkAgAAAMC3MIAKAAAAsH0dMHWBgfXUBQBWo7sryf2SnDxw9OVJXllVXxs4FwAAAAD+CwOoAAAAAFvX5SPnHzJy/mb7apLPJtk9dRGAfTgiya+OkHtOkleOkAsAAAAA/4XLrAEAAABsXZcn+UaSnVMXmQdV9aXufmKSYzO///B6V5JrJ3l+kpq4CzCehyY5ceDM3Un+tqouGjgXAAAAAFZkABUAAABg67o4yUeT3HGk/MNGyp1MVf391B02qrtvkuRZMXgMC6m7D0zySyNEX5jkOSPkAgAAAMCK5nUnCAAAAICFV1VnZelyymO5zYjZrN/RSQ6augQwmgcmucEIua+3+ykAAAAAm8kAKgAAAMDW9tkRs2/f3UeMmM/67Bfv28Eie/oImbuS/NoIuQAAAAAwkzeyAQAAALa2c0fMvmuSQ0bMZ30OTlJTlwCG1933TPLtI0S/o6o+N0IuAAAAAMxkABUAAABga+sRs6+VpWFHtpb9pi4AjOZJSQ4cIfcpI2QCAAAAwF4ZQAUAAADY2i4dMbuS7D9iPuuze+oCwPC6+/ZJ7jxC9PuSnDlCLgAAAADslQFUAAAAgK3tspHzrzdyPms3xu6IwPQeleSoEXJfUFVXjJALAAAAAHtlABUAAABga/tqkjEHi+7Z3d4j2loOmroAMKzuPiXJfUeIviTJu0bIBQAAAIB98pcLAAAAAFvbuUk+OWL+g5PsP2I+a3fc1AWAwd03yU1HyH1xkq+NkAsAAAAA+2QAFQAAAGALq6p/TfK5EZc4OckBI+azBsu70d5s6h7AcLr7ekkePkL0FUleW1VXjpANAAAAAPtkABUAAABg6/vCiNmHJjl6xHzW5joxgAqL5jZJTh0h9+1J/mWEXAAAAABYFQOoAAAAAFvfF0fO/6GR81m9A5LcceoSwDC6+9Akjxwp/pVVddFI2QAAAACwTwZQAQAAALa+TyT56oj59x8xm7XZmeSoqUsAg7lBkh8YIffMJO8dIRcAAAAAVs0AKgAAAMDW949JLhgx/xbdfcCI+azeoUlq6hLAxnX3jiT3ydLzemhvqqrPjpALAAAAAKtmABUAAABgi6uqryc5d8Qlrp3ku0bMZ/VuN3UBYDCHJHnKCLkXJnntCLkAAAAAsCYGUAEAAADmw5gDqAcm+fER81mF7j4wyf2m7gEM5rZJThwh9xNV9Q8j5AIAAADAmhhABQAAAJgP/zJyvh1Qp3dgkrtMXQLYuO6uJM8YKf5tI+UCAAAAwJoYQAUAAACYD29L8vUR80/obsOP06okR01dAhjEtZLca4TcS5K8bIRcAAAAAFgzA6gAAAAAc6CqPpzk7BGXODzJA0fMZ9/unuSAqUsAg3hqxnk+f7iqPj9CLgAAAACsmQFUAAAAgPnx3iQ9UnYl+c7uvtZI+ezbk6cuAGxcd1eSHxkjOsn/GiEXAAAAANbFACoAAADA/PjTJLtHzL9zkruOmM8M3X1wkttO3QMYxH2TnDhC7teT/N0IuQAAAACwLgZQAQAAAObHh5JcOPIaDxg5n5XdPYndZ2Ex/ESSA0bIPa2qLh8hFwAAAADWxQAqAAAAwJyoqquT/NPIy9y7u2818hr8V49Mst/UJYCN6e6jkpw6UvzzRsoFAAAAgHUxgAoAAAAwX/5w5PwbJbnTyGtwDd19RJK7Tt0DGMQjk1xnhNxPJ/nCCLkAAAAAsG4GUAEAAADmy/uSXDnyGo/t7mNGXoP/9BMZZ2AN2Hx3THLQCLl/nuSKEXIBAAAAYN0MoAIAAADMl0uTvHPkNf5bkjt3d428zrbX3TuTPDDJAVN3ATamu2+VpQHUMfxFVe0aKRsAAAAA1sUAKgAAAMAcWR5Aeu4mLPXbSQ7fhHW2u3sk+e6pSwCDuHOSG4yQ+4kkl4yQCwAAAAAbYgAVAAAAYP58KMk/j7zGTZP8wMhrkDwkyX5TlwAG8d1Jxtg5+rVV9aURcgEAAABgQwygAgAAAMyZqrooyYs3YanndffBm7DOttTdp8aQLyyE7r51kruOFP+OkXIBAAAAYEMMoAIAAADMp3ck+cbIaxyf5Ikjr7EtdfdhSX4+yTFTdwEGceskNxgh95NJzhohFwAAAAA2zAAqAAAAwHz6fJJXb8I6v9rdJ2/COtvNnZM8bOoSwMZ19+FJHjRS/Duq6rMjZQMAAADAhhhABQAAAJhDVfXNJK9P8s2Rl9qZ5I+6e7+R19k2uvvQJL8+dQ9gMMclechI2f80Ui4AAAAAbJgBVAAAAID59c4k/7wJ69wzyeM2YZ2F1907kjw5yalTdwE2rrsryS2T1Ajxn8vm/IwHAAAAgHUxgAoAAAAwp6rqwiQvTXLFyEvtl+Sp3X3yyOtsB3dJ8sypSwCDOTjJz46U/S9JPj5SNgAAAABsmAFUAAAAgPn2iiQf24R1Tkryy929cxPWWkjdfVySVyc5YOouwGAOSXKnkbI/UlW7RsoGAAAAgA0zgAoAAAAwx6rqyiQvSHLlJiz3iCRP7G4DlGu0/DV7dZLjpu4CDOpmSfYfIfeiJO8bIRcAAAAABmMAFQAAAGDOVdX/SfLBTVruuUkesklrLYTu3j/Jnye589RdgOF0dyX56ZHiz0nyxpGyAQAAAGAQBlABAAAAFsNTk+zepLX+sLtvvUlrzbXl4dM/S/KDSfabuA4wrP2S3Huk7H+rqs36mQ4AAAAA62IAFQAAAGABVNW7k7x1k5a7TpI3dvcJm7TeXOruA5O8OMnDMs4luoFpnZSln4dD253kjBFyAQAAAGBQBlABAAAAFsdPZPN2QT0+yUe6+1abtN5c6e5DkrwoyaNj51NYVI/LOO+xX5bktSPkAgAAAMCgDKACAAAALI5zkzxnE9c7Oslbu/vum7jmltfdR2dpN9rHJKmJ6wDjue9IuV+pqo+MlA0AAAAAgzGACgAAALAgqqqT/GaS927istdN8qru/sFNXHPL6u47JflAkjtN3QUYT3cfmeSEkeLPHCkXAAAAAAZlABUAAABggVTVN5L8zyRf2cRlj0/yku7+5eWhrG2nu4/p7l9J8rokN566DzC6RyY5dITcTvLGEXIBAAAAYHAGUAEAAAAWTFW9K8nzNnnZo5P8epK/6u47bPLak+ruuyd5TZJfTXLUpGWAzfI9SfYfIffqJH8xQi4AAAAADM4AKgAAAMBiemmSf5hg3XsleUt3P6m7F/q9p+4+pLt/J8nfJrnH1H2AzdHdO5OcMlL815N8baRsAAAAABjUQv8lAAAAAMB2VVUXJnl6kgsmWP6IJM9P8s/dfc8J1h9dd/9skjOTPCV2PYXt5ruTXHek7A8l2T1SNgAAAAAMygAqAAAAwIKqqjOSPC9Ll3TebPsluVWSt3b3O7v7Vt09xuWqN0V37+juA7v7wd396SS/n+TEqXsBk7hLkiNHyn5tVfVI2QAAAAAwKAOoAAAAAIvtd5K8KslUA007ktw1yYeT/N/uvn13nzBRlzXr7kO6+8ZJfjrJZ5L8bZKbbMLS/7R8A7aem46Y/boRswEAAABgUHO76wQAAAAA+1ZV3d0/neS4JPeesMp+Sb5/+faZ7v6LJG9KclZVnTdhrxV19ylJbpTkh5I8LMm1NnH5M5L8aJK7J7njJq4L7EN3V5KTR4r/ZpLLRsoGAAAAgMEZQAUAAABYcFX1ze5+eJZ21tsKA403SfKM5du7u/vtST6b5GNJ/rWqLpmiVHffIcntktw+yd2S3GyCGh9J8rCq+rfuPjLJOUnmZsdY2AbumeTEkbI/mqUhVAAAAACYCwZQAQAAALaBqrpgeQj19UluPnWfa7jT8i1JLkjy0e4+M0sDqZ9M8p6qunDoRbv7qCwNmd4uyfFZ2u302zLtsOenktyvqr6YJFX14e7+7MSdgG918yTXGyn7lUmuGCkbAAAAAAZnABUAAABgm6iqzy4Pob49yRFT91nBMVnaXfCey///lSSXdPdFSS5N8vXlY19KcvHy/38zyVlJLly+7UhycJJrJTkpybFJrp3kBkmOS3Lo8n1HJzlq+eNW8Pkkd6iqr+9x/LNJ7jpBH2BlNxox+91VtWvEfAAAAAAYlAFUAAAAgO3ln5M8OEs7oe6ctso+XWf5Nksn+dryx06ye/m2f5Ja/pwDsjWHba/pM0luV1WXrHDfGUl+LN7Hg8l19zFJTh0rPsllI2UDAAAAwCh2TF0AAAAAgM1TVV1Vb09y/ywNb86zytLupsdkaVD1ulna5fQ6y8eOydYfPv3nLO18utLwaZL8feb/zwkWxc2S3Hyk7PfFcx0AAACAOWMAFQAAAGAbqqp3JLljli5f39O22bbeleT7qmrm0FlVfT7JlzavErAXx2fvuzJvxLuq6oKRsgEAAABgFAZQAQAAALapqjoryZ2TvGHqLtvM7iRvTvKwqjpvFZ//LyP3AVbnhiNmf2DEbAAAAAAYhQFUAAAAgG2sqs5P8sNJfilLg5GM6+okf5XkB6rqy6t8zF8n2TVeJWBfuvuIJN81UvzuJDN3QgYAAACArcoAKgAAAMA2V1WXJXlekockOWviOovsm1ka9P3xqrpyDY97a5LLxqkErNK1k9xzpOxPJDl7pGwAAAAAGI0BVAAAAABSVVdX1d8luW+Sv5i6zwI6P0vDa89f4/BpsjS4eu7wlYA1OHL5NoaPVtWnRsoGAAAAgNEYQAUAAADgP1TVZ5L8WJIfTXLxxHUWxfuT3CbJ+6pq11ofXFWd5J2DtwLWokbM/ucRswEAAABgNAZQAQAAAPgWVbWrql6d5NZJ3p1kzUOTJFnaufRlSe5VVV9eHiRdrxcN1AlYo+7eL8mdR1zighGzAQAAAGA0BlABAAAAWFFVfb6q7pzkJ5J8fOo+c2RXkk8meVhVPaaqhthJ9nNJrhggB1i7g5PcZ6Tsc5N8eqRsAAAAABiVAVQAAAAA9qqqXp7krkmemeSsadtseZcm+c0kd66q1w2Ye3V87WEqhya500jZX0hyxkjZAAAAADAqA6gAAAAA7FNVfa2qnpXk/kl+K0u79vGfrkrykiT3rapnVtXXBs6/IskrB84EVueAJIePlP2ZqrK7MQAAAABzyQAqAAAAAKtWVWdV1dOydDnqX0zyxYkrTe3cJM9KcrskP1dVp4+xSFXtTvKWMbKBfTo6SY2UffZIuQAAAAAwuv2nLgAAAADA/Kmqj3f3vyb5syR3SfLrSU6ZttWmOjvJHyX5s6r68iateWGSXUn226T1gCX3HCl3V5JPjJQNAAAAAKMzgAoAAADAulTVriRf7O7XJDktyW2S/EqSuyfZOV2z0exK8oUs7Xj66qq6fJPXPz/JW5PcK8mVa3jcjiSXJjlvjFKb4CtJzkpyVJKrBsw9IMl1B8xjcZ2c5Oqs7Xm3L5Xk4iQfGjATAAAAADbVWJcNAgAAAGCb6u4DkzwqyY8nuXmSa2U+/yH0VUm+meRzSd6U5EVJzq6q3VOWWv76ruXr2UmumLr3Rq3jvPflqqoacqCVBdbdB2RpaHkouycYYgcAAACAQRlABQAAAGA03X1wkkcmuX+Smya5TpJjJi21dxdnaafQT2Zpt9G/qaovTVsJAAAAAAC2HgOoAAAAAGyK7t6Z5M5JTk1yoyQnLd9uNFGlC5KcvXy7IEuXuH9/ktPmfbdQAAAAAAAYmwFUAAAAACbT3bdPcvMs7Yy6M8m1sjSQesMkt1j+/424OskHk1yR5LNJPpelXU6/muScJJ+rqn/b4BoAAAAAALDtGEAFAAAAYMvp7ptmaSj10CQHJTkgyX5JdmTpPa0d1/j0Xdf4eHWWhk2vusbtyiTnVtV5m1IeAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgO2qpi4AAAAAi6S7H5XkAUnukOSEadsAAABJzklyRpLXVdXLJ+4CAAAAC8MAKgAAAAxgefD0WTF0CgAAW9k5SX7ZICoAAABsnAFUAAAA2KDu/sMkT5i6BwAAsGovrKonTl0CAAAA5tmOqQsAAADAPDN8CgAAc+kJy7/LAwAAAOtkB1QAAABYp+5+VJKXTd0DAABYt0dX1cunLgEAAADzyAAqAAAArFN3n53khKl7AAAA63ZOVZ04dQkAAACYRzumLgAAAADzaHn3U8OnAAAw305Y/t0eAAAAWCMDqAAAALA+D5i6AAAAMAi/2wMAAMA6GEAFAACA9bnD1AUAAIBB+N0eAAAA1qGmLgAAAADzqLt76g4AAMAwqsrfmQEAAMAa2QEVAAAAAAAAAAAAgDUxgAoAAADrc87UBQAAgEH43R4AAADWwQAqAAAArM8ZUxcAAAAG4Xd7AAAAWAcDqAAAALA+r5u6AAAAMAi/2wMAAMA61NQFAAAAYF5199lJTpi6BwAAsG7nVNWJU5cAAACAeWQHVAAAAFi/X566AAAAsCF+pwcAAIB1MoAKAAAA61RVL0/ywql7AAAA6/LC5d/pAQAAgHUwgAoAAAAbUFVPjCFUAACYNy9c/l0eAAAAWCcDqAAAALBBy39x/egk50zdBQAA2Ktzkjza8CkAAABsXE1dAAAAABZJdz8qyQOS3CHJCdO2AQAAsjR0ekaS11XVyyfuAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD8VzV1AQAAAADYTrr7uUlO3ePwW6vquVP0YTrd/aok19vj8P+tqhdO0QcAAAAAYC32n7oAAAAAAGwzd0tyxz2OXTJFESb3gCSH73Hs7CmKAAAAAACslQFUAAAAAGBhdfeOJIfucXh3VV02RR8AAAAAgEWxY+oCAAAAAAAjekySi/e4Xdrdx07aCgAAAABgzhlABQAAAAAW2UEzjrs6FAAAAADABhhABQAAAAAAAAAAAGBN/Ct/AAAAAIBpPCLJUXsc+9gURQAAAAAA1soAKgAAAADABKrq76buAAAAAACwXjumLgAAAAAAAAAAAADAfDGACgAAAAAAAAAAAMCa7D91AQAAAADG0d0HJ7lhkpOWbzdJcliSryW5IMmXk5xeVf82Vcf16O7jk9w7yY2SXDfJgUkOTvL1JOcl+XCSd1bV16fqCIuou2+Z5G5Jrp/kuCRXJjkyyRez9Nx7d5L3VdWVU3UcQncfleTUJMdn6Tz3T3J+ln5mfqqqPjlhvVVb1NcAAAAAAAAAAABgJN19ZHc/q1fvzO7+/7r7kKm7z9Ld1d0/3N1nrOG8Xt/dd5y6+566+70rdD1twj4v7+6z97j95Tpyju3uz6yQdY8xeu+lx/fvsf4sF+/xeS/fzJ7LXV/W3W/a4/Yzm91jb7p7Z3f/4vKf7Wq9qLtvMHX3a+ruB+3r+7y7v6+7T1vF+X28u3+uu7fkBg+9gK8BAAAAAAAAAADAiLr7gO5+fC8N1q3H2d19z6nPY0/dfavuPn2d59S9NFB2nanP49/11htAXanPR9aRc9KMr/9Dx+i9lx6PWef3yemb2XO560rP1Zdvdo9ZuvuBvfch3n35zd4iQ5rd/VMr9PvI8n3HdPefr+P8Tu8tNGjbC/oaAAAAAMDWtWPqAgAAAAAM5kVJXpjk8HU+/oQk/6+77z1cpY3p7rsm+WiSO20g5oFJPtTdtx+mFSy+7n5yktOy9HNhvZ6e5K29hQbA99TdN07y8SQ/to6H3ylL57dz2FbrtnCvAQAAAABsbQZQAQAAABZAdz8+yWMHintzd99soKx16+57JXnnQHEnJPlgd996oDxYWN39jCQvGCju7kne0d3XGihvSLdO8q4kx24g45Qkzxmmzvot4msAAAAAAFvflrj8EQAAAADr193fnqVd71ZyfpLfT/IvSb6S5LAkJy3fHrr8cSW/nuRhwzZdve6+bpK/3cunnJ/kxUnel6XzOjjJ8Unul+QRe3ncG7r7tlX11aG6suV8KskbrvH/p2blAcN3J7noGv//gRE7zY3lS7A/ey+f8qEkr8jSrqEXJTkyyY2S/EiSWZdvv0WSV3T3Q6pq91BdB7LSDq/nJ3l/ks8l2ZmlIdpZPyuT5Ge7+5er6uLh6+3bIr4GAAAAAAAAAAAAm6C7f6lX9qLuPnAvj9vZ3b8x47Hd3bfbzPPYo9tpe+n1S9098x9Wd/fR3f2avTz+FZt5Liv0e+8KnU7bYn0+so6ck2Z8vR86Ru819Hr8jF7HT9lrudvFK/R6+YR9juzu82Z8vS7u7gfu4/G36O6Pz3h8d/ejN+tcVuj2U3vp9e8+090P7RV+vnT39fdxbj84xXktd1u41wAAAAAAAAAAAGATdPcHVxgc+uBKQ1QzHv+oGcNHTxm7+4w+99zLQNTDV5lR3f1be8m56djnsZduBlA3URtAXUufX9nLc+bmq8w4rLvfNSPjM73Kn0tD630PoJ7e3UftI+P63X32jMe/bLPOZYVeC/UaAAAAAMD82DF1AQAAAADWr7uvneT2K9z1zqq6epUxf56ly5bv6WbrLrYxT5hx/CVV9arVBFRVJ3lGli6jvZInr6cYLKruPjjJz8+4+0er6pOryamqS5M8IsklK9x9UpIHr6/hqD6R5N5VdeHePqmqzk0yaxfXkwdvtQoL+hoAAAAAwJwwgAoAAAAw346ecfyk1QZU1a4kf7/CXdddV6MN6O4bZvaA2m+vJauqrsrsQdMfWksWbAMPSnL4CsfPSfJXawmqqs8nec6Mux+wtlqb4keq6hur/Nx3ZuXh2uMG7LMWC/UaAAAAAMB8MYAKAAAAMN8unnH8gd39PWvI+ZUkN9zj9qiNVVuXe844/taq+vQ68t6b5PwVjh/b3ZPsWAhb1P1mHP+jNeykeU1/O+P4fdaRNaY3VNVHV/vJy4Ptp69w13WGq7Qmi/YaAAAAAMAcMYAKAAAAMMeq6rysfOnkJHlbdz+uuw9cRc7FVfWFPW4XDVp2db5rxvE/Xk9YVe1O8soZd99xPZmwoO4x4/gr1hNWVWcmWWmw89juXvXunJtg1qDs3py3wrHDu3v/jZZZqwV8DQAAAABgjhhABQAAAJh/b97LfS9JcnZ3/353f193H7FZpdbpbjOOv34Dme+acfzEDWTCwuju45KcsMJdb66qL24g+v/NOH78BjKHNmt4c2++NuP4VO+3L9JrAAAAAABzxAAqAAAAwPx71T7uPzbJzyZ5Y5KLuvuM7n7u8jDSYePXW53uriSnrHDXp6rqyg1Er7RbYZIcvYFMWCQ3nHH8rA3mfnnG8aM2mDukWR335qrBW2zMQrwGAAAAADB/DKACAAAAzLmqel+S713DQ05N8rQsDSNd0t1v7+7Hd/fUuxLOGoT63AZzL5hx/NobzIVFceSM42dvMPf8Gce30nPvm1MX2KgFeg0AAAAAYM4YQAUAAABYAFX1tiwNIF2yjoffPckLk5zb3ad19+2G7LYGsy4N/fkN5l484/ihG8zlW3mvcX4dOeP4RgdQvz7j+M4N5g7p8qkLDGFBXgMAAAAAmDPeFAYAAABYEMsDSNdP8sQk56wz5oFJPtTdPzRYsdU7fMbx8zaYO2uw9bIN5vKtZv35sfXN+rP7ygZzj5xx/NIN5g5p99QFhrIArwEAAAAAzBkDqAAAAAALpKouqaoXJrlxkjsleVaSj64j6q+6+y6Dltu3K2ccP2qDucfNOH7hBnP5VkdOXYB1u2LG8Y0+964/4/isnVHZoDl/DQAAAABgzhhABQAAAFhAVXV1Vb2nqp5ZVbdJcmySByf5vSSfWmXMG7r7yJEqrmTWQOiNN5h7/BrXY32OnLoA6zbruXDiBnNnDaBetMFc9mFOXwMAAAAAmDMGUAEAAAC2gar6SlWdVlVPrqqbJblhkscmeeteHnZ4kttuRr9lF884fvIGc2844/jZG8zlW80a9GXru2jG8VnPndWaNTx+7gZzWaM5eQ0AAAAAYM4YQAUAAADYhqrqC1X10qq6d5LbJDl/xqd+xyZ2unpGj1O6+8ANRD9oxvEPbSBz0e2/jsd8z+At2CxfmnH8ZusN7O6jktxnhbsuSfKZ9eYyjK34GgAAAADA/DGACgAAADDHuvsvu/v0PW73X0tGVX00yV1n3H2Hjbdck3+Ycfwh6wnr7pskueOMuz+xnswFtGuFY8esJaC7909yr2HqMIHPZGkwdE/36e717oL6/TOOn15Vvc5M9rCArwEAAAAAzBEDqAAAAADz7bZJ7rTH7R5rDamqM5N8doW7jt1IuXU4fcbxp6wz74dmHH/d8o6rJBescOzY7j5oDRnfm6XLdTOHlgdC3zLj7v+xztiHzzg+ax3W57ZZrNcAAAAAAOaIAVQAAACA+bbSwOb3dnetJWT586+zwl2bvUvom2ccP7W7v3stQd19QJLHzLj7T9fUarHNuvz63Vbz4OXdT58/XB0m8voZxx/f3YetJai7b5zkPjPufvWaWrEvi/YaAAAAAMAcMYAKAAAAMN8+sMKxWyf5vjXm3DYr72D5nrUW2oiq+nSSN8y4+0+6+/priHtaklNWOH5JkjeutdsC+/KM47/U3Tv39sDlobVnJ7nF4K3Gd62pC2wxr8nSc2NPh2fpubeqHXG7e0eSF8+4+6+q6rx19mNlC/UaAAAAAMB8MYAKAAAAMN8+OOP4X3b3D64moLtvluRNM+5+37pabczvzjh+iyQf6u5b7Sugu38yybNm3P20qrpqveUW0Bkzjt8lyWu6+8CV7uzuw5P8UZYGfbeyy2Yc/95NbbHFVdU3krxgxt0/nORN3X3U3jK6++AkL8rsr+2z19+QGRbxNQAAAAAAAAAAABhbd1d3v6lne1l332ylIcLuvlF3P7O7L57x2Peu9TLOA57XK/ZyThd39y909z26++hrPGb/7r53d5+2l8d+sJcuGT+Z5a/rnk6bsM8Be/ke6O7+SHc/r7t/qLu/u7t/sLt/ax+PuaaHTnVuy+f3PXvp9rLufmp3P667v2eCbit9DV++2T2u0efQ7j5zL1+vM7v7J7v71L7G7rjdfXh3P2L5e2WW5091Xssdf2pGr70O1c7Ieu6MrBWHtcfUC/oaAAAAAAAAAAAAbILuvsleho+u6czufn13v6W7P7OKzz9pwnM6srvPXuV59SrPp7v7NlOd0zXObUsNoC53et4avtazzBpim3oAdbXPj9Mn6LalBlCXO/23Nf65n7eKzzmzu6818Xkt5ADqcp+Few0AAAAAYD7smLoAAAAAABtTVZ9J8gur+NRTktw/S5fH3tdg0Y9U1Wc32m29quqiJPdKcs4qH7KaQam7VtVH1l1qsf1akk9sMOO+ST41QJdBLT8/3jF1j3lRVR9I8qA1POTYfdz/2ST3qKqL112KvVrE1wAAAAAA5oMBVAAAAIDF8LtJfnOAnEuS/I+q+osBsjakqs5M8t3Z+GDkOUnuVlX/uPFWi6mqvpGlocP1DJBekuTBVfXuQUsN69lTF5gnVfV3Se6RpT/bjfjHLD33vrjxVuzDwr0GAAAAAAAAAAAAm6i7v3uVl1ZeyQu6++ipz2FP3X1Ad/9Mz77E+948s7t3Tn0O19RLl7/e059P3StJunvn8vfBav1aX+PS6t19+gqfc/8pz+nfdff9e+/fQ6dP0OnsFXr80Wb3mKW7j17j98O/O6+7f6S7a+pz+Hfd/WMzuh6+jqxnzsjaf4zua+y2cK8BAAAAAGxdW+YNQAAAAACG0d0HJLldkrtkaRfDlQYAz0nyySRnZekS2a9f3nF0y+ruQ/Of53PXJCcmuebw2PlJPp/kfUn+Psk7l3f2ZI16aWj3e5N8V5LrLd92ZmmH1DOXb++vqi9NVnIduntHktss3y5LcnSSi5N8Icm/uEz8yrr7eknuneQHsvSzZc/Lt382yZeSvC3Jm7L0vbFrU0vyHxb1NQAAAACArccAKgAAAMA20N0HJjksycFJLqiqKyeuNIjlQauDklxWVT11H9guloeUY8h7PizqawAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8P+3B4cEAAAAAIL+vzZ4AwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAYAHkwcyW+tt16wAAAABJRU5ErkJggg==" alt="GF7 Solutions" class="topbar-logo">
-                <span class="topbar-appname">GEBLL</span>
+                <span class="topbar-appname">GEDK</span>
+                <select id="wpSwitcher" class="wp-switcher app-hidden" onchange="switchWorkplace(this.value)" title="Workplace"></select>
+                <span id="wpNameLabel" class="wp-name-label app-hidden"></span>
             </div>
             <div class="user-bar-right">
                 <button class="logout-btn" id="enablePushBtn" style="background:#2563eb;" onclick="handleEnablePush()">
@@ -2523,6 +2580,10 @@
                     <label>Rotation start date (first day of the 6-on block)</label>
                     <input type="date" id="memberRotationAnchor">
                 </div>
+                <div class="form-group app-hidden">
+                    <label>Workplace access</label>
+                    <div class="wp-access-box" id="memberWpAccess"></div>
+                </div>
                 <div class="form-group">
                     <label>Vacation days for this year</label>
                     <input type="number" id="memberVacationDays" value="25" min="0" max="30">
@@ -2655,6 +2716,10 @@
                     <label>Vacation days for this year</label>
                     <input type="number" id="editMemberVacationDays" min="0" max="30">
                 </div>
+                <div class="form-group app-hidden">
+                    <label>Workplace access</label>
+                    <div class="wp-access-box" id="editMemberWpAccess"></div>
+                </div>
                 <div class="form-group">
                     <label>Employment start date</label>
                     <input type="date" id="editMemberStartDate">
@@ -2689,6 +2754,19 @@
 
         <!-- TAB LOCATIONS -->
         <div id="locations" class="content">
+            <div class="form-section app-hidden" id="workplaceSection">
+                <div class="section-title">
+                    <i class="fas fa-building"></i>
+                    Workplaces
+                </div>
+                <p style="font-size:13px; color:#666; margin:0 0 10px;">Locations, shifts, schedule, results, targets, currencies and discounts belong to the active workplace (selector at the top). Admin. Activities and roles are shared.</p>
+                <div id="workplaceList"></div>
+                <div class="wp-row" style="margin-top:12px;">
+                    <input type="text" id="newWorkplaceName" placeholder="New workplace name">
+                    <button class="btn" onclick="addWorkplace()"><i class="fas fa-plus"></i> Add workplace</button>
+                </div>
+            </div>
+
             <div class="form-section">
                 <div class="section-title">
                     <i class="fas fa-plus-circle"></i>
@@ -4097,7 +4175,7 @@
             <div id="auditLogList"></div>
         </div>
 
-        <div class="app-version">GEBLL v-0.67</div>
+        <div class="app-version">GEDK v-0.68</div>
     </div>
 
 
@@ -4144,6 +4222,319 @@
             bonusConfigs: [],
             longTermLeaves: []
         };
+
+        // ===== WORKPLACES (v-0.68) =====
+        // Each location belongs to one workplace (location.workplaceId; missing = the original
+        // workplace, id 'default'). Shifts and assignments follow their location, so existing
+        // data needs no migration. Collections in WP_TAGGED get workplaceId stamped on create.
+        // Snapshots are kept unfiltered in `raw`; `state` holds the active workplace's view so
+        // every existing screen works unchanged. Admin. Activities, roles, notifications,
+        // vacations and long-term leaves are shared (vacations/leaves are shown for the
+        // members who have access to the active workplace).
+        const DEFAULT_WP = 'default';
+        const WP_TAGGED = new Set(['locations', 'resultLines', 'resultValidations', 'bonusConfigs', 'auditLog', 'swapRequests', 'dayOffSwapRequests', 'rescheduleRequests', 'currencies', 'discountCodes']);
+        const raw = {};
+        let wpConfigDocs = {};
+        let currentWp = DEFAULT_WP;
+        try { currentWp = localStorage.getItem('gedkWorkplace') || DEFAULT_WP; } catch (e) {}
+
+        function wpOf(d) { return (d && d.workplaceId) || DEFAULT_WP; }
+
+        function getWorkplaces() {
+            const cfg = wpConfigDocs.workplaces;
+            const list = (cfg && Array.isArray(cfg.list)) ? cfg.list.filter(w => w && w.id) : [];
+            if (!list.some(w => w.id === DEFAULT_WP)) list.unshift({ id: DEFAULT_WP, name: 'Main workplace' });
+            return list;
+        }
+
+        function getWorkplaceName(id) {
+            const w = getWorkplaces().find(x => x.id === id);
+            return w ? w.name : id;
+        }
+
+        function memberHasAllWorkplaces(m) {
+            return !!m && (m.workplaceAccess === 'all' || m.role === 'Admin');
+        }
+
+        function memberWorkplaceIds(m) {
+            if (!m) return [];
+            if (memberHasAllWorkplaces(m)) return getWorkplaces().map(w => w.id);
+            return Array.isArray(m.workplaceAccess) && m.workplaceAccess.length ? m.workplaceAccess : [DEFAULT_WP];
+        }
+
+        function memberHasWorkplace(m, wp) {
+            return memberHasAllWorkplaces(m) || memberWorkplaceIds(m).includes(wp);
+        }
+
+        function isWorkplaceAdmin() {
+            return (currentUser && currentUser.uid === ADMIN_UID) || (currentMember && currentMember.role === 'Admin');
+        }
+
+        function userWorkplaces() {
+            const all = getWorkplaces();
+            if (currentUser && currentUser.uid === ADMIN_UID) return all;
+            if (!currentMember) return all.filter(w => w.id === currentWp);
+            const ids = memberWorkplaceIds(currentMember);
+            return all.filter(w => ids.includes(w.id));
+        }
+
+        function ensureValidWorkplace() {
+            if (!currentMember && !(currentUser && currentUser.uid === ADMIN_UID)) return;
+            const list = userWorkplaces();
+            if (list.length && !list.some(w => w.id === currentWp)) currentWp = list[0].id;
+        }
+
+        function appConfigIdFor(wp) {
+            return wp === DEFAULT_WP ? 'main' : 'wp_' + wp;
+        }
+
+        function applyWorkplaceFilter() {
+            ensureValidWorkplace();
+            const wp = currentWp;
+            if (raw.locations) state.locations = raw.locations.filter(l => wpOf(l) === wp);
+            const locIds = new Set(state.locations.map(l => l.id));
+            if (raw.shifts) state.shifts = raw.shifts.filter(x => locIds.has(x.locationId));
+            const shiftIds = new Set(state.shifts.map(x => x.id));
+            if (raw.assignments) state.assignments = raw.assignments.filter(a => shiftIds.has(a.shiftId));
+            if (raw.team) state.team = raw.team.filter(m => memberHasWorkplace(m, wp));
+            const teamIds = new Set(state.team.map(m => m.id));
+            WP_TAGGED.forEach(k => {
+                if (k !== 'locations' && raw[k]) state[k] = raw[k].filter(d => wpOf(d) === wp);
+            });
+            if (raw.vacationRequests) state.vacationRequests = raw.vacationRequests.filter(v => teamIds.has(v.memberId));
+            if (raw.longTermLeaves) state.longTermLeaves = raw.longTermLeaves.filter(v => teamIds.has(v.memberId));
+            state.appConfig = wpConfigDocs[appConfigIdFor(wp)] || null;
+        }
+
+        // Stamp workplaceId on new documents of tagged collections (addDoc and batch.set),
+        // and give new team members access to the active workplace.
+        function installWorkplaceWriteHooks() {
+            if (fns.__wpHooked) return;
+            const stamp = (colId, data) => {
+                if (!data || typeof data !== 'object') return data;
+                if (WP_TAGGED.has(colId) && data.workplaceId === undefined) return { ...data, workplaceId: currentWp };
+                if (colId === 'team' && data.workplaceAccess === undefined) return { ...data, workplaceAccess: [currentWp] };
+                return data;
+            };
+            const origAdd = fns.addDoc;
+            fns.addDoc = (colRef, data) => origAdd(colRef, stamp(colRef.id, data));
+            const origBatch = fns.writeBatch;
+            fns.writeBatch = (database) => {
+                const b = origBatch(database);
+                const origSet = b.set.bind(b);
+                b.set = (ref, data, opts) => {
+                    origSet(ref, (opts && opts.merge) ? data : stamp(ref.parent && ref.parent.id, data), opts);
+                    return b;
+                };
+                return b;
+            };
+            fns.__wpHooked = true;
+        }
+
+        function renderWorkplaceSwitcher() {
+            const sel = document.getElementById('wpSwitcher');
+            const label = document.getElementById('wpNameLabel');
+            if (!sel || !label) return;
+            const mine = userWorkplaces();
+            const total = getWorkplaces().length;
+            if (mine.length > 1) {
+                sel.innerHTML = mine.map(w => `<option value="${actEsc(w.id)}">${actEsc(w.name)}</option>`).join('');
+                sel.value = currentWp;
+                sel.classList.remove('app-hidden');
+                label.classList.add('app-hidden');
+            } else {
+                sel.classList.add('app-hidden');
+                label.textContent = total > 1 ? getWorkplaceName(currentWp) : '';
+                label.classList.toggle('app-hidden', total <= 1);
+            }
+        }
+
+        let wpRerenderTimer = null;
+        function scheduleWorkplaceRerender() {
+            clearTimeout(wpRerenderTimer);
+            wpRerenderTimer = setTimeout(rerenderForWorkplace, 60);
+        }
+
+        function rerenderForWorkplace() {
+            applyWorkplaceFilter();
+            renderWorkplaceSwitcher();
+            renderWorkplaces();
+            try {
+                renderTeam();
+                renderLocations();
+                populateLocationSelect();
+                renderShifts();
+                populateLeaveMemberSelect();
+                renderLongTermLeaves();
+                updateInboxUnreadBadge();
+            } catch (e) { console.error(e); }
+            const activeContent = document.querySelector('.content.active');
+            if (!activeContent) return;
+            const id = activeContent.id;
+            const settingsOpen = !document.getElementById('settingsSubtabsBar').classList.contains('app-hidden');
+            try {
+                if (settingsOpen) switchSettingsSubtab(id);
+                else switchTabProgrammatic(id);
+            } catch (e) { console.error(e); }
+        }
+
+        function switchWorkplace(wp) {
+            if (!userWorkplaces().some(w => w.id === wp)) return;
+            currentWp = wp;
+            try { localStorage.setItem('gedkWorkplace', wp); } catch (e) {}
+            rerenderForWorkplace();
+        }
+
+        function renderWorkplaces() {
+            const wrap = document.getElementById('workplaceSection');
+            if (!wrap) return;
+            if (!isWorkplaceAdmin()) { wrap.classList.add('app-hidden'); return; }
+            wrap.classList.remove('app-hidden');
+            const list = getWorkplaces();
+            const rows = list.map(w => {
+                const locCount = (raw.locations || []).filter(l => wpOf(l) === w.id).length;
+                const memberCount = (raw.team || []).filter(m => memberHasWorkplace(m, w.id)).length;
+                const canDelete = w.id !== DEFAULT_WP && locCount === 0;
+                return `
+                    <div class="wp-row">
+                        <input type="text" id="wpName_${actEsc(w.id)}" value="${actEsc(w.name)}">
+                        <span style="font-size:12px; color:#666; white-space:nowrap;">${locCount} loc. • ${memberCount} ${memberCount === 1 ? 'person' : 'people'}${w.id === currentWp ? ' • <b>active</b>' : ''}</span>
+                        <button class="btn btn-secondary" onclick="renameWorkplace('${actEsc(w.id)}')" title="Save name"><i class="fas fa-check"></i></button>
+                        ${canDelete ? `<button class="btn btn-danger" onclick="deleteWorkplace('${actEsc(w.id)}')" title="Delete"><i class="fas fa-trash"></i></button>` : ''}
+                    </div>`;
+            }).join('');
+            document.getElementById('workplaceList').innerHTML = rows;
+        }
+
+        async function saveWorkplaceList(list) {
+            await fns.setDoc(fns.doc(db, 'appConfig', 'workplaces'), { list: list.map(w => ({ id: w.id, name: w.name })) });
+        }
+
+        async function renameWorkplace(id) {
+            if (!isWorkplaceAdmin()) return;
+            const input = document.getElementById('wpName_' + id);
+            const name = input ? input.value.trim() : '';
+            if (!name) { alert('Please enter a name.'); return; }
+            const list = getWorkplaces().map(w => w.id === id ? { ...w, name } : w);
+            try {
+                await saveWorkplaceList(list);
+                logAction('Workplace renamed', name);
+            } catch (err) {
+                alert('Could not save the workplace: ' + (err.message || err) + '\n\nCheck that the Firestore rules allow Admin to write appConfig/workplaces.');
+            }
+        }
+
+        async function addWorkplace() {
+            if (!isWorkplaceAdmin()) return;
+            const input = document.getElementById('newWorkplaceName');
+            const name = input.value.trim();
+            if (!name) { alert('Please enter a name for the new workplace.'); return; }
+            const list = getWorkplaces();
+            if (list.some(w => w.name.toLowerCase() === name.toLowerCase())) { alert('A workplace with this name already exists.'); return; }
+            const id = 'wp' + Date.now().toString(36);
+            try {
+                await saveWorkplaceList(list.concat([{ id, name }]));
+
+                // Start the new workplace with the active workplace's currency list
+                // and base settings; discount codes start empty.
+                const srcCcys = (raw.currencies || []).filter(c => wpOf(c) === currentWp);
+                for (let i = 0; i < srcCcys.length; i += 450) {
+                    const batch = fns.writeBatch(db);
+                    srcCcys.slice(i, i + 450).forEach(c => {
+                        const { id: _old, ...data } = c;
+                        batch.set(fns.doc(fns.collection(db, 'currencies')), { ...data, workplaceId: id });
+                    });
+                    await batch.commit();
+                }
+                const srcCfg = wpConfigDocs[appConfigIdFor(currentWp)];
+                if (srcCfg && srcCfg.baseCurrency) {
+                    await fns.setDoc(fns.doc(db, 'appConfig', appConfigIdFor(id)), {
+                        baseCurrency: srcCfg.baseCurrency,
+                        serviceFee: srcCfg.serviceFee || 0
+                    });
+                }
+                await fns.addDoc(fns.collection(db, 'auditLog'), {
+                    actorId: currentMember ? currentMember.id : null,
+                    actorName: currentMember ? currentMember.name : (currentUser ? currentUser.email : ''),
+                    action: 'Workplace created',
+                    details: `${name} (${srcCcys.length} currencies copied from ${getWorkplaceName(currentWp)})`,
+                    createdAt: new Date().toISOString(),
+                    workplaceId: id
+                });
+                input.value = '';
+                alert(`Workplace "${name}" created with ${srcCcys.length} currencies. Switch to it with the selector at the top, then add its locations.`);
+            } catch (err) {
+                alert('Could not create the workplace: ' + (err.message || err) + '\n\nCheck that the Firestore rules allow Admin to write appConfig/workplaces.');
+            }
+        }
+
+        async function deleteWorkplace(id) {
+            if (!isWorkplaceAdmin() || id === DEFAULT_WP) return;
+            if ((raw.locations || []).some(l => wpOf(l) === id)) {
+                alert('This workplace still has locations. Delete them first.');
+                return;
+            }
+            const name = getWorkplaceName(id);
+            if (!confirm(`Delete workplace "${name}"? Its currencies and discount codes are removed too.`)) return;
+            try {
+                const ops = [];
+                (raw.currencies || []).filter(c => wpOf(c) === id).forEach(c => ops.push(fns.doc(db, 'currencies', c.id)));
+                (raw.discountCodes || []).filter(c => wpOf(c) === id).forEach(c => ops.push(fns.doc(db, 'discountCodes', c.id)));
+                for (let i = 0; i < ops.length; i += 450) {
+                    const batch = fns.writeBatch(db);
+                    ops.slice(i, i + 450).forEach(ref => batch.delete(ref));
+                    await batch.commit();
+                }
+                for (const m of (raw.team || [])) {
+                    if (Array.isArray(m.workplaceAccess) && m.workplaceAccess.includes(id)) {
+                        const left = m.workplaceAccess.filter(x => x !== id);
+                        await fns.updateDoc(fns.doc(db, 'team', m.id), { workplaceAccess: left.length ? left : [DEFAULT_WP] });
+                    }
+                }
+                await saveWorkplaceList(getWorkplaces().filter(w => w.id !== id));
+                logAction('Workplace deleted', name);
+            } catch (err) {
+                alert('Could not delete the workplace: ' + (err.message || err));
+            }
+        }
+
+        // Workplace access field (Add member form + Edit member modal)
+        function renderWorkplaceAccessBox(boxId, access) {
+            const box = document.getElementById(boxId);
+            if (!box) return;
+            const wrap = box.closest('.form-group');
+            const list = getWorkplaces();
+            if (wrap) wrap.classList.toggle('app-hidden', list.length <= 1);
+            const all = access === 'all';
+            const ids = Array.isArray(access) && access.length ? access : [DEFAULT_WP];
+            const disabled = isWorkplaceAdmin() ? '' : 'disabled';
+            box.innerHTML = `
+                <label><input type="checkbox" data-wp="all" ${all ? 'checked' : ''} ${disabled} onchange="onWorkplaceAccessAll('${boxId}')"> <b>All workplaces</b></label>
+                ${list.map(w => `<label><input type="checkbox" data-wp="${actEsc(w.id)}" ${all || ids.includes(w.id) ? 'checked' : ''} ${all ? 'disabled' : disabled}> ${actEsc(w.name)}</label>`).join('')}`;
+        }
+
+        function onWorkplaceAccessAll(boxId) {
+            const box = document.getElementById(boxId);
+            const allOn = box.querySelector('input[data-wp="all"]').checked;
+            box.querySelectorAll('input[data-wp]:not([data-wp="all"])').forEach(cb => {
+                if (allOn) cb.checked = true;
+                cb.disabled = allOn;
+            });
+        }
+
+        function readWorkplaceAccessBox(boxId) {
+            const box = document.getElementById(boxId);
+            if (!box || !box.innerHTML.trim()) return [currentWp];
+            if (box.querySelector('input[data-wp="all"]').checked) return 'all';
+            const ids = [...box.querySelectorAll('input[data-wp]:not([data-wp="all"])')].filter(cb => cb.checked).map(cb => cb.getAttribute('data-wp'));
+            return ids;
+        }
+
+        function workplaceBadges(m) {
+            if (getWorkplaces().length <= 1) return '';
+            if (memberHasAllWorkplaces(m)) return `<span class="wp-badge">All workplaces</span>`;
+            return memberWorkplaceIds(m).map(id => `<span class="wp-badge">${actEsc(getWorkplaceName(id))}</span>`).join('');
+        }
 
         let scheduleView = 'daily';
         let scheduleRefDate = new Date();
@@ -4265,6 +4656,7 @@
 
         function startDataSync() {
             unsubscribers.forEach(u => u && u());
+            installWorkplaceWriteHooks();
 
             const unsubActivities = fns.onSnapshot(fns.collection(db, 'activities'), (snapshot) => {
                 state.activities = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -4284,16 +4676,18 @@
 
             const teamCol = fns.collection(db, 'team');
             const unsubTeam = fns.onSnapshot(teamCol, (snapshot) => {
-                state.team = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                raw.team = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                currentMember = raw.team.find(m => m.authUid === currentUser.uid) || null;
+                applyWorkplaceFilter();
+                scheduleWorkplaceRerender();
                 Object.keys(assigneeMap).forEach(k => delete assigneeMap[k]);
-                state.team.forEach(m => {
+                raw.team.forEach(m => {
                     assigneeMap[m.id] = {
                         name: m.name,
                         role: m.role,
                         initials: m.name.split(' ').map(n => n[0]).join('').toUpperCase()
                     };
                 });
-                currentMember = state.team.find(m => m.authUid === currentUser.uid) || null;
                 renderTeam();
                 renderLongTermLeaves();
                 applyRolePermissions();
@@ -4318,7 +4712,9 @@
 
             const locationsCol = fns.collection(db, 'locations');
             const unsubLocations = fns.onSnapshot(locationsCol, (snapshot) => {
-                state.locations = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                raw.locations = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                applyWorkplaceFilter();
+                scheduleWorkplaceRerender();
                 renderLocations();
                 if (document.getElementById('management').classList.contains('active')) renderWpResults();
                 populateLocationSelect();
@@ -4328,14 +4724,18 @@
 
             const shiftsCol = fns.collection(db, 'shifts');
             const unsubShifts = fns.onSnapshot(shiftsCol, (snapshot) => {
-                state.shifts = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                raw.shifts = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                applyWorkplaceFilter();
+                scheduleWorkplaceRerender();
                 renderShifts();
                 renderSchedule();
             });
 
             const assignmentsCol = fns.collection(db, 'assignments');
             const unsubAssignments = fns.onSnapshot(assignmentsCol, (snapshot) => {
-                state.assignments = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                raw.assignments = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                applyWorkplaceFilter();
+                scheduleWorkplaceRerender();
                 renderSchedule();
                 if (document.getElementById('myrota').classList.contains('active')) renderMyRota();
                 if (document.getElementById('rotas').classList.contains('active')) renderRotas();
@@ -4343,7 +4743,9 @@
 
             const swapRequestsCol = fns.collection(db, 'swapRequests');
             const unsubSwapRequests = fns.onSnapshot(swapRequestsCol, (snapshot) => {
-                state.swapRequests = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                raw.swapRequests = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                applyWorkplaceFilter();
+                scheduleWorkplaceRerender();
                 if (document.getElementById('inbox').classList.contains('active')) renderInbox();
                 if (document.getElementById('swapHistory').classList.contains('active')) renderSwapHistory();
             });
@@ -4358,70 +4760,93 @@
 
             const vacationRequestsCol = fns.collection(db, 'vacationRequests');
             const unsubVacationRequests = fns.onSnapshot(vacationRequestsCol, (snapshot) => {
-                state.vacationRequests = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                raw.vacationRequests = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                applyWorkplaceFilter();
+                scheduleWorkplaceRerender();
                 if (document.getElementById('vacation').classList.contains('active')) renderVacation();
             });
 
             const dayOffSwapRequestsCol = fns.collection(db, 'dayOffSwapRequests');
             const unsubDayOffSwapRequests = fns.onSnapshot(dayOffSwapRequestsCol, (snapshot) => {
-                state.dayOffSwapRequests = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                raw.dayOffSwapRequests = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                applyWorkplaceFilter();
+                scheduleWorkplaceRerender();
                 if (document.getElementById('inbox').classList.contains('active')) renderInbox();
                 processDueDayOffSwapBacks();
             });
 
             const resultLinesCol = fns.collection(db, 'resultLines');
             const unsubResultLines = fns.onSnapshot(resultLinesCol, (snapshot) => {
-                state.resultLines = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                raw.resultLines = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                applyWorkplaceFilter();
+                scheduleWorkplaceRerender();
                 if (document.getElementById('results').classList.contains('active')) renderResults();
                 if (document.getElementById('resultsValidation').classList.contains('active')) renderRvDailyList();
             });
 
             const resultValidationsCol = fns.collection(db, 'resultValidations');
             const unsubResultValidations = fns.onSnapshot(resultValidationsCol, (snapshot) => {
-                state.resultValidations = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                raw.resultValidations = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                applyWorkplaceFilter();
+                scheduleWorkplaceRerender();
                 if (document.getElementById('resultsValidation').classList.contains('active')) renderRvDailyList();
             });
 
             const rescheduleRequestsCol = fns.collection(db, 'rescheduleRequests');
             const unsubRescheduleRequests = fns.onSnapshot(rescheduleRequestsCol, (snapshot) => {
-                state.rescheduleRequests = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                raw.rescheduleRequests = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                applyWorkplaceFilter();
+                scheduleWorkplaceRerender();
                 if (document.getElementById('inbox').classList.contains('active')) renderInbox();
             });
 
             const auditLogCol = fns.collection(db, 'auditLog');
             const unsubAuditLog = fns.onSnapshot(auditLogCol, (snapshot) => {
-                state.auditLog = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                raw.auditLog = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                applyWorkplaceFilter();
+                scheduleWorkplaceRerender();
                 if (document.getElementById('auditLog').classList.contains('active')) renderAuditLog();
             });
 
             const currenciesCol = fns.collection(db, 'currencies');
             const unsubCurrencies = fns.onSnapshot(currenciesCol, (snapshot) => {
-                state.currencies = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                raw.currencies = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                applyWorkplaceFilter();
+                scheduleWorkplaceRerender();
                 if (document.getElementById('ccySettings').classList.contains('active')) renderCurrencies();
             });
 
             const discountCodesCol = fns.collection(db, 'discountCodes');
             const unsubDiscountCodes = fns.onSnapshot(discountCodesCol, (snapshot) => {
-                state.discountCodes = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                raw.discountCodes = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                applyWorkplaceFilter();
+                scheduleWorkplaceRerender();
                 if (document.getElementById('ccySettings').classList.contains('active')) renderDiscountCodes();
             });
 
             const appConfigCol = fns.collection(db, 'appConfig');
             const unsubAppConfig = fns.onSnapshot(appConfigCol, (snapshot) => {
                 const docs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-                state.appConfig = docs.find(d => d.id === 'main') || null;
+                wpConfigDocs = {};
+                docs.forEach(d => { wpConfigDocs[d.id] = d; });
+                applyWorkplaceFilter();
+                scheduleWorkplaceRerender();
                 if (document.getElementById('ccySettings').classList.contains('active')) loadBaseCcySettings();
             });
 
             const longTermLeavesCol = fns.collection(db, 'longTermLeaves');
             const unsubLongTermLeaves = fns.onSnapshot(longTermLeavesCol, (snapshot) => {
-                state.longTermLeaves = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                raw.longTermLeaves = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                applyWorkplaceFilter();
+                scheduleWorkplaceRerender();
                 if (document.getElementById('team').classList.contains('active')) renderLongTermLeaves();
             });
 
             const bonusConfigsCol = fns.collection(db, 'bonusConfigs');
             const unsubBonusConfigs = fns.onSnapshot(bonusConfigsCol, (snapshot) => {
-                state.bonusConfigs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                raw.bonusConfigs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                applyWorkplaceFilter();
+                scheduleWorkplaceRerender();
                 if (document.getElementById('bonusSettings').classList.contains('active')) loadBonusConfig();
             });
 
@@ -4453,6 +4878,7 @@
         const SETTINGS_SUBMODULES = ['locations', 'team', 'roles', 'ccySettings', 'bonusSettings', 'resultsValidation', 'swapHistory', 'auditLog'];
 
         function applyRolePermissions() {
+            renderWorkplaceSwitcher();
             const role = getUserRole();
             const isAdmin = role.name === 'Admin';
 
@@ -5458,12 +5884,19 @@
                 return;
             }
 
+            const newMemberAccess = readWorkplaceAccessBox('memberWpAccess');
+            if (Array.isArray(newMemberAccess) && !newMemberAccess.length) {
+                alert('Select at least one workplace.');
+                return;
+            }
+
             try {
                 const cred = await authFns.createUserWithEmailAndPassword(window.firebaseSecondaryAuth, email, password);
                 const newUid = cred.user.uid;
                 await authFns.signOut(window.firebaseSecondaryAuth);
 
                 await fns.addDoc(fns.collection(db, 'team'), {
+                    workplaceAccess: (isWorkplaceAdmin() && getWorkplaces().length > 1) ? newMemberAccess : [currentWp],
                     name,
                     email,
                     role,
@@ -5511,6 +5944,12 @@
         }
 
         function renderTeam() {
+            const wpBox = document.getElementById('memberWpAccess');
+            const wpSig = currentWp + '|' + getWorkplaces().map(w => w.id + ':' + w.name).join(',') + '|' + isWorkplaceAdmin();
+            if (wpBox && wpBox.dataset.sig !== wpSig) {
+                renderWorkplaceAccessBox('memberWpAccess', [currentWp]);
+                wpBox.dataset.sig = wpSig;
+            }
             const teamList = document.getElementById('teamList');
             if (state.team.length === 0) {
                 teamList.innerHTML = `
@@ -5529,6 +5968,7 @@
                             <div class="team-info">
                                 <div class="team-name">${member.name}</div>
                                 <div class="team-role">${member.email ? member.email + ' • ' : ''}${member.role} • ${rotationLabel}</div>
+                                ${workplaceBadges(member) ? `<div>${workplaceBadges(member)}</div>` : ''}
                             </div>
                             <div class="team-actions">
                                 <button class="btn btn-secondary" onclick="resetMemberPassword('${member.id}')" title="Send password reset email">
@@ -5661,6 +6101,7 @@
             document.getElementById('editMemberPayType').value = member.payType || (member.rotation === 'hourly' ? 'hourly' : 'salary');
             document.getElementById('editMemberStartDate').value = member.startDate || '';
             toggleEditRotationAnchorField();
+            renderWorkplaceAccessBox('editMemberWpAccess', member.role === 'Admin' ? 'all' : (member.workplaceAccess || [DEFAULT_WP]));
 
             document.getElementById('editMemberModalOverlay').dataset.memberId = memberId;
             document.getElementById('editMemberModalOverlay').classList.add('active');
@@ -5711,7 +6152,31 @@
                 return;
             }
 
+            const accessPatch = {};
+            if (isWorkplaceAdmin() && getWorkplaces().length > 1) {
+                const access = readWorkplaceAccessBox('editMemberWpAccess');
+                if (Array.isArray(access) && !access.length) {
+                    alert('Select at least one workplace.');
+                    return;
+                }
+                const member = raw.team.find(x => x.id === memberId);
+                const before = memberWorkplaceIds(member);
+                const after = access === 'all' ? getWorkplaces().map(w => w.id) : access;
+                const removed = before.filter(id => !after.includes(id));
+                if (removed.length) {
+                    const todayKey = toDateKey(new Date());
+                    const locWp = {};
+                    (raw.locations || []).forEach(l => { locWp[l.id] = wpOf(l); });
+                    const shiftWp = {};
+                    (raw.shifts || []).forEach(x => { shiftWp[x.id] = locWp[x.locationId]; });
+                    const future = (raw.assignments || []).filter(a => a.memberId === memberId && a.dateKey >= todayKey && removed.includes(shiftWp[a.shiftId]));
+                    if (future.length && !confirm(`${name} has ${future.length} upcoming shift(s) in ${removed.map(getWorkplaceName).join(', ')}. They stay in the schedule but ${name} will no longer see that workplace. Continue?`)) return;
+                }
+                accessPatch.workplaceAccess = access;
+            }
+
             await fns.updateDoc(fns.doc(db, 'team', memberId), {
+                ...accessPatch,
                 name,
                 email,
                 role,
@@ -9800,7 +10265,7 @@
             const ws = XLSX.utils.aoa_to_sheet([headers, example]);
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, 'Transactions');
-            XLSX.writeFile(wb, 'GEBLL_transactions_template.xlsx');
+            XLSX.writeFile(wb, 'GEDK_transactions_template.xlsx');
         }
 
         function normaliseDateValue(value) {
@@ -10654,7 +11119,7 @@
                 return;
             }
 
-            await fns.setDoc(fns.doc(db, 'appConfig', 'main'), {
+            await fns.setDoc(fns.doc(db, 'appConfig', appConfigIdFor(currentWp)), {
                 baseCurrency,
                 serviceFee
             });
@@ -10950,7 +11415,7 @@
             ws['!cols'] = [{ wch: 8 }, { wch: 12 }, { wch: 12 }];
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, 'Currencies');
-            XLSX.writeFile(wb, 'GEBLL_currencies_template.xlsx');
+            XLSX.writeFile(wb, 'GEDK_currencies_template.xlsx');
         }
 
         function previewCurrencyImport() {
@@ -11032,7 +11497,7 @@
             ws['!cols'] = [{ wch: 14 }, { wch: 14 }, { wch: 12 }];
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, 'Discounts');
-            XLSX.writeFile(wb, 'GEBLL_discounts_template.xlsx');
+            XLSX.writeFile(wb, 'GEDK_discounts_template.xlsx');
         }
 
         function previewDiscountImport() {
@@ -11951,7 +12416,7 @@
 
             const landscape = report.orientation === 'landscape';
             const wb = new ExcelJS.Workbook();
-            wb.creator = 'GEBLL';
+            wb.creator = 'GEDK';
             wb.created = new Date();
             const ws = wb.addWorksheet((report.sheetName || 'Report').replace(/[\\/?*[\]:]/g, ' ').slice(0, 31), {
                 views: [{ showGridLines: false }],
@@ -12191,7 +12656,7 @@
                 notes: [`${member.name} — ${getReportTargetNote(periodKey)}`],
                 sections,
                 sheetName: member.name,
-                fileBase: `GEBLL_${member.name.replace(/\s+/g, '_')}_${periodKey}`,
+                fileBase: `GEDK_${member.name.replace(/\s+/g, '_')}_${periodKey}`,
                 logLabel: `Individual results — ${member.name}, ${periodKey}`,
                 summary: { month, txTarget, turnoverTarget, avgTarget, monthIndex, bonus, periodLabel, note: getReportTargetNote(periodKey) }
             };
@@ -12418,7 +12883,7 @@
                     }
                 }],
                 sheetName: 'Advisors',
-                fileBase: `GEBLL_advisors_${periodKey}`,
+                fileBase: `GEDK_advisors_${periodKey}`,
                 logLabel: `Results by advisor, ${periodKey}`
             };
         }
@@ -12527,7 +12992,7 @@
                 notes: [`Workplace — ${getReportTargetNote(periodKey)}`],
                 sections,
                 sheetName: 'Global results',
-                fileBase: `GEBLL_global_${periodKey}`,
+                fileBase: `GEDK_global_${periodKey}`,
                 logLabel: `Global results, ${periodKey}`
             };
         }
@@ -12633,7 +13098,7 @@
                 sections,
                 footerText: `Grand total: ${grandHours.toFixed(2)} hours${showPay ? ` — ${grandPay.toFixed(2)} pay` : ''}`,
                 sheetName: 'Hours',
-                fileBase: `GEBLL_hours_${fileSuffix}`,
+                fileBase: `GEDK_hours_${fileSuffix}`,
                 logLabel: `Hours worked, ${periodLabel}${showPay ? ' (with pay)' : ''}`
             };
         }
@@ -12730,7 +13195,7 @@
                     }
                 }],
                 sheetName: 'Rota',
-                fileBase: `GEBLL_rota_${periodKey}`,
+                fileBase: `GEDK_rota_${periodKey}`,
                 logLabel: `Global rota, ${periodKey}`
             };
         }
@@ -12830,7 +13295,7 @@
                 notes,
                 sections,
                 sheetName: 'Daily targets',
-                fileBase: `GEBLL_daily_targets_${periodKey}`,
+                fileBase: `GEDK_daily_targets_${periodKey}`,
                 logLabel: `Daily targets, ${periodKey}`
             };
         }

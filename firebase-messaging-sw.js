@@ -13,7 +13,7 @@ firebase.initializeApp({
 const messaging = firebase.messaging();
 
 messaging.onBackgroundMessage((payload) => {
-    const title = (payload.notification && payload.notification.title) || 'GEBLL';
+    const title = (payload.notification && payload.notification.title) || 'GEDK';
     const body = (payload.notification && payload.notification.body) || (payload.data && payload.data.message) || '';
     const badgeCount = parseInt((payload.data && payload.data.badge) || '0', 10);
 
