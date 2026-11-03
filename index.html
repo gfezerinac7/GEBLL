@@ -4003,6 +4003,13 @@
 
                 <label style="font-size:13px; font-weight:600; color:#333;">Time-of-day factors</label>
                 <p style="font-size:12px; color:#999; margin:4px 0 10px;">Hours outside these blocks count as 1.0.</p>
+                <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin:0 0 12px;">
+                    <button class="btn btn-secondary" onclick="fillTimeBlocksFromHistory()">
+                        <i class="fas fa-wand-magic-sparkles"></i>
+                        Calculate from last 3 months
+                    </button>
+                    <span id="txBlockInfo" style="font-size:12px; color:#666;"></span>
+                </div>
                 <div class="results-entry-row results-entry-header" style="grid-template-columns: 1fr 1fr 1fr auto;">
                     <div>From</div>
                     <div>To</div>
@@ -4175,7 +4182,7 @@
             <div id="auditLogList"></div>
         </div>
 
-        <div class="app-version">GEDK v-0.68</div>
+        <div class="app-version">GEDK v-0.69</div>
     </div>
 
 
@@ -10128,6 +10135,112 @@
             };
         }
 
+        // Time-of-day factors from the three months before the period.
+        // Transactions are stored per advisor and day (no clock time), so each advisor-day
+        // is matched with that advisor's shift(s) that day. Shifts that cover different
+        // hours are compared: the day's transactions are spread over the shift's hours in
+        // proportion to how busy each hour is, and the hourly rates are re-estimated until
+        // they settle (iterative proportional fitting). The weekday factors in the form are
+        // taken into account so a busy weekday doesn't look like a busy hour.
+        // Result: one factor per hour, average 1.00 over staffed hours, merged into blocks.
+        function calcTimeBlocksFromHistory(periodKey, weekdayFactors) {
+            const [y, m] = periodKey.split('-').map(Number);
+            const fromKey = toDateKey(new Date(y, m - 4, 1));
+            const toKey = toDateKey(new Date(y, m - 1, 1)); // exclusive
+            const wdF = (weekdayFactors || []).map(f => (isNaN(f) || f <= 0) ? 1 : f);
+            while (wdF.length < 7) wdF.push(1);
+
+            const txByMemberDay = {};
+            state.resultLines.forEach(l => {
+                if (!l.dateKey || !l.memberId || l.dateKey < fromKey || l.dateKey >= toKey) return;
+                const k = l.memberId + '|' + l.dateKey;
+                txByMemberDay[k] = (txByMemberDay[k] || 0) + 1;
+            });
+
+            const shiftById = {};
+            state.shifts.forEach(sh => { shiftById[sh.id] = sh; });
+            const shiftsByMemberDay = {};
+            state.assignments.forEach(a => {
+                if (a.sickLeave || a.training) return;
+                const k = a.memberId + '|' + a.dateKey;
+                if (!txByMemberDay[k]) return;
+                const shift = shiftById[a.shiftId];
+                if (!shift) return;
+                (shiftsByMemberDay[k] = shiftsByMemberDay[k] || []).push(shift);
+            });
+
+            // One observation per advisor-day: transactions and net minutes per hour of day.
+            const obs = [];
+            Object.keys(shiftsByMemberDay).forEach(k => {
+                const dateKey = k.split('|')[1];
+                const wd = wdF[weekdayIndex(dateKeyToDate(dateKey))];
+                const cover = new Array(24).fill(0);
+                shiftsByMemberDay[k].forEach(shift => {
+                    const startMin = timeToMinutes(shift.start);
+                    const gross = calcGrossMinutes(shift.start, shift.end);
+                    if (gross <= 0) return;
+                    const netRatio = gross > 30 ? (gross - 30) / gross : 1;
+                    for (let t = 0; t < gross; t += 5) {
+                        const seg = Math.min(5, gross - t);
+                        cover[Math.floor(((startMin + t) % 1440) / 60)] += seg * netRatio * wd;
+                    }
+                });
+                if (cover.some(c => c > 0)) obs.push({ tx: txByMemberDay[k], cover });
+            });
+            if (obs.length < 10) return null;
+
+            const staffed = new Array(24).fill(0);
+            obs.forEach(o => o.cover.forEach((c, h) => { staffed[h] += c; }));
+
+            let rate = staffed.map(c => c > 0 ? 1 : 0);
+            for (let iter = 0; iter < 200; iter++) {
+                const txAt = new Array(24).fill(0);
+                obs.forEach(o => {
+                    let denom = 0;
+                    o.cover.forEach((c, h) => { denom += c * rate[h]; });
+                    if (denom <= 0) return;
+                    o.cover.forEach((c, h) => { if (c > 0) txAt[h] += o.tx * c * rate[h] / denom; });
+                });
+                rate = txAt.map((n, h) => staffed[h] > 0 ? n / staffed[h] : 0);
+            }
+
+            // Hours with little coverage (under 20 staffed hours in 3 months) are too noisy:
+            // they stay at 1.0.
+            const MIN_MINUTES = 20 * 60;
+            let num = 0, den = 0;
+            rate.forEach((r, h) => { if (staffed[h] >= MIN_MINUTES) { num += r * staffed[h]; den += staffed[h]; } });
+            if (den <= 0 || num <= 0) return null;
+            const mean = num / den;
+            const hourly = rate.map((r, h) => staffed[h] >= MIN_MINUTES ? r / mean : null);
+
+            // Group consecutive hours whose factors are close (within 0.15, or 10%, of the group's
+            // average) so day-to-day noise doesn't create a block per hour. Each group gets
+            // its average, rounded to 0.05; groups at 1.00 need no block.
+            const groups = [];
+            for (let h = 0; h < 24; h++) {
+                const f = hourly[h];
+                const g = groups[groups.length - 1];
+                if (f == null) { groups.push(null); continue; }
+                if (g && g.end === h) {
+                    const avg = g.sum / g.n;
+                    if (Math.abs(f - avg) <= Math.max(0.15, avg * 0.1)) { g.sum += f; g.n++; g.end = h + 1; continue; }
+                }
+                groups.push({ start: h, end: h + 1, sum: f, n: 1 });
+            }
+            const pad = h => String(h).padStart(2, '0') + ':00';
+            const blocks = groups
+                .filter(Boolean)
+                .map(g => ({ from: pad(g.start), to: pad(g.end % 24), factor: Math.round((g.sum / g.n) * 20) / 20 }))
+                .filter(b => b.factor !== 1);
+            return {
+                blocks,
+                days: obs.length,
+                transactions: obs.reduce((a, o) => a + o.tx, 0),
+                from: fromKey,
+                to: toDateKey(new Date(y, m - 1, 0))
+            };
+        }
+
         // ===== BONUS CALCULATION =====
 
         // Overall achievement as a percentage, using each ticked target's weight.
@@ -11747,6 +11860,25 @@
             res.factors.forEach((f, i) => { document.getElementById(`txWd${i}`).value = f; });
             info.style.color = '#666';
             info.textContent = `Based on ${res.transactions} transactions over ${res.days} days (${res.from} to ${res.to}). Review and save.`;
+        }
+
+        function fillTimeBlocksFromHistory() {
+            const periodKey = getBonusPeriodKey();
+            const weekdayFactors = WEEKDAY_SHORT.map((_, i) => parseFloat(document.getElementById(`txWd${i}`).value));
+            const res = calcTimeBlocksFromHistory(periodKey, weekdayFactors);
+            const info = document.getElementById('txBlockInfo');
+            if (!res) {
+                info.textContent = 'Not enough results with shifts in the 3 months before this period.';
+                info.style.color = '#dc2626';
+                return;
+            }
+            if (currentTxBlocks.length && !confirm('Replace the current time blocks with the calculated ones?')) return;
+            currentTxBlocks = res.blocks;
+            renderTxBlocks();
+            info.style.color = '#666';
+            info.textContent = res.blocks.length
+                ? `Based on ${res.transactions} transactions over ${res.days} advisor-days (${res.from} to ${res.to}). Review and save.`
+                : `Based on ${res.transactions} transactions over ${res.days} advisor-days: no hour stands out, every hour stays at 1.0.`;
         }
 
         function previewTxDistribution() {
