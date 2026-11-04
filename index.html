@@ -4334,7 +4334,7 @@
             <div id="auditLogList"></div>
         </div>
 
-        <div class="app-version">GEDK v-0.74</div>
+        <div class="app-version">GEDK v-0.75</div>
     </div>
 
 
@@ -13808,6 +13808,7 @@
             const money = ccy ? ` (${ccy})` : '';
             const summary = [];
             const detail = [];
+            const byRole = new Map(); // role → totals, for the "By user type" table
             let grandSalary = 0;
             let grandBonus = 0;
             let grandExpenses = 0;
@@ -13842,38 +13843,47 @@
                 });
 
                 let total = 0;
+                const role = member.role || 'Member';
+                if (!byRole.has(role)) byRole.set(role, { count: 0, salary: 0, bonus: 0, expenses: new Map(), total: 0 });
+                const roleAgg = byRole.get(role);
+                roleAgg.count += 1;
+                roleAgg.salary += salary.amount;
+                roleAgg.bonus += bonus;
+
                 const rows = own.map(e => {
-                    const v = Number(e.value) || 0;
                     const { base, amount } = calc.get(e.id) || { base: null, amount: 0 };
                     total += amount;
-                    return [
-                        e.name,
-                        isPercentKind(e.kind)
-                            ? `${v}% ${hrKindText(e.kind)}${e.isBonus && e.kind === 'percent' ? ' (bonus)' : ''}`
-                            : (e.isBonus ? 'Fixed bonus' : 'Fixed'),
-                        base != null ? numCell(base, 2) : '—',
-                        numCell(amount, 2)
-                    ];
+                    roleAgg.expenses.set(e.id, (roleAgg.expenses.get(e.id) || 0) + amount);
+                    return [e.name, base != null ? numCell(base, 2) : '—', numCell(amount, 2)];
                 });
+                roleAgg.total += total;
                 grandSalary += salary.amount;
                 grandBonus += bonus;
                 grandExpenses += total;
                 summary.push([member.name, numCell(salary.amount, 2), numCell(bonus, 2), numCell(total, 2), numCell(salary.amount + bonus + total, 2)]);
 
-                if (rows.length === 0) {
-                    detail.push({ heading: member.name, emptyText: 'No expenses apply to this employee.' });
-                } else {
-                    detail.push({
-                        heading: `${member.name} — ${salary.basis}: ${salary.amount.toFixed(2)}${bonus > 0 ? ` + tiers bonus ${bonus.toFixed(2)}` : ''}${fixedBonus > 0 ? ` + other bonuses ${fixedBonus.toFixed(2)}` : ''}${ccy ? ' ' + ccy : ''}`,
-                        head: ['Expense', 'Type', `Base${money}`, `Amount${money}`],
-                        rows,
-                        foot: ['Total', '', '', numCell(total, 2)],
-                        columnStyles: { 0: { halign: 'left' } },
-                        headColor: REPORT_COLORS.green,
-                        fontSize: 8,
-                        gapAfter: 6
-                    });
-                }
+                // Salary (and tiers bonus) first, then every expense, the expenses subtotal and the total cost.
+                const head = [[salary.basis.startsWith('Hourly') ? `Salary — ${salary.basis.toLowerCase()}` : 'Salary', '—', numCell(salary.amount, 2)]];
+                if (bonus > 0) head.push(['Tiers bonus', '—', numCell(bonus, 2)]);
+                const body = head.concat(rows.length ? rows : [['No expenses apply', '—', '—']]);
+                body.push(['Expenses total', '', numCell(total, 2)]);
+                const firstExpense = head.length;
+                const subtotalRow = body.length - 1;
+                detail.push({
+                    heading: `${member.name} · ${role}`,
+                    head: ['Concept', `Base${money}`, `Amount${money}`],
+                    rows: body,
+                    foot: ['Total cost', '', numCell(salary.amount + bonus + total, 2)],
+                    columnStyles: { 0: { halign: 'left' } },
+                    headColor: REPORT_COLORS.green,
+                    fontSize: 8,
+                    gapAfter: 6,
+                    cellStyle: (ri) => {
+                        if (ri < firstExpense) return { fill: [239, 246, 255], text: [30, 64, 175], bold: true };
+                        if (ri === subtotalRow) return { fill: [236, 253, 245], text: [6, 95, 70], bold: true };
+                        return null;
+                    }
+                });
             });
 
             const sections = [{
@@ -13883,7 +13893,41 @@
                 foot: ['Total', numCell(grandSalary, 2), numCell(grandBonus, 2), numCell(grandExpenses, 2), numCell(grandSalary + grandBonus + grandExpenses, 2)],
                 columnStyles: { 0: { halign: 'left' } },
                 gapAfter: 10
-            }].concat(detail);
+            }];
+
+            // Expenses by user type (role): one column per role, one row per expense.
+            const roles = [...byRole.keys()].sort((a, b) => {
+                const order = ['Admin', 'Lead', 'Member'];
+                const ia = order.indexOf(a), ib = order.indexOf(b);
+                return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || a.localeCompare(b);
+            });
+            const roleRow = (label, valueOf) => {
+                const vals = roles.map(r => valueOf(byRole.get(r)));
+                return [label, ...vals.map(v => numCell(v, 2)), numCell(vals.reduce((a, b) => a + b, 0), 2)];
+            };
+            const roleRows = [roleRow('Salary', r => r.salary)];
+            if (grandBonus > 0) roleRows.push(roleRow('Tiers bonus', r => r.bonus));
+            const roleFirstExpense = roleRows.length;
+            expenses
+                .filter(e => roles.some(r => byRole.get(r).expenses.has(e.id)))
+                .forEach(e => roleRows.push(roleRow(e.name, r => r.expenses.get(e.id) || 0)));
+            roleRows.push(roleRow('Expenses total', r => r.total));
+            const roleSubtotal = roleRows.length - 1;
+            sections.push({
+                heading: 'By user type',
+                head: ['Concept', ...roles.map(r => `${r} (${byRole.get(r).count})`), 'Total'],
+                rows: roleRows,
+                foot: roleRow('Total cost', r => r.salary + r.bonus + r.total),
+                columnStyles: { 0: { halign: 'left' } },
+                headColor: [79, 70, 229],
+                gapAfter: 10,
+                cellStyle: (ri) => {
+                    if (ri < roleFirstExpense) return { fill: [239, 246, 255], text: [30, 64, 175], bold: true };
+                    if (ri === roleSubtotal) return { fill: [236, 253, 245], text: [6, 95, 70], bold: true };
+                    return null;
+                }
+            });
+            sections.push(...detail);
 
             return {
                 title: 'Employee expenses',
