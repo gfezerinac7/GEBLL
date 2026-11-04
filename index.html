@@ -3313,7 +3313,7 @@
                         </button>
                     </div>
                     <p style="font-size:12px; color:#999; margin:8px 0 12px;">
-                        Monthly costs per employee on top of pay: a fixed amount, or a % of the salary.
+                        Monthly costs per employee on top of pay: a fixed amount, a % of the salary, or a % of salary + bonus.
                         For hourly staff the salary is the month's pay (hours × week / weekend rates).
                         The totals per employee are in Reports → Employee expenses.
                     </p>
@@ -3991,6 +3991,7 @@
                         <select id="hrExpenseKind" onchange="updateHrExpenseKindLabel()">
                             <option value="fixed">Fixed amount</option>
                             <option value="percent">% of salary</option>
+                            <option value="percentBonus">% of salary + bonus</option>
                         </select>
                     </div>
                     <div class="form-group">
@@ -4326,7 +4327,7 @@
             <div id="auditLogList"></div>
         </div>
 
-        <div class="app-version">GEDK v-0.70</div>
+        <div class="app-version">GEDK v-0.71</div>
     </div>
 
 
@@ -5002,7 +5003,7 @@
                 if (document.getElementById('bonusSettings').classList.contains('active')) loadBonusConfig();
             });
 
-            // HR — employee expenses (v-0.70), one list per workplace.
+            // HR — employee expenses (v-0.70; % of salary + bonus in v-0.71), one list per workplace.
             const employeeExpensesCol = fns.collection(db, 'employeeExpenses');
             const unsubEmployeeExpenses = fns.onSnapshot(employeeExpensesCol, (snapshot) => {
                 raw.employeeExpenses = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -12450,6 +12451,27 @@
             return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + (ccy ? ' ' + ccy : '');
         }
 
+        function isPercentKind(kind) {
+            return kind === 'percent' || kind === 'percentBonus';
+        }
+
+        function hrKindText(kind) {
+            return kind === 'percentBonus' ? 'of salary + bonus' : 'of salary';
+        }
+
+        // Bonus earned in the month (targets bonus + BBG), as on Results; 0 when there is none.
+        function getMemberBonusForPeriod(member, periodKey) {
+            const lines = (state.resultLines || []).filter(l => l.memberId === member.id && l.dateKey && l.dateKey.slice(0, 7) === periodKey);
+            if (lines.length === 0) return 0;
+            try {
+                const bonus = calcBonus(aggregateLines(lines), periodKey, member);
+                return bonus ? (Number(bonus.total) || 0) : 0;
+            } catch (e) {
+                console.error('bonus for expenses', e);
+                return 0;
+            }
+        }
+
         function hrExpenseAppliesTo(exp, memberId) {
             if (exp.scope !== 'selected') return true;
             return Array.isArray(exp.memberIds) && exp.memberIds.includes(memberId);
@@ -12457,7 +12479,7 @@
 
         function hrExpenseAmountLabel(exp) {
             const v = Number(exp.value) || 0;
-            return exp.kind === 'percent' ? `${v.toLocaleString('en-US', { maximumFractionDigits: 2 })}% of salary` : `${fmtMoney(v)} / month`;
+            return isPercentKind(exp.kind) ? `${v.toLocaleString('en-US', { maximumFractionDigits: 2 })}% ${hrKindText(exp.kind)}` : `${fmtMoney(v)} / month`;
         }
 
         function hrExpenseScopeLabel(exp) {
@@ -12481,13 +12503,13 @@
             }
             list.innerHTML = items.map(exp => `
                 <div class="team-member" style="cursor:pointer;" onclick="openHrExpenseModal('${exp.id}')">
-                    <div class="team-avatar"><i class="fas ${exp.kind === 'percent' ? 'fa-percent' : 'fa-coins'}"></i></div>
+                    <div class="team-avatar"><i class="fas ${isPercentKind(exp.kind) ? 'fa-percent' : 'fa-coins'}"></i></div>
                     <div class="team-info">
                         <div class="team-name">${escapeHtml(exp.name || '')}</div>
                         <div class="team-role">${escapeHtml(hrExpenseScopeLabel(exp))}</div>
                     </div>
-                    <div class="hr-amount">${exp.kind === 'percent'
-                        ? `${escapeHtml(String(Number(exp.value) || 0))}%<span>of salary</span>`
+                    <div class="hr-amount">${isPercentKind(exp.kind)
+                        ? `${escapeHtml(String(Number(exp.value) || 0))}%<span>${hrKindText(exp.kind)}</span>`
                         : `${escapeHtml(fmtMoney(exp.value))}<span>per month</span>`}</div>
                 </div>
             `).join('');
@@ -12495,8 +12517,8 @@
 
         function updateHrExpenseKindLabel() {
             const kind = document.getElementById('hrExpenseKind').value;
-            document.getElementById('hrExpenseValueLabel').textContent = kind === 'percent' ? '% of salary' : `Amount per month${getBaseCurrency() ? ' (' + getBaseCurrency() + ')' : ''}`;
-            document.getElementById('hrExpenseValue').placeholder = kind === 'percent' ? 'e.g. 8' : '0.00';
+            document.getElementById('hrExpenseValueLabel').textContent = isPercentKind(kind) ? `% ${hrKindText(kind)}` : `Amount per month${getBaseCurrency() ? ' (' + getBaseCurrency() + ')' : ''}`;
+            document.getElementById('hrExpenseValue').placeholder = isPercentKind(kind) ? 'e.g. 8' : '0.00';
         }
 
         function toggleHrExpenseMembers() {
@@ -12510,7 +12532,7 @@
             overlay.dataset.expenseId = exp ? exp.id : '';
             document.getElementById('hrExpenseModalTitle').textContent = exp ? 'Edit expense' : 'New expense';
             document.getElementById('hrExpenseName').value = exp ? (exp.name || '') : '';
-            document.getElementById('hrExpenseKind').value = exp && exp.kind === 'percent' ? 'percent' : 'fixed';
+            document.getElementById('hrExpenseKind').value = exp && isPercentKind(exp.kind) ? exp.kind : 'fixed';
             document.getElementById('hrExpenseValue').value = exp ? (exp.value ?? '') : '';
             document.getElementById('hrExpenseScope').value = exp && exp.scope === 'selected' ? 'selected' : 'all';
             document.getElementById('hrExpenseDeleteBtn').classList.toggle('app-hidden', !exp);
@@ -12544,7 +12566,8 @@
         async function saveHrExpense() {
             const id = document.getElementById('hrExpenseModalOverlay').dataset.expenseId;
             const name = document.getElementById('hrExpenseName').value.trim();
-            const kind = document.getElementById('hrExpenseKind').value === 'percent' ? 'percent' : 'fixed';
+            const kindValue = document.getElementById('hrExpenseKind').value;
+            const kind = isPercentKind(kindValue) ? kindValue : 'fixed';
             const valueText = document.getElementById('hrExpenseValue').value.trim().replace(',', '.');
             const value = parseFloat(valueText);
             const scope = document.getElementById('hrExpenseScope').value === 'selected' ? 'selected' : 'all';
@@ -12554,7 +12577,7 @@
 
             if (!name) return showHrExpenseError('Please enter a name for the expense.');
             if (!valueText || isNaN(value) || value < 0) return showHrExpenseError('Please enter a valid amount.');
-            if (kind === 'percent' && value > 100) return showHrExpenseError('A percentage can be at most 100.');
+            if (isPercentKind(kind) && value > 100) return showHrExpenseError('A percentage can be at most 100.');
             if (scope === 'selected' && memberIds.length === 0) return showHrExpenseError('Select at least one employee.');
 
             const payload = { name, kind, value: Math.round(value * 100) / 100, scope, memberIds, updatedAt: new Date().toISOString() };
@@ -13769,33 +13792,37 @@
             const summary = [];
             const detail = [];
             let grandSalary = 0;
+            let grandBonus = 0;
             let grandExpenses = 0;
 
             members.forEach(member => {
                 const own = expenses.filter(e => hrExpenseAppliesTo(e, member.id));
                 const salary = getMemberSalaryForPeriod(member, periodKey);
+                const bonus = getMemberBonusForPeriod(member, periodKey);
                 let total = 0;
                 const rows = own.map(e => {
                     const v = Number(e.value) || 0;
-                    const amount = e.kind === 'percent' ? salary.amount * v / 100 : v;
+                    const base = e.kind === 'percentBonus' ? salary.amount + bonus : salary.amount;
+                    const amount = isPercentKind(e.kind) ? base * v / 100 : v;
                     total += amount;
                     return [
                         e.name,
-                        e.kind === 'percent' ? `${v}% of salary` : 'Fixed',
-                        e.kind === 'percent' ? numCell(salary.amount, 2) : '—',
+                        isPercentKind(e.kind) ? `${v}% ${hrKindText(e.kind)}` : 'Fixed',
+                        isPercentKind(e.kind) ? numCell(base, 2) : '—',
                         numCell(amount, 2)
                     ];
                 });
                 grandSalary += salary.amount;
+                grandBonus += bonus;
                 grandExpenses += total;
-                summary.push([member.name, numCell(salary.amount, 2), numCell(total, 2), numCell(salary.amount + total, 2)]);
+                summary.push([member.name, numCell(salary.amount, 2), numCell(bonus, 2), numCell(total, 2), numCell(salary.amount + bonus + total, 2)]);
 
                 if (rows.length === 0) {
                     detail.push({ heading: member.name, emptyText: 'No expenses apply to this employee.' });
                 } else {
                     detail.push({
-                        heading: `${member.name} — ${salary.basis}: ${salary.amount.toFixed(2)}${ccy ? ' ' + ccy : ''}`,
-                        head: ['Expense', 'Type', `Salary base${money}`, `Amount${money}`],
+                        heading: `${member.name} — ${salary.basis}: ${salary.amount.toFixed(2)}${bonus > 0 ? ` + bonus ${bonus.toFixed(2)}` : ''}${ccy ? ' ' + ccy : ''}`,
+                        head: ['Expense', 'Type', `Base${money}`, `Amount${money}`],
                         rows,
                         foot: ['Total', '', '', numCell(total, 2)],
                         columnStyles: { 0: { halign: 'left' } },
@@ -13808,9 +13835,9 @@
 
             const sections = [{
                 heading: 'Total per employee',
-                head: ['Employee', `Salary${money}`, `Expenses${money}`, `Total cost${money}`],
+                head: ['Employee', `Salary${money}`, `Bonus${money}`, `Expenses${money}`, `Total cost${money}`],
                 rows: summary,
-                foot: ['Total', numCell(grandSalary, 2), numCell(grandExpenses, 2), numCell(grandSalary + grandExpenses, 2)],
+                foot: ['Total', numCell(grandSalary, 2), numCell(grandBonus, 2), numCell(grandExpenses, 2), numCell(grandSalary + grandBonus + grandExpenses, 2)],
                 columnStyles: { 0: { halign: 'left' } },
                 gapAfter: 10
             }].concat(detail);
@@ -13818,7 +13845,7 @@
             return {
                 title: 'Employee expenses',
                 periodLabel: `Employee expenses — ${getReportPeriodLabel()}`,
-                notes: ['Expenses are monthly. % expenses use the monthly salary, or the month\'s pay for hourly staff.'],
+                notes: ['Expenses are monthly. Salary = monthly salary, or the month\'s pay for hourly staff. Bonus = targets bonus + BBG, as on Results.'],
                 sections,
                 footerText: `Total employee expenses: ${grandExpenses.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}${ccy ? ' ' + ccy : ''}`,
                 sheetName: 'Employee expenses',
