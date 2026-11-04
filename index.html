@@ -1672,6 +1672,58 @@
             display: flex;
         }
 
+        /* HR — employee expenses (v-0.70) */
+        .hr-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .hr-add-btn {
+            width: 40px;
+            height: 40px;
+            flex: 0 0 40px;
+            border-radius: 50%;
+            border: none;
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+            color: #fff;
+            font-size: 17px;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .hr-member-checks {
+            max-height: 30vh;
+            overflow-y: auto;
+            margin-top: 0;
+            gap: 6px;
+        }
+
+        .hr-member-checks .module-check {
+            padding: 5px 10px;
+        }
+
+        .hr-amount {
+            font-weight: 700;
+            color: #1e293b;
+            white-space: nowrap;
+            font-size: 14px;
+            text-align: right;
+            flex: 0 0 auto;
+            margin-left: 8px;
+        }
+
+        .hr-amount span {
+            display: block;
+            font-size: 11px;
+            font-weight: 500;
+            color: #94a3b8;
+        }
+
         /* Compact pop-ups (v-0.67): everything should fit on one screen */
         .modal-overlay {
             padding: 10px;
@@ -3244,6 +3296,29 @@
                 <button class="subtab-btn" data-mgmttab="reports" onclick="switchManagementTab('reports')">
                     <i class="fas fa-file-pdf"></i> Reports
                 </button>
+                <button class="subtab-btn" data-mgmttab="hr" onclick="switchManagementTab('hr')">
+                    <i class="fas fa-user-tie"></i> HR
+                </button>
+            </div>
+
+            <div id="mgmtHr" class="app-hidden">
+                <div class="form-section">
+                    <div class="hr-head">
+                        <div class="section-title" style="margin-bottom:0;">
+                            <i class="fas fa-receipt"></i>
+                            Employee expenses
+                        </div>
+                        <button class="hr-add-btn" onclick="openHrExpenseModal()" title="Add expense" aria-label="Add expense">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </div>
+                    <p style="font-size:12px; color:#999; margin:8px 0 12px;">
+                        Monthly costs per employee on top of pay: a fixed amount, or a % of the salary.
+                        For hourly staff the salary is the month's pay (hours × week / weekend rates).
+                        The totals per employee are in Reports → Employee expenses.
+                    </p>
+                    <div id="hrExpenseList"></div>
+                </div>
             </div>
 
             <div id="mgmtWpResults">
@@ -3387,7 +3462,7 @@
                         Hours worked (hourly staff)
                     </div>
                     <p style="font-size:12px; color:#999; margin-bottom:12px;">
-                        Gross hours per day and total, for members on an hourly contract.
+                        Gross hours per day and total, for members on an hourly contract, with a chart of weekday vs weekend hours.
                     </p>
                     <div class="form-group">
                         <label>Period</label>
@@ -3418,6 +3493,26 @@
                             PDF
                         </button>
                         <button class="btn btn-success" onclick="generateHoursReport('xlsx')">
+                            <i class="fas fa-file-excel"></i>
+                            Excel
+                        </button>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <div class="section-title">
+                        <i class="fas fa-receipt"></i>
+                        Employee expenses
+                    </div>
+                    <p style="font-size:12px; color:#999; margin-bottom:12px;">
+                        Every HR expense for each employee in the report period above, with the total per employee and the overall total.
+                    </p>
+                    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                        <button class="btn" onclick="generateEmployeeExpensesReport('pdf')">
+                            <i class="fas fa-file-pdf"></i>
+                            PDF
+                        </button>
+                        <button class="btn btn-success" onclick="generateEmployeeExpensesReport('xlsx')">
                             <i class="fas fa-file-excel"></i>
                             Excel
                         </button>
@@ -3877,6 +3972,55 @@
             </div>
         </div>
 
+        <div id="hrExpenseModalOverlay" class="modal-overlay" onclick="if (event.target.id === 'hrExpenseModalOverlay') closeHrExpenseModal()">
+            <div class="modal-box">
+                <div class="modal-header">
+                    <div class="section-title" style="margin-bottom:0;">
+                        <i class="fas fa-receipt"></i>
+                        <span id="hrExpenseModalTitle">New expense</span>
+                    </div>
+                    <button class="modal-close" onclick="closeHrExpenseModal()"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="form-group">
+                    <label>Expense name</label>
+                    <input type="text" id="hrExpenseName" placeholder="e.g. Pension, ATP, Insurance" maxlength="60">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Amount type</label>
+                        <select id="hrExpenseKind" onchange="updateHrExpenseKindLabel()">
+                            <option value="fixed">Fixed amount</option>
+                            <option value="percent">% of salary</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label id="hrExpenseValueLabel">Amount per month</label>
+                        <input type="number" id="hrExpenseValue" step="0.01" min="0" placeholder="0.00" inputmode="decimal">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Applies to</label>
+                    <select id="hrExpenseScope" onchange="toggleHrExpenseMembers()">
+                        <option value="all">All employees</option>
+                        <option value="selected">Selected employees</option>
+                    </select>
+                </div>
+                <div class="form-group app-hidden" id="hrExpenseMembersWrap">
+                    <div class="module-checks hr-member-checks" id="hrExpenseMembers"></div>
+                </div>
+                <div class="login-error" id="hrExpenseError" style="display:none;"></div>
+                <div style="display:flex; gap:8px;">
+                    <button class="btn btn-danger app-hidden" id="hrExpenseDeleteBtn" onclick="deleteHrExpense()" title="Delete">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                    <button class="btn" style="flex:1; justify-content:center;" onclick="saveHrExpense()">
+                        <i class="fas fa-check"></i>
+                        Save
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <div id="editDiscountModalOverlay" class="modal-overlay" onclick="closeEditDiscountModalOutside(event)">
             <div class="modal-box">
                 <div class="modal-header">
@@ -4182,7 +4326,7 @@
             <div id="auditLogList"></div>
         </div>
 
-        <div class="app-version">GEDK v-0.69</div>
+        <div class="app-version">GEDK v-0.70</div>
     </div>
 
 
@@ -4227,7 +4371,8 @@
             discountCodes: [],
             appConfig: null,
             bonusConfigs: [],
-            longTermLeaves: []
+            longTermLeaves: [],
+            employeeExpenses: []
         };
 
         // ===== WORKPLACES (v-0.68) =====
@@ -4239,7 +4384,7 @@
         // vacations and long-term leaves are shared (vacations/leaves are shown for the
         // members who have access to the active workplace).
         const DEFAULT_WP = 'default';
-        const WP_TAGGED = new Set(['locations', 'resultLines', 'resultValidations', 'bonusConfigs', 'auditLog', 'swapRequests', 'dayOffSwapRequests', 'rescheduleRequests', 'currencies', 'discountCodes']);
+        const WP_TAGGED = new Set(['locations', 'resultLines', 'resultValidations', 'bonusConfigs', 'auditLog', 'swapRequests', 'dayOffSwapRequests', 'rescheduleRequests', 'currencies', 'discountCodes', 'employeeExpenses']);
         const raw = {};
         let wpConfigDocs = {};
         let currentWp = DEFAULT_WP;
@@ -4857,7 +5002,15 @@
                 if (document.getElementById('bonusSettings').classList.contains('active')) loadBonusConfig();
             });
 
-            unsubscribers = [unsubActivities, unsubActivityRuns, unsubActivityCategories, unsubTeam, unsubRoles, unsubLocations, unsubShifts, unsubAssignments, unsubSwapRequests, unsubNotifications, unsubVacationRequests, unsubDayOffSwapRequests, unsubResultLines, unsubResultValidations, unsubRescheduleRequests, unsubAuditLog, unsubCurrencies, unsubDiscountCodes, unsubAppConfig, unsubBonusConfigs, unsubLongTermLeaves];
+            // HR — employee expenses (v-0.70), one list per workplace.
+            const employeeExpensesCol = fns.collection(db, 'employeeExpenses');
+            const unsubEmployeeExpenses = fns.onSnapshot(employeeExpensesCol, (snapshot) => {
+                raw.employeeExpenses = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                applyWorkplaceFilter();
+                renderHrExpenses();
+            }, (err) => console.error('employeeExpenses', err));
+
+            unsubscribers = [unsubActivities, unsubActivityRuns, unsubActivityCategories, unsubTeam, unsubRoles, unsubLocations, unsubShifts, unsubAssignments, unsubSwapRequests, unsubNotifications, unsubVacationRequests, unsubDayOffSwapRequests, unsubResultLines, unsubResultValidations, unsubRescheduleRequests, unsubAuditLog, unsubCurrencies, unsubDiscountCodes, unsubAppConfig, unsubBonusConfigs, unsubLongTermLeaves, unsubEmployeeExpenses];
         }
 
         async function ensureDefaultRoles() {
@@ -12127,8 +12280,10 @@
             if (btn) btn.classList.add('active');
             document.getElementById('mgmtWpResults').classList.toggle('app-hidden', tab !== 'wpResults');
             document.getElementById('mgmtReports').classList.toggle('app-hidden', tab !== 'reports');
+            document.getElementById('mgmtHr').classList.toggle('app-hidden', tab !== 'hr');
             if (tab === 'wpResults') renderWpResults();
             if (tab === 'reports') initReportsTab();
+            if (tab === 'hr') renderHrExpenses();
         }
 
         function initManagement() {
@@ -12150,6 +12305,7 @@
 
             renderWpResults();
             initReportsTab();
+            renderHrExpenses();
         }
 
         function getWpPeriodKey() {
@@ -12282,6 +12438,153 @@
             }).join('');
         }
 
+
+        // ===== MANAGEMENT — HR: EMPLOYEE EXPENSES (v-0.70) =====
+        // An expense is { name, kind: 'fixed' | 'percent', value, scope: 'all' | 'selected', memberIds }.
+        // Amounts are per month: a fixed amount, or a % of the month's salary
+        // (monthly salary, or hours × week/weekend rates for hourly staff).
+
+        function fmtMoney(value) {
+            const ccy = getBaseCurrency();
+            const n = Number(value) || 0;
+            return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + (ccy ? ' ' + ccy : '');
+        }
+
+        function hrExpenseAppliesTo(exp, memberId) {
+            if (exp.scope !== 'selected') return true;
+            return Array.isArray(exp.memberIds) && exp.memberIds.includes(memberId);
+        }
+
+        function hrExpenseAmountLabel(exp) {
+            const v = Number(exp.value) || 0;
+            return exp.kind === 'percent' ? `${v.toLocaleString('en-US', { maximumFractionDigits: 2 })}% of salary` : `${fmtMoney(v)} / month`;
+        }
+
+        function hrExpenseScopeLabel(exp) {
+            if (exp.scope !== 'selected') return 'All employees';
+            const names = (exp.memberIds || [])
+                .map(id => state.team.find(m => m.id === id))
+                .filter(Boolean)
+                .map(m => m.name.split(' ')[0]);
+            if (names.length === 0) return 'No employees selected';
+            if (names.length <= 3) return names.join(', ');
+            return `${names.slice(0, 3).join(', ')} +${names.length - 3}`;
+        }
+
+        function renderHrExpenses() {
+            const list = document.getElementById('hrExpenseList');
+            if (!list) return;
+            const items = (state.employeeExpenses || []).slice().sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+            if (items.length === 0) {
+                list.innerHTML = `<div class="empty-state"><i class="fas fa-receipt"></i><p>No expenses yet. Tap + to add one.</p></div>`;
+                return;
+            }
+            list.innerHTML = items.map(exp => `
+                <div class="team-member" style="cursor:pointer;" onclick="openHrExpenseModal('${exp.id}')">
+                    <div class="team-avatar"><i class="fas ${exp.kind === 'percent' ? 'fa-percent' : 'fa-coins'}"></i></div>
+                    <div class="team-info">
+                        <div class="team-name">${escapeHtml(exp.name || '')}</div>
+                        <div class="team-role">${escapeHtml(hrExpenseScopeLabel(exp))}</div>
+                    </div>
+                    <div class="hr-amount">${exp.kind === 'percent'
+                        ? `${escapeHtml(String(Number(exp.value) || 0))}%<span>of salary</span>`
+                        : `${escapeHtml(fmtMoney(exp.value))}<span>per month</span>`}</div>
+                </div>
+            `).join('');
+        }
+
+        function updateHrExpenseKindLabel() {
+            const kind = document.getElementById('hrExpenseKind').value;
+            document.getElementById('hrExpenseValueLabel').textContent = kind === 'percent' ? '% of salary' : `Amount per month${getBaseCurrency() ? ' (' + getBaseCurrency() + ')' : ''}`;
+            document.getElementById('hrExpenseValue').placeholder = kind === 'percent' ? 'e.g. 8' : '0.00';
+        }
+
+        function toggleHrExpenseMembers() {
+            const selected = document.getElementById('hrExpenseScope').value === 'selected';
+            document.getElementById('hrExpenseMembersWrap').classList.toggle('app-hidden', !selected);
+        }
+
+        function openHrExpenseModal(id) {
+            const exp = id ? (state.employeeExpenses || []).find(e => e.id === id) : null;
+            const overlay = document.getElementById('hrExpenseModalOverlay');
+            overlay.dataset.expenseId = exp ? exp.id : '';
+            document.getElementById('hrExpenseModalTitle').textContent = exp ? 'Edit expense' : 'New expense';
+            document.getElementById('hrExpenseName').value = exp ? (exp.name || '') : '';
+            document.getElementById('hrExpenseKind').value = exp && exp.kind === 'percent' ? 'percent' : 'fixed';
+            document.getElementById('hrExpenseValue').value = exp ? (exp.value ?? '') : '';
+            document.getElementById('hrExpenseScope').value = exp && exp.scope === 'selected' ? 'selected' : 'all';
+            document.getElementById('hrExpenseDeleteBtn').classList.toggle('app-hidden', !exp);
+            const err = document.getElementById('hrExpenseError');
+            err.style.display = 'none';
+            err.textContent = '';
+
+            const chosen = new Set(exp && Array.isArray(exp.memberIds) ? exp.memberIds : []);
+            document.getElementById('hrExpenseMembers').innerHTML = state.team
+                .slice()
+                .sort((a, b) => a.name.localeCompare(b.name))
+                .map(m => `<label class="module-check"><input type="checkbox" value="${m.id}" ${chosen.has(m.id) ? 'checked' : ''}> ${escapeHtml(m.name)}</label>`)
+                .join('') || '<span style="font-size:12px; color:#999;">No team members yet.</span>';
+
+            updateHrExpenseKindLabel();
+            toggleHrExpenseMembers();
+            overlay.classList.add('active');
+            if (!exp) setTimeout(() => document.getElementById('hrExpenseName').focus(), 50);
+        }
+
+        function closeHrExpenseModal() {
+            document.getElementById('hrExpenseModalOverlay').classList.remove('active');
+        }
+
+        function showHrExpenseError(msg) {
+            const err = document.getElementById('hrExpenseError');
+            err.textContent = msg;
+            err.style.display = 'block';
+        }
+
+        async function saveHrExpense() {
+            const id = document.getElementById('hrExpenseModalOverlay').dataset.expenseId;
+            const name = document.getElementById('hrExpenseName').value.trim();
+            const kind = document.getElementById('hrExpenseKind').value === 'percent' ? 'percent' : 'fixed';
+            const valueText = document.getElementById('hrExpenseValue').value.trim().replace(',', '.');
+            const value = parseFloat(valueText);
+            const scope = document.getElementById('hrExpenseScope').value === 'selected' ? 'selected' : 'all';
+            const memberIds = scope === 'selected'
+                ? Array.from(document.querySelectorAll('#hrExpenseMembers input[type="checkbox"]:checked')).map(cb => cb.value)
+                : [];
+
+            if (!name) return showHrExpenseError('Please enter a name for the expense.');
+            if (!valueText || isNaN(value) || value < 0) return showHrExpenseError('Please enter a valid amount.');
+            if (kind === 'percent' && value > 100) return showHrExpenseError('A percentage can be at most 100.');
+            if (scope === 'selected' && memberIds.length === 0) return showHrExpenseError('Select at least one employee.');
+
+            const payload = { name, kind, value: Math.round(value * 100) / 100, scope, memberIds, updatedAt: new Date().toISOString() };
+            try {
+                if (id) {
+                    await fns.updateDoc(fns.doc(db, 'employeeExpenses', id), payload);
+                    logAction('HR expense updated', `${name} — ${hrExpenseAmountLabel(payload)}`);
+                } else {
+                    await fns.addDoc(fns.collection(db, 'employeeExpenses'), { ...payload, createdAt: new Date().toISOString() });
+                    logAction('HR expense added', `${name} — ${hrExpenseAmountLabel(payload)}`);
+                }
+                closeHrExpenseModal();
+            } catch (e) {
+                showHrExpenseError('Could not save: ' + (e.message || e));
+            }
+        }
+
+        async function deleteHrExpense() {
+            const id = document.getElementById('hrExpenseModalOverlay').dataset.expenseId;
+            const exp = (state.employeeExpenses || []).find(e => e.id === id);
+            if (!exp) return;
+            if (!confirm(`Delete the expense "${exp.name}"?`)) return;
+            try {
+                await fns.deleteDoc(fns.doc(db, 'employeeExpenses', id));
+                logAction('HR expense deleted', exp.name);
+                closeHrExpenseModal();
+            } catch (e) {
+                showHrExpenseError('Could not delete: ' + (e.message || e));
+            }
+        }
 
         // ===== MANAGEMENT — REPORTS =====
 
@@ -12418,6 +12721,133 @@
             return c == null ? '' : String(c);
         }
 
+        // ----- Report charts (v-0.70) -----
+        // A section can carry { chart: { series: [{ name, color }], rows: [{ label, values: [] }], unit } }.
+        // The chart is drawn once on a canvas and placed as an image in both the PDF and the Excel file:
+        // a split bar with the overall totals, then one stacked bar per row.
+        function drawStackedChart(chart) {
+            const S = 2;                       // pixel density, keeps the image sharp in print
+            const W = 900;
+            const pad = 18;
+            const labelW = 170;
+            const valueW = 90;
+            const rowH = 28;
+            const barH = 18;
+            const rows = chart.rows || [];
+            const unit = chart.unit || '';
+            const fmt = (n) => Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            const totals = chart.series.map((_, i) => rows.reduce((sum, r) => sum + (r.values[i] || 0), 0));
+            const grand = totals.reduce((a, b) => a + b, 0);
+            const H = pad + 34 + 36 + 14 + (rows.length ? 22 + rows.length * rowH : 0) + pad;
+
+            const canvas = document.createElement('canvas');
+            canvas.width = W * S;
+            canvas.height = H * S;
+            const ctx = canvas.getContext('2d');
+            ctx.scale(S, S);
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, W, H);
+            ctx.textBaseline = 'middle';
+            const font = (size, bold) => `${bold ? '700 ' : ''}${size}px Helvetica, Arial, sans-serif`;
+            const rgb = (c) => `rgb(${c[0]}, ${c[1]}, ${c[2]})`;
+            const roundRect = (x, y, w, h, r) => {
+                r = Math.min(r, h / 2, w / 2);
+                ctx.beginPath();
+                ctx.moveTo(x + r, y);
+                ctx.arcTo(x + w, y, x + w, y + h, r);
+                ctx.arcTo(x + w, y + h, x, y + h, r);
+                ctx.arcTo(x, y + h, x, y, r);
+                ctx.arcTo(x, y, x + w, y, r);
+                ctx.closePath();
+            };
+            // Draws the segments of one bar, with each value written inside when it fits.
+            const drawBar = (x, y, w, h, values, labelFn) => {
+                const total = values.reduce((a, b) => a + b, 0);
+                ctx.save();
+                roundRect(x, y, w, h, 4);
+                ctx.clip();
+                ctx.fillStyle = '#eef2f7';
+                ctx.fillRect(x, y, w, h);
+                let cx = x;
+                values.forEach((v, i) => {
+                    const segW = total > 0 ? w * v / total : 0;
+                    if (segW <= 0) return;
+                    ctx.fillStyle = rgb(chart.series[i].color);
+                    ctx.fillRect(cx, y, segW, h);
+                    const text = labelFn(v, i, total);
+                    ctx.font = font(h > 22 ? 13 : 11, true);
+                    if (ctx.measureText(text).width + 10 < segW) {
+                        ctx.fillStyle = '#ffffff';
+                        ctx.textAlign = 'center';
+                        ctx.fillText(text, cx + segW / 2, y + h / 2 + 0.5);
+                    }
+                    cx += segW;
+                });
+                ctx.restore();
+            };
+
+            // Legend with totals
+            let y = pad + 12;
+            let x = pad;
+            ctx.textAlign = 'left';
+            chart.series.forEach((ser, i) => {
+                ctx.fillStyle = rgb(ser.color);
+                roundRect(x, y - 6, 12, 12, 3);
+                ctx.fill();
+                x += 18;
+                ctx.fillStyle = '#475569';
+                ctx.font = font(13);
+                ctx.fillText(ser.name, x, y);
+                x += ctx.measureText(ser.name).width + 8;
+                const pct = grand > 0 ? Math.round(totals[i] / grand * 100) : 0;
+                const val = `${fmt(totals[i])} ${unit} · ${pct}%`;
+                ctx.fillStyle = '#1e293b';
+                ctx.font = font(15, true);
+                ctx.fillText(val, x, y);
+                x += ctx.measureText(val).width + 30;
+            });
+            ctx.textAlign = 'right';
+            ctx.fillStyle = '#1e293b';
+            ctx.font = font(15, true);
+            ctx.fillText(`Total ${fmt(grand)} ${unit}`, W - pad, y);
+
+            // Overall split bar
+            y += 22;
+            drawBar(pad, y, W - pad * 2, 30, totals, (v) => `${fmt(v)} ${unit}`);
+            y += 30 + 14;
+
+            // One bar per row, all on the same scale
+            if (rows.length) {
+                ctx.textAlign = 'left';
+                ctx.fillStyle = '#94a3b8';
+                ctx.font = font(11, true);
+                ctx.fillText((chart.rowsTitle || 'BY EMPLOYEE').toUpperCase(), pad, y + 6);
+                y += 22;
+                const max = Math.max(...rows.map(r => r.values.reduce((a, b) => a + b, 0)), 0.0001);
+                const barX = pad + labelW;
+                const barMaxW = W - pad * 2 - labelW - valueW;
+                rows.forEach(r => {
+                    const rowTotal = r.values.reduce((a, b) => a + b, 0);
+                    const cy = y + rowH / 2;
+                    ctx.textAlign = 'left';
+                    ctx.fillStyle = '#334155';
+                    ctx.font = font(13);
+                    let label = r.label;
+                    while (label.length > 3 && ctx.measureText(label).width > labelW - 12) label = label.slice(0, -2);
+                    if (label !== r.label) label = label.trimEnd() + '…';
+                    ctx.fillText(label, pad, cy);
+                    const w = Math.max(barMaxW * rowTotal / max, rowTotal > 0 ? 3 : 0);
+                    if (w > 0) drawBar(barX, cy - barH / 2, w, barH, r.values, (v) => fmt(v));
+                    ctx.textAlign = 'left';
+                    ctx.fillStyle = '#1e293b';
+                    ctx.font = font(13, true);
+                    ctx.fillText(`${fmt(rowTotal)} ${unit}`, barX + w + 8, cy);
+                    y += rowH;
+                });
+            }
+            return { dataUrl: canvas.toDataURL('image/png'), width: W, height: H };
+        }
+
         function renderReportPdf(report, save) {
             const doc = newPdfDoc(report.orientation);
             const margin = report.margin ?? 14;
@@ -12446,6 +12876,17 @@
                     doc.text(sec.emptyText, margin, y);
                     doc.setTextColor(0, 0, 0);
                     y += 8;
+                    return;
+                }
+                if (sec.chart) {
+                    const img = drawStackedChart(sec.chart);
+                    const pageW = doc.internal.pageSize.getWidth();
+                    const pageH = doc.internal.pageSize.getHeight();
+                    const w = pageW - margin * 2;
+                    const h = w * img.height / img.width;
+                    if (y + h > pageH - 12) { doc.addPage(); y = 16; }
+                    doc.addImage(img.dataUrl, 'PNG', margin, y, w, h);
+                    y += h + (sec.gapAfter ?? 6);
                     return;
                 }
                 const fontSize = sec.fontSize || 8;
@@ -12609,6 +13050,15 @@
                     c.value = sec.emptyText;
                     c.font = font(8, { color: { argb: rgbToArgb(TEXT_MUTED) } });
                     r += 2;
+                    return;
+                }
+                if (sec.chart) {
+                    const img = drawStackedChart(sec.chart);
+                    const imageId = wb.addImage({ base64: img.dataUrl, extension: 'png' });
+                    const widthPx = 720;
+                    const heightPx = Math.round(widthPx * img.height / img.width);
+                    ws.addImage(imageId, { tl: { col: 0, row: r - 1 }, ext: { width: widthPx, height: heightPx } });
+                    r += Math.ceil(heightPx / 20) + 1; // default rows are 20 px high
                     return;
                 }
 
@@ -13169,6 +13619,7 @@
             let grandHours = 0;
             let grandPay = 0;
             const sections = [];
+            const split = []; // weekday / weekend hours per member, for the chart (v-0.70)
 
             hourlyMembers.forEach(member => {
                 const assignments = state.assignments
@@ -13193,6 +13644,8 @@
                 const rateWeekend = member.rateWeekend || 0;
                 let totalMinutes = 0;
                 let totalPay = 0;
+                let weekdayMinutes = 0;
+                let weekendMinutes = 0;
 
                 const rows = Object.keys(byDate).sort().map(dk => {
                     const day = byDate[dk];
@@ -13203,6 +13656,8 @@
                     const pay = hours * rate;
                     totalMinutes += day.minutes;
                     totalPay += pay;
+                    if (isWeekend) weekendMinutes += day.minutes;
+                    else weekdayMinutes += day.minutes;
 
                     const ordered = day.shifts.slice().sort((a, b) => a.start.localeCompare(b.start));
                     const span = ordered.length ? `${ordered[0].start}-${ordered[ordered.length - 1].end}` : '';
@@ -13214,6 +13669,7 @@
 
                 grandHours += totalMinutes / 60;
                 grandPay += totalPay;
+                split.push({ name: member.name, weekday: weekdayMinutes / 60, weekend: weekendMinutes / 60, pay: totalPay });
 
                 const head = ['Date', 'Shifts', 'Hours'];
                 const foot = ['Total', '', numCell(totalMinutes / 60, 2)];
@@ -13223,6 +13679,36 @@
                 }
                 sections.push({ heading: member.name, head, rows, foot, fontSize: 7, cellPadding: 1, gapAfter: 6 });
             });
+
+            // Weekday vs weekend summary: chart + table, ahead of the daily detail.
+            if (split.length > 0) {
+                const sumWeekday = split.reduce((a, x) => a + x.weekday, 0);
+                const sumWeekend = split.reduce((a, x) => a + x.weekend, 0);
+                const summaryHead = ['Employee', 'Weekdays (h)', 'Weekends (h)', 'Total (h)'];
+                if (showPay) summaryHead.push('Pay');
+                const summaryRows = split.map(x => {
+                    const row = [x.name, numCell(x.weekday, 2), numCell(x.weekend, 2), numCell(x.weekday + x.weekend, 2)];
+                    if (showPay) row.push(numCell(x.pay, 2));
+                    return row;
+                });
+                const summaryFoot = ['Total', numCell(sumWeekday, 2), numCell(sumWeekend, 2), numCell(sumWeekday + sumWeekend, 2)];
+                if (showPay) summaryFoot.push(numCell(grandPay, 2));
+                sections.unshift(
+                    {
+                        heading: 'Weekdays vs weekends',
+                        chart: {
+                            unit: 'h',
+                            series: [
+                                { name: 'Weekdays (Mon–Fri)', color: REPORT_COLORS.blue },
+                                { name: 'Weekends (Sat–Sun)', color: [234, 88, 12] }
+                            ],
+                            rows: split.map(x => ({ label: x.name, values: [x.weekday, x.weekend] }))
+                        },
+                        gapAfter: 3
+                    },
+                    { head: summaryHead, rows: summaryRows, foot: summaryFoot, fontSize: 8, cellPadding: 1.2, columnStyles: { 0: { halign: 'left' } }, gapAfter: 10 }
+                );
+            }
 
             return {
                 title: 'Hours worked — hourly staff',
@@ -13237,6 +13723,112 @@
 
         function generateHoursReport(format) {
             renderReport(buildHoursReport(), format);
+        }
+
+        // ----- Employee expenses (v-0.70) -----
+
+        // Salary the % expenses are based on, for one member in one month:
+        // the monthly salary, or for hourly staff the month's pay (gross hours × week / weekend rate).
+        function getMemberSalaryForPeriod(member, periodKey) {
+            if (getPayType(member) !== 'hourly') return { amount: Number(member.salary) || 0, basis: 'Monthly salary' };
+            const [y, m] = periodKey.split('-').map(Number);
+            const fromKey = `${periodKey}-01`;
+            const toKey = `${periodKey}-${String(new Date(y, m, 0).getDate()).padStart(2, '0')}`;
+            let pay = 0;
+            let minutes = 0;
+            state.assignments
+                .filter(a => a.memberId === member.id && a.dateKey >= fromKey && a.dateKey <= toKey)
+                .forEach(a => {
+                    const shift = state.shifts.find(sh => sh.id === a.shiftId);
+                    if (!shift) return;
+                    const mins = shift.grossMinutes || calcGrossMinutes(shift.start, shift.end);
+                    const dow = dateKeyToDate(a.dateKey).getDay();
+                    const rate = (dow === 0 || dow === 6) ? (member.rateWeekend || 0) : (member.rateWeek || 0);
+                    pay += mins / 60 * rate;
+                    minutes += mins;
+                });
+            return { amount: pay, basis: `Hourly pay (${(minutes / 60).toFixed(2)} h)` };
+        }
+
+        function buildEmployeeExpensesReport() {
+            const periodKey = getReportPeriodKey();
+            const expenses = (state.employeeExpenses || []).slice().sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+            if (expenses.length === 0) return { error: 'No HR expenses yet. Add them in Management → HR.' };
+
+            // Members who had started by the end of the period.
+            const [y, m] = periodKey.split('-').map(Number);
+            const lastKey = `${periodKey}-${String(new Date(y, m, 0).getDate()).padStart(2, '0')}`;
+            const members = state.team
+                .filter(mb => !mb.startDate || mb.startDate <= lastKey)
+                .slice()
+                .sort((a, b) => a.name.localeCompare(b.name));
+            if (members.length === 0) return { error: 'No team members in this period.' };
+
+            const ccy = getBaseCurrency();
+            const money = ccy ? ` (${ccy})` : '';
+            const summary = [];
+            const detail = [];
+            let grandSalary = 0;
+            let grandExpenses = 0;
+
+            members.forEach(member => {
+                const own = expenses.filter(e => hrExpenseAppliesTo(e, member.id));
+                const salary = getMemberSalaryForPeriod(member, periodKey);
+                let total = 0;
+                const rows = own.map(e => {
+                    const v = Number(e.value) || 0;
+                    const amount = e.kind === 'percent' ? salary.amount * v / 100 : v;
+                    total += amount;
+                    return [
+                        e.name,
+                        e.kind === 'percent' ? `${v}% of salary` : 'Fixed',
+                        e.kind === 'percent' ? numCell(salary.amount, 2) : '—',
+                        numCell(amount, 2)
+                    ];
+                });
+                grandSalary += salary.amount;
+                grandExpenses += total;
+                summary.push([member.name, numCell(salary.amount, 2), numCell(total, 2), numCell(salary.amount + total, 2)]);
+
+                if (rows.length === 0) {
+                    detail.push({ heading: member.name, emptyText: 'No expenses apply to this employee.' });
+                } else {
+                    detail.push({
+                        heading: `${member.name} — ${salary.basis}: ${salary.amount.toFixed(2)}${ccy ? ' ' + ccy : ''}`,
+                        head: ['Expense', 'Type', `Salary base${money}`, `Amount${money}`],
+                        rows,
+                        foot: ['Total', '', '', numCell(total, 2)],
+                        columnStyles: { 0: { halign: 'left' } },
+                        headColor: REPORT_COLORS.green,
+                        fontSize: 8,
+                        gapAfter: 6
+                    });
+                }
+            });
+
+            const sections = [{
+                heading: 'Total per employee',
+                head: ['Employee', `Salary${money}`, `Expenses${money}`, `Total cost${money}`],
+                rows: summary,
+                foot: ['Total', numCell(grandSalary, 2), numCell(grandExpenses, 2), numCell(grandSalary + grandExpenses, 2)],
+                columnStyles: { 0: { halign: 'left' } },
+                gapAfter: 10
+            }].concat(detail);
+
+            return {
+                title: 'Employee expenses',
+                periodLabel: `Employee expenses — ${getReportPeriodLabel()}`,
+                notes: ['Expenses are monthly. % expenses use the monthly salary, or the month\'s pay for hourly staff.'],
+                sections,
+                footerText: `Total employee expenses: ${grandExpenses.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}${ccy ? ' ' + ccy : ''}`,
+                sheetName: 'Employee expenses',
+                fileBase: `GEDK_employee_expenses_${periodKey}`,
+                logLabel: `Employee expenses, ${periodKey}`
+            };
+        }
+
+        function generateEmployeeExpensesReport(format) {
+            renderReport(buildEmployeeExpensesReport(), format);
         }
 
         // ----- Global rota -----
