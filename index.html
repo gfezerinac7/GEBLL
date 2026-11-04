@@ -3999,6 +3999,12 @@
                         <input type="number" id="hrExpenseValue" step="0.01" min="0" placeholder="0.00" inputmode="decimal">
                     </div>
                 </div>
+                <div class="form-group" id="hrExpenseIsBonusWrap">
+                    <label class="module-check" style="width:fit-content;">
+                        <input type="checkbox" id="hrExpenseIsBonus">
+                        Counts as bonus (included in "% of salary + bonus")
+                    </label>
+                </div>
                 <div class="form-group">
                     <label>Applies to</label>
                     <select id="hrExpenseScope" onchange="toggleHrExpenseMembers()">
@@ -4327,7 +4333,7 @@
             <div id="auditLogList"></div>
         </div>
 
-        <div class="app-version">GEDK v-0.71</div>
+        <div class="app-version">GEDK v-0.72</div>
     </div>
 
 
@@ -12506,7 +12512,7 @@
                     <div class="team-avatar"><i class="fas ${isPercentKind(exp.kind) ? 'fa-percent' : 'fa-coins'}"></i></div>
                     <div class="team-info">
                         <div class="team-name">${escapeHtml(exp.name || '')}</div>
-                        <div class="team-role">${escapeHtml(hrExpenseScopeLabel(exp))}</div>
+                        <div class="team-role">${exp.kind === 'fixed' && exp.isBonus ? '<b style="color:#059669;">Bonus</b> · ' : ''}${escapeHtml(hrExpenseScopeLabel(exp))}</div>
                     </div>
                     <div class="hr-amount">${isPercentKind(exp.kind)
                         ? `${escapeHtml(String(Number(exp.value) || 0))}%<span>${hrKindText(exp.kind)}</span>`
@@ -12519,6 +12525,7 @@
             const kind = document.getElementById('hrExpenseKind').value;
             document.getElementById('hrExpenseValueLabel').textContent = isPercentKind(kind) ? `% ${hrKindText(kind)}` : `Amount per month${getBaseCurrency() ? ' (' + getBaseCurrency() + ')' : ''}`;
             document.getElementById('hrExpenseValue').placeholder = isPercentKind(kind) ? 'e.g. 8' : '0.00';
+            document.getElementById('hrExpenseIsBonusWrap').classList.toggle('app-hidden', isPercentKind(kind));
         }
 
         function toggleHrExpenseMembers() {
@@ -12535,6 +12542,7 @@
             document.getElementById('hrExpenseKind').value = exp && isPercentKind(exp.kind) ? exp.kind : 'fixed';
             document.getElementById('hrExpenseValue').value = exp ? (exp.value ?? '') : '';
             document.getElementById('hrExpenseScope').value = exp && exp.scope === 'selected' ? 'selected' : 'all';
+            document.getElementById('hrExpenseIsBonus').checked = !!(exp && exp.isBonus);
             document.getElementById('hrExpenseDeleteBtn').classList.toggle('app-hidden', !exp);
             const err = document.getElementById('hrExpenseError');
             err.style.display = 'none';
@@ -12580,7 +12588,8 @@
             if (isPercentKind(kind) && value > 100) return showHrExpenseError('A percentage can be at most 100.');
             if (scope === 'selected' && memberIds.length === 0) return showHrExpenseError('Select at least one employee.');
 
-            const payload = { name, kind, value: Math.round(value * 100) / 100, scope, memberIds, updatedAt: new Date().toISOString() };
+            const isBonus = kind === 'fixed' && document.getElementById('hrExpenseIsBonus').checked;
+            const payload = { name, kind, value: Math.round(value * 100) / 100, isBonus, scope, memberIds, updatedAt: new Date().toISOString() };
             try {
                 if (id) {
                     await fns.updateDoc(fns.doc(db, 'employeeExpenses', id), payload);
@@ -13799,15 +13808,19 @@
                 const own = expenses.filter(e => hrExpenseAppliesTo(e, member.id));
                 const salary = getMemberSalaryForPeriod(member, periodKey);
                 const bonus = getMemberBonusForPeriod(member, periodKey);
+                // Fixed expenses marked "Counts as bonus" join the tiers bonus in the "% of salary + bonus" base.
+                const fixedBonus = own
+                    .filter(e => e.kind === 'fixed' && e.isBonus)
+                    .reduce((sum, e) => sum + (Number(e.value) || 0), 0);
                 let total = 0;
                 const rows = own.map(e => {
                     const v = Number(e.value) || 0;
-                    const base = e.kind === 'percentBonus' ? salary.amount + bonus : salary.amount;
+                    const base = e.kind === 'percentBonus' ? salary.amount + bonus + fixedBonus : salary.amount;
                     const amount = isPercentKind(e.kind) ? base * v / 100 : v;
                     total += amount;
                     return [
                         e.name,
-                        isPercentKind(e.kind) ? `${v}% ${hrKindText(e.kind)}` : 'Fixed',
+                        isPercentKind(e.kind) ? `${v}% ${hrKindText(e.kind)}` : (e.isBonus ? 'Fixed bonus' : 'Fixed'),
                         isPercentKind(e.kind) ? numCell(base, 2) : '—',
                         numCell(amount, 2)
                     ];
@@ -13821,7 +13834,7 @@
                     detail.push({ heading: member.name, emptyText: 'No expenses apply to this employee.' });
                 } else {
                     detail.push({
-                        heading: `${member.name} — ${salary.basis}: ${salary.amount.toFixed(2)}${bonus > 0 ? ` + bonus ${bonus.toFixed(2)}` : ''}${ccy ? ' ' + ccy : ''}`,
+                        heading: `${member.name} — ${salary.basis}: ${salary.amount.toFixed(2)}${bonus > 0 ? ` + tiers bonus ${bonus.toFixed(2)}` : ''}${fixedBonus > 0 ? ` + fixed bonus ${fixedBonus.toFixed(2)}` : ''}${ccy ? ' ' + ccy : ''}`,
                         head: ['Expense', 'Type', `Base${money}`, `Amount${money}`],
                         rows,
                         foot: ['Total', '', '', numCell(total, 2)],
@@ -13835,7 +13848,7 @@
 
             const sections = [{
                 heading: 'Total per employee',
-                head: ['Employee', `Salary${money}`, `Bonus${money}`, `Expenses${money}`, `Total cost${money}`],
+                head: ['Employee', `Salary${money}`, `Tiers bonus${money}`, `Expenses${money}`, `Total cost${money}`],
                 rows: summary,
                 foot: ['Total', numCell(grandSalary, 2), numCell(grandBonus, 2), numCell(grandExpenses, 2), numCell(grandSalary + grandBonus + grandExpenses, 2)],
                 columnStyles: { 0: { halign: 'left' } },
@@ -13845,7 +13858,10 @@
             return {
                 title: 'Employee expenses',
                 periodLabel: `Employee expenses — ${getReportPeriodLabel()}`,
-                notes: ['Expenses are monthly. Salary = monthly salary, or the month\'s pay for hourly staff. Bonus = targets bonus + BBG, as on Results.'],
+                notes: [
+                    'Expenses are monthly. Salary = monthly salary, or the month\'s pay for hourly staff.',
+                    'Tiers bonus = targets bonus + BBG (as on Results). Fixed bonuses are expenses and also count in the "salary + bonus" base.'
+                ],
                 sections,
                 footerText: `Total employee expenses: ${grandExpenses.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}${ccy ? ' ' + ccy : ''}`,
                 sheetName: 'Employee expenses',
