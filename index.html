@@ -3992,6 +3992,7 @@
                             <option value="fixed">Fixed amount</option>
                             <option value="percent">% of salary</option>
                             <option value="percentBonus">% of salary + bonus</option>
+                            <option value="percentAll">% of salary + bonus + other expenses</option>
                         </select>
                     </div>
                     <div class="form-group">
@@ -4333,7 +4334,7 @@
             <div id="auditLogList"></div>
         </div>
 
-        <div class="app-version">GEDK v-0.73</div>
+        <div class="app-version">GEDK v-0.74</div>
     </div>
 
 
@@ -12458,11 +12459,17 @@
         }
 
         function isPercentKind(kind) {
-            return kind === 'percent' || kind === 'percentBonus';
+            return kind === 'percent' || kind === 'percentBonus' || kind === 'percentAll';
         }
 
         function hrKindText(kind) {
+            if (kind === 'percentAll') return 'of salary + bonus + other expenses';
             return kind === 'percentBonus' ? 'of salary + bonus' : 'of salary';
+        }
+
+        // Only fixed and "% of salary" expenses can count as bonus; the others are calculated on the bonus.
+        function canCountAsBonus(kind) {
+            return kind === 'fixed' || kind === 'percent';
         }
 
         // Bonus earned in the month (targets bonus + BBG), as on Results; 0 when there is none.
@@ -12512,7 +12519,7 @@
                     <div class="team-avatar"><i class="fas ${isPercentKind(exp.kind) ? 'fa-percent' : 'fa-coins'}"></i></div>
                     <div class="team-info">
                         <div class="team-name">${escapeHtml(exp.name || '')}</div>
-                        <div class="team-role">${exp.kind !== 'percentBonus' && exp.isBonus ? '<b style="color:#059669;">Bonus</b> · ' : ''}${escapeHtml(hrExpenseScopeLabel(exp))}</div>
+                        <div class="team-role">${canCountAsBonus(exp.kind) && exp.isBonus ? '<b style="color:#059669;">Bonus</b> · ' : ''}${escapeHtml(hrExpenseScopeLabel(exp))}</div>
                     </div>
                     <div class="hr-amount">${isPercentKind(exp.kind)
                         ? `${escapeHtml(String(Number(exp.value) || 0))}%<span>${hrKindText(exp.kind)}</span>`
@@ -12526,7 +12533,7 @@
             document.getElementById('hrExpenseValueLabel').textContent = isPercentKind(kind) ? `% ${hrKindText(kind)}` : `Amount per month${getBaseCurrency() ? ' (' + getBaseCurrency() + ')' : ''}`;
             document.getElementById('hrExpenseValue').placeholder = isPercentKind(kind) ? 'e.g. 8' : '0.00';
             // A "% of salary + bonus" expense can't count as bonus: it would be part of its own base.
-            document.getElementById('hrExpenseIsBonusWrap').classList.toggle('app-hidden', kind === 'percentBonus');
+            document.getElementById('hrExpenseIsBonusWrap').classList.toggle('app-hidden', !canCountAsBonus(kind));
         }
 
         function toggleHrExpenseMembers() {
@@ -12589,7 +12596,7 @@
             if (isPercentKind(kind) && value > 100) return showHrExpenseError('A percentage can be at most 100.');
             if (scope === 'selected' && memberIds.length === 0) return showHrExpenseError('Select at least one employee.');
 
-            const isBonus = kind !== 'percentBonus' && document.getElementById('hrExpenseIsBonus').checked;
+            const isBonus = canCountAsBonus(kind) && document.getElementById('hrExpenseIsBonus').checked;
             const payload = { name, kind, value: Math.round(value * 100) / 100, isBonus, scope, memberIds, updatedAt: new Date().toISOString() };
             try {
                 if (id) {
@@ -13811,21 +13818,40 @@
                 const bonus = getMemberBonusForPeriod(member, periodKey);
                 // Fixed and "% of salary" expenses marked "Counts as bonus" join the tiers bonus
                 // in the "% of salary + bonus" base.
+                // Calculated in order: fixed and "% of salary" → "% of salary + bonus" →
+                // "% of salary + bonus + other expenses" (base includes every other expense of the member).
+                const calc = new Map();
+                own.forEach(e => {
+                    const v = Number(e.value) || 0;
+                    if (e.kind === 'fixed') calc.set(e.id, { base: null, amount: v });
+                    else if (e.kind === 'percent') calc.set(e.id, { base: salary.amount, amount: salary.amount * v / 100 });
+                });
                 const fixedBonus = own
-                    .filter(e => e.isBonus && e.kind !== 'percentBonus')
-                    .reduce((sum, e) => sum + (e.kind === 'percent' ? salary.amount * (Number(e.value) || 0) / 100 : (Number(e.value) || 0)), 0);
+                    .filter(e => e.isBonus && canCountAsBonus(e.kind))
+                    .reduce((sum, e) => sum + calc.get(e.id).amount, 0);
+                own.filter(e => e.kind === 'percentBonus').forEach(e => {
+                    const base = salary.amount + bonus + fixedBonus;
+                    calc.set(e.id, { base, amount: base * (Number(e.value) || 0) / 100 });
+                });
+                const otherExpenses = [...calc.entries()]
+                    .filter(([id]) => { const e = own.find(x => x.id === id); return e && !(e.isBonus && canCountAsBonus(e.kind)); })
+                    .reduce((sum, [, c]) => sum + c.amount, 0);
+                own.filter(e => e.kind === 'percentAll').forEach(e => {
+                    const base = salary.amount + bonus + fixedBonus + otherExpenses;
+                    calc.set(e.id, { base, amount: base * (Number(e.value) || 0) / 100 });
+                });
+
                 let total = 0;
                 const rows = own.map(e => {
                     const v = Number(e.value) || 0;
-                    const base = e.kind === 'percentBonus' ? salary.amount + bonus + fixedBonus : salary.amount;
-                    const amount = isPercentKind(e.kind) ? base * v / 100 : v;
+                    const { base, amount } = calc.get(e.id) || { base: null, amount: 0 };
                     total += amount;
                     return [
                         e.name,
                         isPercentKind(e.kind)
                             ? `${v}% ${hrKindText(e.kind)}${e.isBonus && e.kind === 'percent' ? ' (bonus)' : ''}`
                             : (e.isBonus ? 'Fixed bonus' : 'Fixed'),
-                        isPercentKind(e.kind) ? numCell(base, 2) : '—',
+                        base != null ? numCell(base, 2) : '—',
                         numCell(amount, 2)
                     ];
                 });
