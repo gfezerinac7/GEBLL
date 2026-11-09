@@ -654,6 +654,199 @@
             opacity: 0.9;
         }
 
+        /* ===== One-screen layout (v-0.80): the page never scrolls; long lists scroll inside ===== */
+        body:has(#appContainer:not(.app-hidden)) {
+            height: 100vh;
+            height: 100dvh;
+            min-height: 0;
+            overflow: hidden;
+            padding: 12px;
+        }
+
+        #appContainer:not(.app-hidden) {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #appContainer > .user-bar,
+        #appContainer > .view-title,
+        #appContainer > .app-version { flex-shrink: 0; }
+
+        #appContainer > .app-version { padding: 4px 0 6px; }
+
+        #appContainer > .content.active {
+            display: flex;
+            flex-direction: column;
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow-y: auto;          /* last resort only */
+            padding: 14px 20px 10px;
+        }
+
+        .content.active > *,
+        .fit-col > * { flex-shrink: 0; }
+
+        .fit-col {
+            display: flex;
+            flex-direction: column;
+            flex: 1 1 auto;
+            min-height: 0;
+        }
+
+        .fit-col.app-hidden, .fit-col.stab-hidden { display: none !important; }
+        #appContainer .fit-col { flex-shrink: 1; }
+
+        /* Long forms: fields side by side on wide screens */
+        @media (min-width: 900px) {
+            .form-section.form-grid:not(.stab-hidden) {
+                display: grid !important;
+                grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+                gap: 0 14px;
+                align-content: start;
+            }
+            .form-grid > .section-title,
+            .form-grid > .btn,
+            .form-grid > button,
+            .form-grid > p { grid-column: 1 / -1; justify-self: start; }
+            .form-grid > .form-row { display: contents; }
+            .form-grid > .form-row.app-hidden > * { display: none; }
+        }
+
+        /* Results: summary and daily list side by side on wide screens */
+        @media (min-width: 1100px) {
+            #appContainer > #results.content.active {
+                display: grid;
+                grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+                grid-template-rows: auto minmax(0, 1fr);
+                gap: 0 22px;
+            }
+            #results > .stab-bar { display: none; }
+            #results > .stab-hidden { display: block !important; }
+            #results > #resultsSummaryCard { grid-row: 1 / 3; overflow: auto; min-height: 0; }
+            #results > .section-title { grid-column: 2; }
+            #results > #resultsDailyList { grid-column: 2; }
+        }
+
+        /* Short screens (small laptops, small phones) */
+        @media (max-height: 760px) {
+            .rs-table th, .rs-table td { padding-top: 4px; padding-bottom: 4px; }
+            .rs-head { padding-bottom: 6px; }
+            .rs-card { padding-top: 10px; margin-bottom: 12px; }
+            .rs-note { margin-top: 4px; }
+            .view-title { padding-top: 10px; }
+            #appContainer > .view-title ~ .content.active { padding-top: 8px; }
+            .section-title { margin-bottom: 8px; }
+            [data-fill] { min-height: 80px; }
+            #mgmtReports .form-section p { display: none; }
+            .stab-bar { margin-bottom: 8px; }
+            .form-section { padding: 10px 12px; margin-bottom: 10px; }
+        }
+
+        [data-fill] {
+            flex: 1 1 auto !important;
+            min-height: 110px;
+            overflow: auto;
+        }
+
+        /* Compact spacing everywhere */
+        .form-section { padding: 14px 16px; margin-bottom: 14px; }
+        .section-title { font-size: 16px; margin-bottom: 12px; }
+        .form-group { margin-bottom: 10px; }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea { padding: 8px 11px; }
+
+        /* Month / Year pickers: one compact row */
+        .form-section.period-bar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 12px;
+        }
+        .period-bar .section-title { margin: 0; font-size: 14px; white-space: nowrap; }
+        .period-bar .form-row {
+            flex: 1;
+            display: grid !important;
+            grid-template-columns: 1fr 1fr !important;
+            gap: 8px;
+        }
+        .period-bar .form-group { margin: 0; }
+        .period-bar .form-group label { display: none; }
+
+        /* Home: shifts on the left, week + messages on the right (computer); tabs on phones */
+        @media (min-width: 900px) {
+            #appContainer > #myrota.content.active {
+                display: grid;
+                grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+                grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+                gap: 0 22px;
+                overflow: hidden;
+            }
+            #myrota > .stab-bar { display: none; }
+            #myrota > .home-col.stab-hidden { display: block !important; }
+            #myrota > .home-col { overflow: auto; min-height: 0; }
+            #myrota > .home-shifts { grid-row: 1 / 3; }
+        }
+        #myrota .mates-card { margin-bottom: 12px; }
+        #myrota .next-shift-card { padding: 14px 16px; }
+        #myrota .next-shift-card .ns-time { font-size: 21px; margin-bottom: 2px; }
+
+        @media (max-width: 600px) {
+            .period-bar .section-title { display: none; }
+        }
+
+        /* Internal tabs for long screens */
+        .stab-bar {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
+            flex-shrink: 0;
+        }
+
+        .stab-bar button {
+            border: 1px solid #e2e8f0;
+            background: white;
+            border-radius: 18px;
+            padding: 6px 14px;
+            font: inherit;
+            font-size: 13px;
+            font-weight: 600;
+            color: #475569;
+            cursor: pointer;
+        }
+
+        .stab-bar button.active {
+            background: #2563eb;
+            border-color: #2563eb;
+            color: white;
+        }
+
+        .stab-hidden { display: none !important; }
+
+        /* Reports: cards side by side */
+        @media (min-width: 900px) {
+            [data-stabs].stab-grid:not(.app-hidden) {
+                display: grid !important;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 12px;
+                align-content: start;
+            }
+            [data-stabs].stab-grid > .stab-bar,
+            [data-stabs].stab-grid > :not([data-stab]) { grid-column: 1 / -1; }
+            [data-stabs].stab-grid > .form-section { margin-bottom: 0; }
+        }
+
+        @media (max-width: 600px) {
+            body:has(#appContainer:not(.app-hidden)) { padding: 0; }
+            body:has(#appContainer:not(.app-hidden)) #appContainer { border-radius: 0; }
+            #appContainer > .content.active { padding: 10px 12px 8px; }
+            .form-section { padding: 12px; }
+            #mgmtReports .form-section p { display: none; }
+        }
+
         /* ===== Side menu + header buttons (v-0.79) ===== */
         #appContainer { position: relative; }
         #management > .settings-subtabs { display: none !important; }
@@ -3293,7 +3486,7 @@
                 </button>
             </div>
             <div id="actSummary"></div>
-            <div id="activityList"></div>
+            <div id="activityList" data-fill></div>
         </div>
 
         <div id="actDetailModalOverlay" class="modal-overlay" onclick="if(event.target.id==='actDetailModalOverlay')closeActivityDetail()">
@@ -3415,8 +3608,8 @@
         </div>
 
         <!-- TAB EQUIPO -->
-        <div id="team" class="content">
-            <div class="form-section">
+        <div data-stabs data-stabs-first="Members" id="team" class="content">
+            <div data-stab="Add member" data-fill class="form-section form-grid">
                 <div class="section-title">
                     <i class="fas fa-plus-circle"></i>
                     Add Team Member
@@ -3490,13 +3683,13 @@
                 </button>
             </div>
 
-            <div class="section-title">
+            <div data-stab="Members" class="section-title">
                 <i class="fas fa-users"></i>
                 Team Members
             </div>
-            <div id="teamList"></div>
+            <div data-stab="Members" data-fill id="teamList"></div>
 
-            <div class="form-section" style="margin-top:24px;">
+            <div data-stab="Register leave" data-fill class="form-section form-grid">
                 <div class="section-title">
                     <i class="fas fa-user-clock"></i>
                     Register long-term leave
@@ -3541,11 +3734,11 @@
                 </button>
             </div>
 
-            <div class="section-title">
+            <div data-stab="Leaves" class="section-title">
                 <i class="fas fa-calendar-xmark"></i>
                 Registered leaves
             </div>
-            <div id="longTermLeaveList"></div>
+            <div data-stab="Leaves" data-fill id="longTermLeaveList"></div>
         </div>
 
         <div id="editMemberModalOverlay" class="modal-overlay" onclick="closeEditMemberModalOutside(event)">
@@ -3624,8 +3817,8 @@
         </div>
 
         <!-- TAB LOCATIONS -->
-        <div id="locations" class="content">
-            <div class="form-section app-hidden" id="workplaceSection">
+        <div data-stabs id="locations" class="content">
+            <div data-stab="Workplaces" class="form-section app-hidden" id="workplaceSection">
                 <div class="section-title">
                     <i class="fas fa-building"></i>
                     Workplaces
@@ -3638,7 +3831,7 @@
                 </div>
             </div>
 
-            <div class="form-section">
+            <div data-stab="New location" class="form-section">
                 <div class="section-title">
                     <i class="fas fa-plus-circle"></i>
                     New Location
@@ -3663,11 +3856,11 @@
                 </button>
             </div>
 
-            <div class="section-title">
+            <div data-stab="Locations" class="section-title">
                 <i class="fas fa-map-marker-alt"></i>
                 Locations
             </div>
-            <div id="locationList"></div>
+            <div data-stab="Locations" data-fill id="locationList"></div>
         </div>
 
         <!-- TAB SHIFTS -->
@@ -3766,7 +3959,7 @@
                 </p>
             </div>
 
-            <div id="scheduleGridWrap" class="schedule-grid-wrap">
+            <div id="scheduleGridWrap" class="schedule-grid-wrap" data-fill>
                 <div id="scheduleGrid" class="schedule-grid"></div>
             </div>
             <p style="font-size:12px; color:#999; margin-top:10px;">
@@ -3887,26 +4080,32 @@
         </div>
 
         <!-- TAB MY ROTA -->
-        <div id="myrota" class="content active">
-            <div id="myCurrentShift"></div>
+        <div id="myrota" class="content active" data-stabs>
+            <div class="home-col home-shifts" data-stab="Shifts" data-fill>
+                <div id="myCurrentShift"></div>
 
-            <div class="section-title">
-                <i class="fas fa-star"></i>
-                My next shift
+                <div class="section-title">
+                    <i class="fas fa-star"></i>
+                    My next shift
+                </div>
+                <div id="myNextShift"></div>
             </div>
-            <div id="myNextShift"></div>
 
-            <div class="section-title" style="margin-top:24px;">
-                <i class="fas fa-list"></i>
-                <span id="myUpcomingTitle">Upcoming shifts this week</span>
+            <div class="home-col" data-stab="This week" data-fill>
+                <div class="section-title">
+                    <i class="fas fa-list"></i>
+                    <span id="myUpcomingTitle">Upcoming shifts this week</span>
+                </div>
+                <div id="myUpcomingShifts"></div>
             </div>
-            <div id="myUpcomingShifts"></div>
 
-            <div class="section-title" style="margin-top:24px;">
-                <i class="fas fa-envelope"></i>
-                Unread messages
+            <div class="home-col" data-stab="Messages" data-fill>
+                <div class="section-title">
+                    <i class="fas fa-envelope"></i>
+                    Unread messages
+                </div>
+                <div id="homeUnreadMessages"></div>
             </div>
-            <div id="homeUnreadMessages"></div>
         </div>
 
         <!-- TAB ROTAS -->
@@ -3923,7 +4122,7 @@
                 </div>
             </div>
 
-            <div id="rotasGridWrap" class="schedule-grid-wrap">
+            <div id="rotasGridWrap" class="schedule-grid-wrap" data-fill>
                 <div id="rotasGrid" class="rotas-grid"></div>
             </div>
         </div>
@@ -4138,12 +4337,12 @@
                         For hourly staff the salary is the month's pay (hours × week / weekend rates).
                         The totals per employee are in Reports → Employee expenses.
                     </p>
-                    <div id="hrExpenseList"></div>
+                    <div id="hrExpenseList" data-fill></div>
                 </div>
             </div>
 
             <div id="mgmtWpResults">
-                <div class="form-section">
+                <div class="form-section period-bar">
                     <div class="section-title">
                         <i class="fas fa-calendar"></i>
                         Period
@@ -4159,12 +4358,12 @@
                         </div>
                     </div>
                 </div>
-                <div id="wpResultsSummary"></div>
+                <div id="wpResultsSummary" data-fill></div>
                 <div id="wpResultsByMember"></div>
             </div>
 
-            <div id="mgmtReports" class="app-hidden">
-                <div class="form-section">
+            <div data-stabs data-stabs-cls="stab-grid" id="mgmtReports" class="app-hidden">
+                <div class="form-section period-bar">
                     <div class="section-title">
                         <i class="fas fa-calendar"></i>
                         Report period
@@ -4181,7 +4380,7 @@
                     </div>
                 </div>
 
-                <div class="form-section">
+                <div data-stab="Results" class="form-section">
                     <div class="section-title">
                         <i class="fas fa-user"></i>
                         Individual results
@@ -4212,7 +4411,7 @@
                     </p>
                 </div>
 
-                <div class="form-section">
+                <div data-stab="Results" class="form-section">
                     <div class="section-title">
                         <i class="fas fa-globe"></i>
                         Global results
@@ -4232,7 +4431,7 @@
                     </div>
                 </div>
 
-                <div class="form-section">
+                <div data-stab="Advisors" class="form-section">
                     <div class="section-title">
                         <i class="fas fa-ranking-star"></i>
                         Results by advisor
@@ -4252,7 +4451,7 @@
                     </div>
                 </div>
 
-                <div class="form-section">
+                <div data-stab="Advisors" class="form-section">
                     <div class="section-title">
                         <i class="fas fa-bullseye"></i>
                         Daily targets
@@ -4273,7 +4472,7 @@
                     </div>
                 </div>
 
-                <div class="form-section">
+                <div data-stab="Staff costs" class="form-section">
                     <div class="section-title">
                         <i class="fas fa-clock"></i>
                         Hours worked (hourly staff)
@@ -4316,7 +4515,7 @@
                     </div>
                 </div>
 
-                <div class="form-section">
+                <div data-stab="Staff costs" class="form-section">
                     <div class="section-title">
                         <i class="fas fa-receipt"></i>
                         Employee expenses
@@ -4336,7 +4535,7 @@
                     </div>
                 </div>
 
-                <div class="form-section">
+                <div data-stab="Rota" class="form-section">
                     <div class="section-title">
                         <i class="fas fa-table"></i>
                         Global rota
@@ -4370,14 +4569,14 @@
         </div>
 
         <!-- TAB RESULTS -->
-        <div id="results" class="content">
-            <div id="resultsSummaryCard"></div>
+        <div id="results" class="content" data-stabs>
+            <div id="resultsSummaryCard" data-stab="Summary" data-fill></div>
 
-            <div class="section-title">
+            <div class="section-title" data-stab="Daily breakdown">
                 <i class="fas fa-list"></i>
                 Daily breakdown
             </div>
-            <div id="resultsDailyList"></div>
+            <div id="resultsDailyList" data-stab="Daily breakdown" data-fill></div>
         </div>
 
         <!-- TAB INBOX -->
@@ -4386,7 +4585,7 @@
                 <i class="fas fa-bell"></i>
                 Notifications
             </div>
-            <div id="notificationsList"></div>
+            <div id="notificationsList" data-fill></div>
         </div>
 
         <!-- Requests → Swaps (v-0.79, moved out of Inbox) -->
@@ -4395,14 +4594,14 @@
                 <i class="fas fa-right-left"></i>
                 Swap Requests
             </div>
-            <div id="swapRequestsList"></div>
+            <div id="swapRequestsList" data-fill></div>
         </div>
 
         <!-- TAB VACATION -->
-        <div id="vacation" class="content">
+        <div id="vacation" class="content" data-stabs data-stabs-first="Requests">
             <div id="vacationBalanceCard"></div>
 
-            <div class="form-section">
+            <div class="form-section" data-stab="Request time off" data-fill>
                 <div class="section-title">
                     <i class="fas fa-plus-circle"></i>
                     Request time off
@@ -4427,16 +4626,16 @@
                 </button>
             </div>
 
-            <div class="section-title">
+            <div class="section-title" data-stab="Requests">
                 <i class="fas fa-list"></i>
                 <span id="vacationListTitle">My requests</span>
             </div>
-            <div id="vacationRequestsList"></div>
+            <div id="vacationRequestsList" data-stab="Requests" data-fill></div>
         </div>
 
         <!-- TAB ROLES -->
-        <div id="roles" class="content">
-            <div class="form-section">
+        <div data-stabs data-stabs-first="Roles" id="roles" class="content">
+            <div data-stab="Create role" data-fill class="form-section">
                 <div class="section-title">
                     <i class="fas fa-plus-circle"></i>
                     Create New Role
@@ -4471,16 +4670,16 @@
                 </button>
             </div>
 
-            <div class="section-title">
+            <div data-stab="Roles" class="section-title">
                 <i class="fas fa-user-shield"></i>
                 Existing Roles
             </div>
-            <div id="roleList"></div>
+            <div data-stab="Roles" data-fill id="roleList"></div>
         </div>
 
         <!-- SUB-TAB RESULTS VALIDATION -->
-        <div id="resultsValidation" class="content">
-            <div class="form-section" id="importSection">
+        <div data-stabs id="resultsValidation" class="content">
+            <div data-stab="Import" class="form-section" id="importSection">
                 <div class="section-title">
                     <i class="fas fa-file-excel"></i>
                     Bulk import transactions
@@ -4506,7 +4705,7 @@
                 </button>
             </div>
 
-            <div class="form-section">
+            <div data-stab="Validate" class="form-section">
                 <div class="section-title">
                     <i class="fas fa-filter"></i>
                     Select member and period
@@ -4527,13 +4726,13 @@
                 </div>
             </div>
 
-            <div class="section-title">
+            <div data-stab="Validate" class="section-title">
                 <i class="fas fa-list"></i>
                 Daily breakdown
             </div>
-            <div id="rvDailyList"></div>
+            <div data-stab="Validate" data-fill id="rvDailyList"></div>
 
-            <div id="rvDayDetailWrap" class="app-hidden">
+            <div data-stab="Validate" id="rvDayDetailWrap" class="app-hidden">
                 <div class="section-title">
                     <i class="fas fa-receipt"></i>
                     <span id="rvDayDetailTitle">Lines</span>
@@ -4603,8 +4802,8 @@
                 </button>
             </div>
 
-            <div id="ccyTabCurrencies">
-                <div class="form-section">
+            <div data-stabs id="ccyTabCurrencies">
+                <div data-stab="Base settings" class="form-section">
                     <div class="section-title">
                         <i class="fas fa-star"></i>
                         Base settings
@@ -4625,7 +4824,7 @@
                     </button>
                 </div>
 
-                <div class="form-section">
+                <div data-stab="Add currency" class="form-section">
                     <div class="section-title">
                         <i class="fas fa-plus-circle"></i>
                         Add currency
@@ -4650,7 +4849,7 @@
                     </button>
                 </div>
 
-                <div class="form-section">
+                <div data-stab="Import" class="form-section">
                     <div class="section-title">
                         <i class="fas fa-file-excel"></i>
                         Upload rates and margins
@@ -4676,15 +4875,15 @@
                     </button>
                 </div>
 
-                <div class="section-title">
+                <div data-stab="Currencies" class="section-title">
                     <i class="fas fa-coins"></i>
                     Currencies
                 </div>
-                <div id="currencyList"></div>
+                <div data-stab="Currencies" data-fill id="currencyList"></div>
             </div>
 
-            <div id="ccyTabDiscounts" class="app-hidden">
-                <div class="form-section">
+            <div data-stabs id="ccyTabDiscounts" class="app-hidden">
+                <div data-stab="Add code" class="form-section">
                     <div class="section-title">
                         <i class="fas fa-plus-circle"></i>
                         Add discount code
@@ -4712,7 +4911,7 @@
                     </button>
                 </div>
 
-                <div class="form-section">
+                <div data-stab="Import" class="form-section">
                     <div class="section-title">
                         <i class="fas fa-file-excel"></i>
                         Upload discount codes
@@ -4738,11 +4937,11 @@
                     </button>
                 </div>
 
-                <div class="section-title">
+                <div data-stab="Codes" class="section-title">
                     <i class="fas fa-percent"></i>
                     Discount codes
                 </div>
-                <div id="discountCodeList"></div>
+                <div data-stab="Codes" data-fill id="discountCodeList"></div>
             </div>
         </div>
 
@@ -4913,8 +5112,8 @@
         </div>
 
         <!-- SUB-TAB BONUS SETTINGS -->
-        <div id="bonusSettings" class="content">
-            <div class="form-section">
+        <div data-stabs id="bonusSettings" class="content">
+            <div class="form-section period-bar">
                 <div class="section-title">
                     <i class="fas fa-calendar"></i>
                     Select period
@@ -4931,7 +5130,7 @@
                 </div>
             </div>
 
-            <div class="form-section">
+            <div data-stab="Targets" data-fill class="form-section">
                 <div class="section-title">
                     <i class="fas fa-bullseye"></i>
                     Targets
@@ -4944,7 +5143,7 @@
                 <p id="bonusWeightSummary" style="font-size:12px; margin-top:10px; font-weight:600;"></p>
             </div>
 
-            <div class="form-section">
+            <div data-stab="Distribution" data-fill class="form-section">
                 <div class="section-title">
                     <i class="fas fa-people-arrows"></i>
                     Transactions distribution
@@ -5003,7 +5202,7 @@
                 <div id="txDistPreview" style="margin-top:10px;"></div>
             </div>
 
-            <div class="form-section">
+            <div data-stab="Index & mode" data-fill class="form-section">
                 <div class="section-title">
                     <i class="fas fa-scale-balanced"></i>
                     Index weighting
@@ -5025,7 +5224,7 @@
                 <p id="indexWeightSummary" style="font-size:12px; font-weight:600;"></p>
             </div>
 
-            <div class="form-section">
+            <div data-stab="Index & mode" data-fill class="form-section">
                 <div class="section-title">
                     <i class="fas fa-sliders"></i>
                     Bonus mode
@@ -5039,7 +5238,7 @@
                 </div>
             </div>
 
-            <div class="form-section">
+            <div data-stab="Bonus tiers" data-fill class="form-section">
                 <div class="section-title">
                     <i class="fas fa-layer-group"></i>
                     Bonus tiers
@@ -5067,7 +5266,7 @@
                 <div id="bonusTierList" style="margin-top:12px;"></div>
             </div>
 
-            <div class="form-section">
+            <div data-stab="BBG tiers" data-fill class="form-section">
                 <div class="section-title">
                     <i class="fas fa-gift"></i>
                     BBG bonus tiers
@@ -5121,7 +5320,7 @@
             <p style="font-size:12px; color:#999; margin-bottom:12px;">
                 Deleting an approved swap reverts the shifts back to how they were before it was applied.
             </p>
-            <div id="swapHistoryList"></div>
+            <div id="swapHistoryList" data-fill></div>
         </div>
 
         <!-- SUB-TAB AUDIT LOG -->
@@ -5151,10 +5350,10 @@
                 <i class="fas fa-clipboard-list"></i>
                 Activity
             </div>
-            <div id="auditLogList"></div>
+            <div id="auditLogList" data-fill></div>
         </div>
 
-        <div class="app-version">GEDK v-0.79</div>
+        <div class="app-version">GEDK v-0.80</div>
     </div>
 
 
@@ -5948,6 +6147,70 @@
             }
         }
 
+        // ===== ONE-SCREEN LAYOUT (v-0.80) =====
+        // Containers marked data-stabs show one group of sections at a time (children with
+        // data-stab="Label"; children without it are always visible). The group holding the
+        // main list (data-fill) comes first.
+        const stabChoice = {};
+
+        function initSectionTabs() {
+            document.querySelectorAll('[data-stabs]').forEach(box => {
+                if (box.querySelector(':scope > .stab-bar')) return;
+                const kids = [...box.children].filter(c => c.dataset.stab);
+                const labels = [...new Set(kids.map(c => c.dataset.stab))];
+                const fillLabel = box.dataset.stabsFirst || (kids.find(c => c.hasAttribute('data-fill')) || {}).dataset?.stab;
+                if (fillLabel) labels.sort((a, b) => (b === fillLabel) - (a === fillLabel));
+                const bar = document.createElement('div');
+                bar.className = 'stab-bar';
+                bar.innerHTML = labels.map(l => `<button type="button" data-label="${l}">${l}</button>`).join('');
+                bar.addEventListener('click', e => {
+                    const b = e.target.closest('button');
+                    if (b) showSectionTab(box, b.dataset.label);
+                });
+                box.insertBefore(bar, kids[0]);
+                if (box.dataset.stabsCls) box.classList.add(...box.dataset.stabsCls.split(' '));
+                if (!box.classList.contains('content')) box.classList.add('fit-col');
+                showSectionTab(box, labels[0]);
+            });
+            // Every element between a screen and its scrolling list becomes a flex column,
+            // so the list takes the space that is left.
+            document.querySelectorAll('[data-fill]').forEach(el => {
+                let p = el.parentElement;
+                while (p && !p.classList.contains('content') && p.id !== 'appContainer') {
+                    p.classList.add('fit-col');
+                    p = p.parentElement;
+                }
+            });
+        }
+
+        function showSectionTab(box, label) {
+            const key = box.id || '';
+            stabChoice[key] = label;
+            [...box.children].forEach(c => {
+                if (c.dataset.stab) c.classList.toggle('stab-hidden', c.dataset.stab !== label);
+            });
+            box.querySelectorAll(':scope > .stab-bar button').forEach(b => b.classList.toggle('active', b.dataset.label === label));
+        }
+
+        // Tabs whose sections are all hidden (e.g. Workplaces for non-admins) disappear.
+        function refreshSectionTabs() {
+            document.querySelectorAll('[data-stabs]').forEach(box => {
+                const bar = box.querySelector(':scope > .stab-bar');
+                if (!bar) return;
+                let current = stabChoice[box.id || ''];
+                bar.querySelectorAll('button').forEach(b => {
+                    const secs = [...box.children].filter(c => c.dataset.stab === b.dataset.label);
+                    const visible = secs.some(c => !c.classList.contains('app-hidden'));
+                    b.style.display = visible ? '' : 'none';
+                    if (!visible && current === b.dataset.label) current = null;
+                });
+                if (!current) {
+                    const first = [...bar.querySelectorAll('button')].find(b => b.style.display !== 'none');
+                    if (first) showSectionTab(box, first.dataset.label);
+                }
+            });
+        }
+
         // ===== SIDE MENU NAVIGATION (v-0.79) =====
         // Every entry opens an existing screen through the same functions the old tabs used.
         const NAV_MENU = [
@@ -6006,7 +6269,11 @@
             const el = document.getElementById('sideMenuItems');
             if (!el) return;
             const found = navFind(currentView);
-            if (found && found.group) navOpenGroups.add(found.group.group);
+            if (found && found.group && renderSideMenu.lastView !== currentView) {
+                navOpenGroups.clear();
+                navOpenGroups.add(found.group.group);
+            }
+            renderSideMenu.lastView = currentView;
             el.innerHTML = NAV_MENU.map(g => {
                 if (g.view) {
                     if (!navCanSee(g.view)) return '';
@@ -6044,7 +6311,9 @@
         window.addEventListener('resize', placeSideMenu);
 
         function toggleNavGroup(group) {
-            if (navOpenGroups.has(group)) navOpenGroups.delete(group); else navOpenGroups.add(group);
+            const wasOpen = navOpenGroups.has(group);
+            navOpenGroups.clear();
+            if (!wasOpen) navOpenGroups.add(group);
             renderSideMenu();
         }
 
@@ -6055,6 +6324,7 @@
 
         function navTo(view, opts) {
             opts = opts || {};
+            initSectionTabs();
             if (!document.getElementById(view) && !MGMT_VIEWS.includes(view)) view = 'myrota';
             currentView = view;
             if (SETTINGS_SUBMODULES.includes(view)) {
@@ -6084,6 +6354,7 @@
                 title.classList.toggle('app-hidden', view === 'myrota');
             }
             renderSideMenu();
+            refreshSectionTabs();
             if (!opts.keepMenu) toggleSideMenu(false);
             if (!opts.keepMenu) window.scrollTo({ top: 0 });
         }
