@@ -847,6 +847,40 @@
             #mgmtReports .form-section p { display: none; }
         }
 
+        /* ===== Members, currencies and discount codes in columns (v-0.83) ===== */
+        #teamList, #currencyList, #discountCodeList {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+            gap: 8px;
+            align-content: start;
+        }
+        #currencyList, #discountCodeList { grid-template-columns: repeat(auto-fill, minmax(165px, 1fr)); }
+        #teamList > .empty-state, #currencyList > .empty-state, #discountCodeList > .empty-state { grid-column: 1 / -1; }
+        :is(#teamList, #currencyList, #discountCodeList) .team-member {
+            margin: 0 !important;
+            min-width: 0;
+            padding: 8px 10px !important;
+            gap: 9px !important;
+        }
+        :is(#teamList, #currencyList, #discountCodeList) .team-info { flex: 1; min-width: 0; }
+        :is(#teamList, #currencyList, #discountCodeList) :is(.team-name, .team-role) {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        :is(#teamList, #currencyList, #discountCodeList) .team-email { color: #94a3b8; font-size: 11px; }
+        :is(#teamList, #currencyList, #discountCodeList) .team-actions { gap: 4px; flex-shrink: 0; }
+        :is(#teamList, #currencyList, #discountCodeList) .team-actions .btn {
+            width: 28px;
+            height: 28px;
+            padding: 0 !important;
+            justify-content: center;
+            font-size: 12px;
+        }
+        :is(#currencyList, #discountCodeList) .team-avatar { width: 34px; height: 34px; font-size: 10.5px !important; }
+        :is(#currencyList, #discountCodeList) .team-actions { flex-direction: column; }
+        :is(#currencyList, #discountCodeList) .team-actions .btn { width: 26px; height: 24px; }
+
         /* ===== Vacation management (v-0.82) ===== */
         .rs-table thead th:first-child { text-align: left; }
         .vm-row { cursor: pointer; }
@@ -5436,7 +5470,7 @@
             <div id="auditLogList" data-fill></div>
         </div>
 
-        <div class="app-version">GEDK v-0.82</div>
+        <div class="app-version">GEDK v-0.83</div>
     </div>
 
 
@@ -7568,7 +7602,8 @@
                             <div class="team-avatar">${initials}</div>
                             <div class="team-info">
                                 <div class="team-name">${member.name}</div>
-                                <div class="team-role">${member.email ? member.email + ' • ' : ''}${member.role} • ${rotationLabel}</div>
+                                <div class="team-role">${member.role} • ${rotationLabel}</div>
+                                ${member.email ? `<div class="team-role team-email" title="${member.email}">${member.email}</div>` : ''}
                                 ${workplaceBadges(member) ? `<div>${workplaceBadges(member)}</div>` : ''}
                             </div>
                             <div class="team-actions">
@@ -13184,7 +13219,8 @@
                     <div class="team-avatar" style="font-size:12px;">${c.iso}</div>
                     <div class="team-info">
                         <div class="team-name">${c.iso}${c.iso === base ? ' (reference)' : ''}</div>
-                        <div class="team-role">Rate: ${c.rate} • Margin: ${c.margin}%</div>
+                        <div class="team-role">Rate ${c.rate}</div>
+                        <div class="team-role">Margin ${c.margin}%</div>
                     </div>
                     <div class="team-actions">
                         <button class="btn btn-secondary" onclick="openEditCurrencyModal('${c.id}')" title="Edit">
