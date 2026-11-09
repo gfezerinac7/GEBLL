@@ -847,6 +847,10 @@
             #mgmtReports .form-section p { display: none; }
         }
 
+        /* ===== v-0.85: validated results are locked for members ===== */
+        .rs-valid { margin-left: 6px; font-size: 9.5px !important; vertical-align: middle; }
+        .rs-lock { color: #94a3b8; font-size: 12px; text-align: center; }
+
         /* ===== v-0.84: vacation + button, Admin Home ===== */
         .vac-head { margin: 4px 0 10px; }
         @media (min-width: 900px) {
@@ -5511,7 +5515,7 @@
             <div id="auditLogList" data-fill></div>
         </div>
 
-        <div class="app-version">GEDK v-0.84</div>
+        <div class="app-version">GEDK v-0.85</div>
     </div>
 
 
@@ -11229,6 +11233,12 @@
                 return;
             }
 
+            {
+                const mId = a ? a.memberId : linesForThisAssignment[0].memberId;
+                const dKey = a ? a.dateKey : fallbackDateKey;
+                if (blockValidatedEdit(mId, dKey)) return;
+            }
+
             if (state.currencies.length === 0) {
                 alert('No currencies have been configured yet. Ask an Admin to set them up in Settings → CCY Settings.');
                 return;
@@ -11465,6 +11475,7 @@
                     alert('Could not determine which member or date these results belong to.');
                     return;
                 }
+                if (blockValidatedEdit(memberId, dateKey)) return;
 
                 const ops = [];
                 existing.forEach(l => ops.push(batch => batch.delete(fns.doc(db, 'resultLines', l.id))));
@@ -11640,6 +11651,8 @@
 
             dailyList.innerHTML = dayKeys.map(dk => {
                 const dayLines = sortLinesInOrder(monthLines.filter(l => l.dateKey === dk));
+                const validated = isResultsDayValidated(currentMember.id, dk);
+                const locked = !canEditResultsDay(currentMember.id, dk);
                 const day = aggregateLines(dayLines);
                 const periodKey = dk.slice(0, 7);
                 const cols = `1.5fr 1.5fr ${showRevenue ? '0.8fr ' : ''}0.5fr 0.7fr auto auto`;
@@ -11660,12 +11673,13 @@
                             ${showRevenue ? `<div>${revenue.toFixed(2)}</div>` : ''}
                             <div>${l.bbg ? '<i class="fas fa-check" style="color:#22c55e;"></i>' : '—'}</div>
                             <div class="${indexClass}">${indexText}</div>
+                            ${locked ? '<span></span><span class="rs-lock" title="Validated — only a Lead or Admin can change it"><i class="fas fa-lock"></i></span>' : `
                             <button class="btn btn-secondary" style="padding:4px 8px;" onclick="openEditTransactionModal('${l.id}')" title="Edit">
                                 <i class="fas fa-pen"></i>
                             </button>
                             <button class="btn btn-danger" style="padding:4px 8px;" onclick="deleteTransaction('${l.id}')" title="Delete">
                                 <i class="fas fa-trash"></i>
-                            </button>
+                            </button>`}
                         </div>
                     `;
                 }).join('');
@@ -11673,7 +11687,7 @@
                 return `
                     <div class="results-day-item" style="flex-direction:column; align-items:stretch; gap:8px;">
                         <div style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;" onclick="toggleResultsDayDetail('${dk}')">
-                            <strong>${dk}</strong>
+                            <strong>${dk}${validated ? ' <span class="vr-status approved rs-valid" title="Validated by a Lead or Admin"><i class="fas fa-lock"></i> Validated</span>' : ''}</strong>
                             <span style="font-size:13px; color:#666;">
                                 ${day.transactions} txns • ${day.turnover.toFixed(0)} turnover • ${day.average.toFixed(0)} avg${showRevenue ? " • " + day.revenue.toFixed(0) + " rev" : ""} • ${day.bbg} BBG
                                 <i class="fas fa-chevron-down" style="margin-left:8px; font-size:11px;"></i>
@@ -12583,6 +12597,7 @@
         function openEditTransactionModal(lineId) {
             const l = state.resultLines.find(x => x.id === lineId);
             if (!l) return;
+            if (blockValidatedEdit(l.memberId, l.dateKey)) return;
 
             populateEditTxSelects();
 
@@ -12724,6 +12739,7 @@
         async function deleteTransaction(lineId) {
             const l = state.resultLines.find(x => x.id === lineId);
             if (!l) return;
+            if (blockValidatedEdit(l.memberId, l.dateKey)) return;
 
             const recvAmount = l.receivedAmount ?? l.amount ?? 0;
             const recvCcy = l.receivedCcy || l.ccy || '';
@@ -12752,6 +12768,7 @@
             if (!lineId) return;
             const l = state.resultLines.find(x => x.id === lineId);
             if (!l) return;
+            if (blockValidatedEdit(l.memberId, l.dateKey)) return;
 
             const receivedCcy = document.getElementById('editTxReceivedCcy').value;
             const receivedAmount = parseFloat(document.getElementById('editTxReceivedAmount').value);
@@ -12793,6 +12810,23 @@
             if (document.getElementById('results').classList.contains('active')) {
                 renderResults();
             }
+        }
+
+        // v-0.85: once a day is validated, only Leads and Admins can change its results.
+        function isResultsDayValidated(memberId, dateKey) {
+            return (state.resultValidations || []).some(v => v.memberId === memberId && v.dateKey === dateKey);
+        }
+
+        function canEditResultsDay(memberId, dateKey) {
+            const role = getUserRole();
+            if (role.name === 'Admin' || role.name === 'Lead') return true;
+            return !isResultsDayValidated(memberId, dateKey);
+        }
+
+        function blockValidatedEdit(memberId, dateKey) {
+            if (canEditResultsDay(memberId, dateKey)) return false;
+            alert(`The results for ${dateKey} have been validated. Only a Lead or Admin can change them now.`);
+            return true;
         }
 
         async function validateResultsDay(memberId, dateKey) {
