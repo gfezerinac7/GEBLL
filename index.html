@@ -864,6 +864,9 @@
             #myrota.home-admin > .home-msgs { grid-row: 3; grid-column: 2; }
         }
         .home-wp .rs-card { margin-bottom: 0; }
+        .home-wp .yd-card { margin-bottom: 12px; }
+        .yd-card { margin-bottom: 12px; }
+        #homeYesterday .rs-table th, #homeYesterday .rs-table td { padding-top: 5px; padding-bottom: 5px; }
         .home-wp .rs-table { font-size: 12.5px; }
         .home-wp .rs-table th, .home-wp .rs-table td { padding-left: 7px; padding-right: 7px; }
         .home-wp .rs-table th:first-child, .home-wp .rs-table td:first-child { padding-left: 14px; }
@@ -4212,6 +4215,7 @@
             <div class="home-col home-wp app-hidden" data-stab="Workplace" data-fill id="homeWpResults"></div>
 
             <div class="home-col home-shifts" data-stab="Shifts" data-fill>
+                <div id="homeYesterday"></div>
                 <div id="myCurrentShift"></div>
 
                 <div class="section-title">
@@ -5515,7 +5519,7 @@
             <div id="auditLogList" data-fill></div>
         </div>
 
-        <div class="app-version">GEDK v-0.85</div>
+        <div class="app-version">GEDK v-0.86</div>
     </div>
 
 
@@ -9865,17 +9869,113 @@
             return h > 0 ? `${h}h ${String(m).padStart(2, '0')}m` : `${m}m`;
         }
 
+        // ----- Yesterday's results on Home (v-0.86) -----
+        // Daily transactions target per member = month target shared by weighted shift hours
+        // (same figures as the Daily targets report).
+        function getDayTxTargets(dateKey) {
+            const periodKey = dateKey.slice(0, 7);
+            const T = getWorkplaceTarget(periodKey, 'transactions');
+            if (T == null) return null;
+            const dist = getTxDistribution(periodKey);
+            if (!dist || !(dist.total > 0)) return null;
+            const byMember = {};
+            dist.items.forEach(it => {
+                if (it.a.dateKey !== dateKey) return;
+                byMember[it.a.memberId] = (byMember[it.a.memberId] || 0) + T * it.w / dist.total;
+            });
+            return byMember;
+        }
+
+        function buildYesterdayCard(memberId) {
+            const y = new Date();
+            y.setDate(y.getDate() - 1);
+            const yKey = toDateKey(y);
+            const periodKey = yKey.slice(0, 7);
+            const label = y.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' });
+            const showRevenue = canSeeRevenue();
+            const fmt = (v, d = 0) => v == null ? '<span class="rs-muted">—</span>'
+                : Number(v).toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
+            const pct = (a, t) => {
+                if (t == null || !(t > 0)) return '<td class="rs-muted">—</td>';
+                const p = a / t * 100;
+                return `<td class="rs-pct ${p >= 100 ? 'up' : 'down'}">${p.toFixed(0)}%</td>`;
+            };
+            let txTargets = null, avgT = null, rptT = null;
+            try {
+                txTargets = getDayTxTargets(yKey);
+                avgT = getWorkplaceTarget(periodKey, 'average');
+                rptT = getWorkplaceTarget(periodKey, 'revenuePerTx');
+            } catch (e) { console.error('yesterday targets', e); }
+            const lines = state.resultLines.filter(l => l.dateKey === yKey);
+            const head = `<div class="rs-head"><i class="fas fa-calendar-day"></i> Yesterday <span>${label}</span></div>`;
+
+            if (memberId) {
+                // One person: metrics as rows, actual / target / %.
+                const mine = lines.filter(l => l.memberId === memberId);
+                const txT = txTargets ? (txTargets[memberId] || null) : null;
+                if (mine.length === 0 && !txT) {
+                    return `<div class="rs-card yd-card">${head}<p class="rs-note" style="margin-bottom:4px;">No results recorded for yesterday.</p></div>`;
+                }
+                const agg = aggregateLines(mine);
+                const rows = [
+                    ['Transactions', agg.transactions, txT, 0],
+                    ['Turnover', agg.turnover, txT != null && avgT != null ? txT * avgT : null, 0],
+                    ['Average', agg.average, avgT, 0],
+                    showRevenue ? ['Revenue', agg.revenue, txT != null && rptT != null ? txT * rptT : null, 0] : null,
+                    ['BBG', agg.bbg, null, 0]
+                ].filter(Boolean).map(([l, a, t, d]) => `<tr><th>${l}</th><td class="rs-strong">${fmt(a, d)}</td><td>${fmt(t, d)}</td>${pct(a, t)}</tr>`).join('');
+                return `<div class="rs-card yd-card">${head}
+                    <div class="rs-scroll"><table class="rs-table">
+                        <thead><tr><th></th><th>Actual</th><th>Target</th><th>%</th></tr></thead>
+                        <tbody>${rows}<tr><th>Index</th><td class="rs-strong">${mine.length ? calcMonthIndex(agg, periodKey) : '—'}</td><td class="rs-muted">—</td><td class="rs-muted">—</td></tr></tbody>
+                    </table></div></div>`;
+            }
+
+            // Workplace: total + each member who worked or has results.
+            const ids = [...new Set(lines.map(l => l.memberId).concat(Object.keys(txTargets || {})))]
+                .filter(id => { const m = state.team.find(x => x.id === id); return m && m.role !== 'Admin'; });
+            if (ids.length === 0) {
+                return `<div class="rs-card yd-card">${head}<p class="rs-note" style="margin-bottom:4px;">No results recorded for yesterday.</p></div>`;
+            }
+            const cols = ['Txns', 'Target', '%', 'Turnover', 'Average'].concat(showRevenue ? ['Revenue'] : []).concat(['BBG']);
+            const rowFor = (name, agg, t, cls) => `<tr class="${cls || ''}"><th>${name}</th>
+                <td>${fmt(agg.transactions)}</td><td>${fmt(t)}</td>${pct(agg.transactions, t)}
+                <td>${fmt(agg.turnover)}</td><td>${fmt(agg.average)}</td>${showRevenue ? `<td>${fmt(agg.revenue)}</td>` : ''}<td>${fmt(agg.bbg)}</td></tr>`;
+            const members = ids.map(id => {
+                const m = state.team.find(x => x.id === id);
+                return { name: m.name, agg: aggregateLines(lines.filter(l => l.memberId === id)), t: txTargets ? (txTargets[id] || null) : null };
+            }).sort((a, b) => b.agg.turnover - a.agg.turnover);
+            const allLines = lines.filter(l => ids.includes(l.memberId));
+            const totalT = txTargets ? Object.entries(txTargets).filter(([id]) => ids.includes(id)).reduce((s2, [, v]) => s2 + v, 0) : null;
+            return `<div class="rs-card yd-card">${head}
+                <div class="rs-scroll"><table class="rs-table rs-wide">
+                    <thead><tr><th></th>${cols.map(c => `<th>${c}</th>`).join('')}</tr></thead>
+                    <tbody>${rowFor('Workplace total', aggregateLines(allLines), totalT, 'rs-total')}${members.map(r => rowFor(escapeHtml(r.name), r.agg, r.t)).join('')}</tbody>
+                </table></div></div>`;
+        }
+
+        function renderHomeYesterday() {
+            const el = document.getElementById('homeYesterday');
+            if (!el) return;
+            const isAdmin = getUserRole().name === 'Admin';
+            try {
+                el.innerHTML = (!isAdmin && currentMember) ? buildYesterdayCard(currentMember.id) : '';
+            } catch (e) { console.error('yesterday', e); el.innerHTML = ''; }
+        }
+
         // v-0.84: Admins see this month's workplace results (with each member) on Home.
         function renderHomeWorkplace() {
             const el = document.getElementById('homeWpResults');
             const home = document.getElementById('myrota');
             if (!el || !home) return;
             const isAdmin = getUserRole().name === 'Admin';
+            const becameAdmin = isAdmin && !home.classList.contains('home-admin');
             el.classList.toggle('app-hidden', !isAdmin);
             home.classList.toggle('home-admin', isAdmin);
+            if (becameAdmin && home.querySelector(':scope > .stab-bar')) showSectionTab(home, 'Workplace');
             if (isAdmin) {
                 const periodKey = toDateKey(new Date()).slice(0, 7);
-                try { el.innerHTML = buildWpResultsCard(periodKey); }
+                try { el.innerHTML = buildYesterdayCard(null) + buildWpResultsCard(periodKey); }
                 catch (e) { console.error('home workplace', e); el.innerHTML = ''; }
             }
             refreshSectionTabs();
@@ -9883,6 +9983,7 @@
 
         function renderMyRota() {
             renderHomeWorkplace();
+            renderHomeYesterday();
             const nextEl = document.getElementById('myNextShift');
             const listEl = document.getElementById('myUpcomingShifts');
             const unreadEl = document.getElementById('homeUnreadMessages');
