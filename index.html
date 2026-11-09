@@ -5519,7 +5519,7 @@
             <div id="auditLogList" data-fill></div>
         </div>
 
-        <div class="app-version">GEDK v-0.86</div>
+        <div class="app-version">GEDK v-0.87</div>
     </div>
 
 
@@ -9957,10 +9957,16 @@
         function renderHomeYesterday() {
             const el = document.getElementById('homeYesterday');
             if (!el) return;
-            const isAdmin = getUserRole().name === 'Admin';
+            const isAdmin = homeShowsWorkplace();
             try {
                 el.innerHTML = (!isAdmin && currentMember) ? buildYesterdayCard(currentMember.id) : '';
             } catch (e) { console.error('yesterday', e); el.innerHTML = ''; }
+        }
+
+        // v-0.87: Admins and Leads get the workplace Home.
+        function homeShowsWorkplace() {
+            const name = getUserRole().name;
+            return name === 'Admin' || name === 'Lead';
         }
 
         // v-0.84: Admins see this month's workplace results (with each member) on Home.
@@ -9968,7 +9974,7 @@
             const el = document.getElementById('homeWpResults');
             const home = document.getElementById('myrota');
             if (!el || !home) return;
-            const isAdmin = getUserRole().name === 'Admin';
+            const isAdmin = homeShowsWorkplace();
             const becameAdmin = isAdmin && !home.classList.contains('home-admin');
             el.classList.toggle('app-hidden', !isAdmin);
             home.classList.toggle('home-admin', isAdmin);
