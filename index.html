@@ -847,44 +847,68 @@
             #mgmtReports .form-section p { display: none; }
         }
 
+        /* ===== Vacation management (v-0.82) ===== */
+        .rs-table thead th:first-child { text-align: left; }
+        .vm-row { cursor: pointer; }
+        .vm-row:hover th, .vm-row:hover td { background: #f8fafc; }
+        .vm-neg { color: #dc2626 !important; }
+        .vm-await {
+            background: #fef3c7;
+            color: #b45309;
+            font-weight: 700;
+            border-radius: 8px;
+            padding: 1px 7px;
+        }
+        .vm-tag {
+            font-size: 10px;
+            font-weight: 700;
+            color: #64748b;
+            background: #f1f5f9;
+            border-radius: 6px;
+            padding: 1px 5px;
+            margin-left: 4px;
+        }
+        .stab-bar button .unread-badge { margin-left: 4px; }
+        .rs-table tfoot .rs-total th, .rs-table tfoot .rs-total td { border-top: 1px solid #dbeafe; }
+
         /* ===== Compact list cards (v-0.81) ===== */
-        :is(#resultsDailyList, #rvDailyList, #vacationRequestsList, #swapRequestsList, #swapHistoryList, #locationList, #teamList, #longTermLeaveList, #currencyList, #discountCodeList, #hrExpenseList, #auditLogList) :is(.team-member, .vacation-request-item, .inbox-item, .results-day-item, .audit-log-item) {
+        :is(#resultsDailyList, #rvDailyList, #vacationRequestsList, #swapRequestsList, #vmVacations, #vmSwaps, #swapHistoryList, #locationList, #teamList, #longTermLeaveList, #currencyList, #discountCodeList, #hrExpenseList, #auditLogList) :is(.team-member, .vacation-request-item, .inbox-item, .results-day-item, .audit-log-item) {
             padding: 7px 11px;
             margin-bottom: 5px;
             border-radius: 9px;
             gap: 10px;
             font-size: 13px;
         }
-        :is(#resultsDailyList, #rvDailyList, #vacationRequestsList, #swapRequestsList, #swapHistoryList, #locationList, #teamList, #longTermLeaveList, #currencyList, #discountCodeList, #hrExpenseList, #auditLogList) .team-member:hover { transform: none; }
-        :is(#resultsDailyList, #rvDailyList, #vacationRequestsList, #swapRequestsList, #swapHistoryList, #locationList, #teamList, #longTermLeaveList, #currencyList, #discountCodeList, #hrExpenseList, #auditLogList) .team-avatar {
+        :is(#resultsDailyList, #rvDailyList, #vacationRequestsList, #swapRequestsList, #vmVacations, #vmSwaps, #swapHistoryList, #locationList, #teamList, #longTermLeaveList, #currencyList, #discountCodeList, #hrExpenseList, #auditLogList) .team-member:hover { transform: none; }
+        :is(#resultsDailyList, #rvDailyList, #vacationRequestsList, #swapRequestsList, #vmVacations, #vmSwaps, #swapHistoryList, #locationList, #teamList, #longTermLeaveList, #currencyList, #discountCodeList, #hrExpenseList, #auditLogList) .team-avatar {
             width: 30px;
             height: 30px;
             font-size: 12px;
         }
-        :is(#resultsDailyList, #rvDailyList, #vacationRequestsList, #swapRequestsList, #swapHistoryList, #locationList, #teamList, #longTermLeaveList, #currencyList, #discountCodeList, #hrExpenseList, #auditLogList) .team-name { font-size: 13.5px; margin-bottom: 0; line-height: 1.3; }
-        :is(#resultsDailyList, #rvDailyList, #vacationRequestsList, #swapRequestsList, #swapHistoryList, #locationList, #teamList, #longTermLeaveList, #currencyList, #discountCodeList, #hrExpenseList, #auditLogList) .team-role { font-size: 11.5px; line-height: 1.3; }
-        :is(#resultsDailyList, #rvDailyList, #vacationRequestsList, #swapRequestsList, #swapHistoryList, #locationList, #teamList, #longTermLeaveList, #currencyList, #discountCodeList, #hrExpenseList, #auditLogList) .team-actions { gap: 5px; }
-        :is(#resultsDailyList, #rvDailyList, #vacationRequestsList, #swapRequestsList, #swapHistoryList, #locationList, #teamList, #longTermLeaveList, #currencyList, #discountCodeList, #hrExpenseList, #auditLogList) :is(.team-actions, .card-actions) .btn,
-        :is(#resultsDailyList, #rvDailyList, #vacationRequestsList, #swapRequestsList, #swapHistoryList, #locationList, #teamList, #longTermLeaveList, #currencyList, #discountCodeList, #hrExpenseList, #auditLogList) .team-actions button,
-        :is(#resultsDailyList, #rvDailyList, #vacationRequestsList, #swapRequestsList, #swapHistoryList, #locationList, #teamList, #longTermLeaveList, #currencyList, #discountCodeList, #hrExpenseList, #auditLogList) .results-day-item .btn {
+        :is(#resultsDailyList, #rvDailyList, #vacationRequestsList, #swapRequestsList, #vmVacations, #vmSwaps, #swapHistoryList, #locationList, #teamList, #longTermLeaveList, #currencyList, #discountCodeList, #hrExpenseList, #auditLogList) .team-name { font-size: 13.5px; margin-bottom: 0; line-height: 1.3; }
+        :is(#resultsDailyList, #rvDailyList, #vacationRequestsList, #swapRequestsList, #vmVacations, #vmSwaps, #swapHistoryList, #locationList, #teamList, #longTermLeaveList, #currencyList, #discountCodeList, #hrExpenseList, #auditLogList) .team-role { font-size: 11.5px; line-height: 1.3; }
+        :is(#resultsDailyList, #rvDailyList, #vacationRequestsList, #swapRequestsList, #vmVacations, #vmSwaps, #swapHistoryList, #locationList, #teamList, #longTermLeaveList, #currencyList, #discountCodeList, #hrExpenseList, #auditLogList) .team-actions { gap: 5px; }
+        :is(#resultsDailyList, #rvDailyList, #vacationRequestsList, #swapRequestsList, #vmVacations, #vmSwaps, #swapHistoryList, #locationList, #teamList, #longTermLeaveList, #currencyList, #discountCodeList, #hrExpenseList, #auditLogList) :is(.team-actions, .card-actions) .btn,
+        :is(#resultsDailyList, #rvDailyList, #vacationRequestsList, #swapRequestsList, #vmVacations, #vmSwaps, #swapHistoryList, #locationList, #teamList, #longTermLeaveList, #currencyList, #discountCodeList, #hrExpenseList, #auditLogList) .team-actions button,
+        :is(#resultsDailyList, #rvDailyList, #vacationRequestsList, #swapRequestsList, #vmVacations, #vmSwaps, #swapHistoryList, #locationList, #teamList, #longTermLeaveList, #currencyList, #discountCodeList, #hrExpenseList, #auditLogList) .results-day-item .btn {
             padding: 4px 9px !important;
             font-size: 12px;
             gap: 5px;
         }
-        :is(#resultsDailyList, #rvDailyList, #vacationRequestsList, #swapRequestsList, #swapHistoryList, #locationList, #teamList, #longTermLeaveList, #currencyList, #discountCodeList, #hrExpenseList, #auditLogList) .card-actions { margin-top: 6px; gap: 6px; }
-        :is(#resultsDailyList, #rvDailyList, #vacationRequestsList, #swapRequestsList, #swapHistoryList, #locationList, #teamList, #longTermLeaveList, #currencyList, #discountCodeList, #hrExpenseList, #auditLogList) :is(.vr-header, .inbox-item-header) { margin-bottom: 2px; gap: 8px; }
-        :is(#resultsDailyList, #rvDailyList, #vacationRequestsList, #swapRequestsList, #swapHistoryList, #locationList, #teamList, #longTermLeaveList, #currencyList, #discountCodeList, #hrExpenseList, #auditLogList) :is(.vr-header, .inbox-item-header) strong { font-size: 13.5px !important; }
-        :is(#resultsDailyList, #rvDailyList, #vacationRequestsList, #swapRequestsList, #swapHistoryList, #locationList, #teamList, #longTermLeaveList, #currencyList, #discountCodeList, #hrExpenseList, #auditLogList) .vr-status { padding: 2px 8px; font-size: 10px; }
-        :is(#resultsDailyList, #rvDailyList, #vacationRequestsList, #swapRequestsList, #swapHistoryList, #locationList, #teamList, #longTermLeaveList, #currencyList, #discountCodeList, #hrExpenseList, #auditLogList) p { margin-bottom: 2px !important; font-size: 12px !important; line-height: 1.35; }
-        :is(#resultsDailyList, #rvDailyList, #vacationRequestsList, #swapRequestsList, #swapHistoryList, #locationList, #teamList, #longTermLeaveList, #currencyList, #discountCodeList, #hrExpenseList, #auditLogList) .results-day-item strong { white-space: nowrap; font-size: 13px; }
-        :is(#resultsDailyList, #rvDailyList, #vacationRequestsList, #swapRequestsList, #swapHistoryList, #locationList, #teamList, #longTermLeaveList, #currencyList, #discountCodeList, #hrExpenseList, #auditLogList) .results-day-item > div > span,
-        :is(#resultsDailyList, #rvDailyList, #vacationRequestsList, #swapRequestsList, #swapHistoryList, #locationList, #teamList, #longTermLeaveList, #currencyList, #discountCodeList, #hrExpenseList, #auditLogList) .results-day-item span { font-size: 12px !important; }
-        :is(#resultsDailyList, #rvDailyList, #vacationRequestsList, #swapRequestsList, #swapHistoryList, #locationList, #teamList, #longTermLeaveList, #currencyList, #discountCodeList, #hrExpenseList, #auditLogList) .results-line-item { padding: 4px 6px; font-size: 12px; }
-        :is(#resultsDailyList, #rvDailyList, #vacationRequestsList, #swapRequestsList, #swapHistoryList, #locationList, #teamList, #longTermLeaveList, #currencyList, #discountCodeList, #hrExpenseList, #auditLogList) .hr-amount { font-size: 13px; }
-        :is(#resultsDailyList, #rvDailyList, #vacationRequestsList, #swapRequestsList, #swapHistoryList, #locationList, #teamList, #longTermLeaveList, #currencyList, #discountCodeList, #hrExpenseList, #auditLogList) .hr-amount span { font-size: 10.5px; }
-        :is(#resultsDailyList, #rvDailyList, #vacationRequestsList, #swapRequestsList, #swapHistoryList, #locationList, #teamList, #longTermLeaveList, #currencyList, #discountCodeList, #hrExpenseList, #auditLogList) .audit-log-item { border-left-width: 3px; }
-        :is(#resultsDailyList, #rvDailyList, #vacationRequestsList, #swapRequestsList, #swapHistoryList, #locationList, #teamList, #longTermLeaveList, #currencyList, #discountCodeList, #hrExpenseList, #auditLogList) .empty-state { padding: 22px 12px; }
-        :is(#resultsDailyList, #rvDailyList, #vacationRequestsList, #swapRequestsList, #swapHistoryList, #locationList, #teamList, #longTermLeaveList, #currencyList, #discountCodeList, #hrExpenseList, #auditLogList) .empty-state i { font-size: 26px; }
+        :is(#resultsDailyList, #rvDailyList, #vacationRequestsList, #swapRequestsList, #vmVacations, #vmSwaps, #swapHistoryList, #locationList, #teamList, #longTermLeaveList, #currencyList, #discountCodeList, #hrExpenseList, #auditLogList) .card-actions { margin-top: 6px; gap: 6px; }
+        :is(#resultsDailyList, #rvDailyList, #vacationRequestsList, #swapRequestsList, #vmVacations, #vmSwaps, #swapHistoryList, #locationList, #teamList, #longTermLeaveList, #currencyList, #discountCodeList, #hrExpenseList, #auditLogList) :is(.vr-header, .inbox-item-header) { margin-bottom: 2px; gap: 8px; }
+        :is(#resultsDailyList, #rvDailyList, #vacationRequestsList, #swapRequestsList, #vmVacations, #vmSwaps, #swapHistoryList, #locationList, #teamList, #longTermLeaveList, #currencyList, #discountCodeList, #hrExpenseList, #auditLogList) :is(.vr-header, .inbox-item-header) strong { font-size: 13.5px !important; }
+        :is(#resultsDailyList, #rvDailyList, #vacationRequestsList, #swapRequestsList, #vmVacations, #vmSwaps, #swapHistoryList, #locationList, #teamList, #longTermLeaveList, #currencyList, #discountCodeList, #hrExpenseList, #auditLogList) .vr-status { padding: 2px 8px; font-size: 10px; }
+        :is(#resultsDailyList, #rvDailyList, #vacationRequestsList, #swapRequestsList, #vmVacations, #vmSwaps, #swapHistoryList, #locationList, #teamList, #longTermLeaveList, #currencyList, #discountCodeList, #hrExpenseList, #auditLogList) p { margin-bottom: 2px !important; font-size: 12px !important; line-height: 1.35; }
+        :is(#resultsDailyList, #rvDailyList, #vacationRequestsList, #swapRequestsList, #vmVacations, #vmSwaps, #swapHistoryList, #locationList, #teamList, #longTermLeaveList, #currencyList, #discountCodeList, #hrExpenseList, #auditLogList) .results-day-item strong { white-space: nowrap; font-size: 13px; }
+        :is(#resultsDailyList, #rvDailyList, #vacationRequestsList, #swapRequestsList, #vmVacations, #vmSwaps, #swapHistoryList, #locationList, #teamList, #longTermLeaveList, #currencyList, #discountCodeList, #hrExpenseList, #auditLogList) .results-day-item > div > span,
+        :is(#resultsDailyList, #rvDailyList, #vacationRequestsList, #swapRequestsList, #vmVacations, #vmSwaps, #swapHistoryList, #locationList, #teamList, #longTermLeaveList, #currencyList, #discountCodeList, #hrExpenseList, #auditLogList) .results-day-item span { font-size: 12px !important; }
+        :is(#resultsDailyList, #rvDailyList, #vacationRequestsList, #swapRequestsList, #vmVacations, #vmSwaps, #swapHistoryList, #locationList, #teamList, #longTermLeaveList, #currencyList, #discountCodeList, #hrExpenseList, #auditLogList) .results-line-item { padding: 4px 6px; font-size: 12px; }
+        :is(#resultsDailyList, #rvDailyList, #vacationRequestsList, #swapRequestsList, #vmVacations, #vmSwaps, #swapHistoryList, #locationList, #teamList, #longTermLeaveList, #currencyList, #discountCodeList, #hrExpenseList, #auditLogList) .hr-amount { font-size: 13px; }
+        :is(#resultsDailyList, #rvDailyList, #vacationRequestsList, #swapRequestsList, #vmVacations, #vmSwaps, #swapHistoryList, #locationList, #teamList, #longTermLeaveList, #currencyList, #discountCodeList, #hrExpenseList, #auditLogList) .hr-amount span { font-size: 10.5px; }
+        :is(#resultsDailyList, #rvDailyList, #vacationRequestsList, #swapRequestsList, #vmVacations, #vmSwaps, #swapHistoryList, #locationList, #teamList, #longTermLeaveList, #currencyList, #discountCodeList, #hrExpenseList, #auditLogList) .audit-log-item { border-left-width: 3px; }
+        :is(#resultsDailyList, #rvDailyList, #vacationRequestsList, #swapRequestsList, #vmVacations, #vmSwaps, #swapHistoryList, #locationList, #teamList, #longTermLeaveList, #currencyList, #discountCodeList, #hrExpenseList, #auditLogList) .empty-state { padding: 22px 12px; }
+        :is(#resultsDailyList, #rvDailyList, #vacationRequestsList, #swapRequestsList, #vmVacations, #vmSwaps, #swapHistoryList, #locationList, #teamList, #longTermLeaveList, #currencyList, #discountCodeList, #hrExpenseList, #auditLogList) .empty-state i { font-size: 26px; }
 
         /* ===== Side menu + header buttons (v-0.79) ===== */
         #appContainer { position: relative; }
@@ -4636,6 +4660,26 @@
             <div id="swapRequestsList" data-fill></div>
         </div>
 
+        <!-- Requests → Vacation management (v-0.82, replaces Swap History) -->
+        <div id="vacationMgmt" class="content" data-stabs data-stabs-first="Summary">
+            <div class="form-section period-bar vm-filter">
+                <div class="section-title"><i class="fas fa-filter"></i> Show</div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Employee</label>
+                        <select id="vmMember" onchange="renderVacationMgmt()"></select>
+                    </div>
+                    <div class="form-group">
+                        <label>Year</label>
+                        <select id="vmYear" onchange="renderVacationMgmt()"></select>
+                    </div>
+                </div>
+            </div>
+            <div id="vmSummary" data-stab="Summary" data-fill></div>
+            <div id="vmVacations" data-stab="Vacations" data-fill></div>
+            <div id="vmSwaps" data-stab="Swaps" data-fill></div>
+        </div>
+
         <!-- TAB VACATION -->
         <div id="vacation" class="content" data-stabs data-stabs-first="Requests">
             <div id="vacationBalanceCard"></div>
@@ -4699,7 +4743,7 @@
                         <label class="module-check"><input type="checkbox" value="resultsValidation"> Results Validation</label>
                         <label class="module-check"><input type="checkbox" value="ccySettings"> CCY Settings</label>
                         <label class="module-check"><input type="checkbox" value="bonusSettings"> Bonus Settings</label>
-                        <label class="module-check"><input type="checkbox" value="swapHistory"> Swap History</label>
+                        <label class="module-check"><input type="checkbox" value="swapHistory"> Vacation management</label>
                         <label class="module-check"><input type="checkbox" value="auditLog"> Audit Log</label>
                     </div>
                 </div>
@@ -5392,7 +5436,7 @@
             <div id="auditLogList" data-fill></div>
         </div>
 
-        <div class="app-version">GEDK v-0.81</div>
+        <div class="app-version">GEDK v-0.82</div>
     </div>
 
 
@@ -5412,7 +5456,7 @@
             { key: 'resultsValidation', label: 'Results Validation' },
             { key: 'ccySettings', label: 'CCY Settings' },
             { key: 'bonusSettings', label: 'Bonus Settings' },
-            { key: 'swapHistory', label: 'Swap History' },
+            { key: 'swapHistory', label: 'Vacation management' },
             { key: 'auditLog', label: 'Audit Log' }
         ];
 
@@ -6263,9 +6307,9 @@
                 { view: 'bonusSettings', label: 'Bonus Settings', icon: 'fa-trophy' }
             ] },
             { group: 'requests', label: 'Requests', icon: 'fa-paper-plane', items: [
-                { view: 'vacation', label: 'Vacations', icon: 'fa-umbrella-beach' },
-                { view: 'swaps', label: 'Swaps', icon: 'fa-right-left' },
-                { view: 'swapHistory', label: 'Swap History', icon: 'fa-clock-rotate-left' }
+                { view: 'vacation', label: 'My Vacation', icon: 'fa-umbrella-beach' },
+                { view: 'swaps', label: 'My Swaps', icon: 'fa-right-left' },
+                { view: 'vacationMgmt', label: 'Vacation management', icon: 'fa-users-gear' }
             ] },
             { group: 'management', label: 'Management', icon: 'fa-briefcase', items: [
                 { view: 'locations', label: 'Locations', icon: 'fa-map-marker-alt' },
@@ -6292,6 +6336,7 @@
             if (MGMT_VIEWS.includes(view)) return mods.includes('management');
             if (view === 'tasks') return mods.includes('tasks') || mods.includes('projects');
             if (view === 'swaps') return mods.includes('inbox') || mods.includes('rotas');
+            if (view === 'vacationMgmt') return canManageRequests();
             return mods.includes(view);
         }
 
@@ -6376,6 +6421,9 @@
                 document.getElementById('inbox').classList.remove('active');
                 document.getElementById('swaps').classList.add('active');
                 renderInbox();
+            } else if (view === 'vacationMgmt') {
+                switchTabProgrammatic('vacationMgmt');
+                renderVacationMgmt();
             } else {
                 switchTabProgrammatic(view);
             }
@@ -10210,32 +10258,8 @@
             }
         }
 
-        function renderInbox() {
-            const swapList = document.getElementById('swapRequestsList');
-            const notifList = document.getElementById('notificationsList');
-            if (!swapList || !notifList) return;
-
-            const relevantRequests = state.swapRequests.filter(r => {
-                if (r.status !== 'pending_recipient' && r.status !== 'pending_approval') return false;
-                if (!currentMember) return false;
-                if (r.requesterId === currentMember.id || r.targetMemberId === currentMember.id) return true;
-                return canApproveSwap(r);
-            });
-
-            const relevantDayOffRequests = state.dayOffSwapRequests.filter(r => {
-                if (r.status !== 'pending') return false;
-                const role = getUserRole();
-                if (role.name === 'Admin' || role.name === 'Lead') return canApproveDayOffSwap(r);
-                return currentMember && (r.requesterId === currentMember.id || r.targetMemberId === currentMember.id);
-            });
-
-            const relevantRescheduleRequests = state.rescheduleRequests.filter(r => {
-                if (r.status !== 'pending') return false;
-                const role = getUserRole();
-                if (role.name === 'Admin' || role.name === 'Lead') return canApproveReschedule(r);
-                return currentMember && r.memberId === currentMember.id;
-            });
-
+        // Cards for pending swaps (shift swaps, day-off swaps, reschedules) with the actions this user may take.
+        function buildPendingSwapCards(relevantRequests, relevantDayOffRequests, relevantRescheduleRequests) {
             let swapHtml = '';
 
             if (relevantRequests.length > 0) {
@@ -10334,7 +10358,31 @@
                 }).join('');
             }
 
-            swapList.innerHTML = swapHtml || `<div class="empty-state"><i class="fas fa-right-left"></i><p>No pending swap requests.</p></div>`;
+            return swapHtml;
+        }
+
+        function renderInbox() {
+            const swapList = document.getElementById('swapRequestsList');
+            const notifList = document.getElementById('notificationsList');
+            if (!swapList || !notifList) return;
+
+            // v-0.82: My Swaps lists only the swaps I am part of; managers approve in Vacation management.
+            const meId = currentMember ? currentMember.id : null;
+            const relevantRequests = state.swapRequests.filter(r =>
+                (r.status === 'pending_recipient' || r.status === 'pending_approval') &&
+                meId && (r.requesterId === meId || r.targetMemberId === meId));
+            const relevantDayOffRequests = state.dayOffSwapRequests.filter(r =>
+                r.status === 'pending' && meId && (r.requesterId === meId || r.targetMemberId === meId));
+            const relevantRescheduleRequests = state.rescheduleRequests.filter(r =>
+                r.status === 'pending' && meId && r.memberId === meId);
+
+            let swapHtml = buildPendingSwapCards(relevantRequests, relevantDayOffRequests, relevantRescheduleRequests);
+            if (!swapHtml) swapHtml = `<div class="empty-state"><i class="fas fa-right-left"></i><p>No pending swaps.</p></div>`;
+            const history = getSwapHistoryItems(true).filter(i => meId && i.members.includes(meId));
+            swapHtml += `<div class="section-title" style="margin-top:14px;"><i class="fas fa-clock-rotate-left"></i> History</div>` +
+                (history.length ? history.map(i => renderSwapHistoryCard(i, false)).join('')
+                    : `<div class="empty-state"><i class="fas fa-clock-rotate-left"></i><p>No swaps yet.</p></div>`);
+            swapList.innerHTML = swapHtml;
 
             const myNotifications = state.notifications
                 .filter(n => !n.memberId || (currentMember && n.memberId === currentMember.id))
@@ -10636,11 +10684,10 @@
             const listEl = document.getElementById('vacationRequestsList');
             if (!listEl) return;
 
-            listTitle.textContent = isManager ? 'All requests' : 'My requests';
+            // v-0.82: My Vacation shows only my own requests; approvals are in Vacation management.
+            listTitle.textContent = 'My requests';
 
-            const relevant = isManager
-                ? state.vacationRequests
-                : state.vacationRequests.filter(r => currentMember && r.memberId === currentMember.id);
+            const relevant = state.vacationRequests.filter(r => currentMember && r.memberId === currentMember.id);
 
             const sorted = [...relevant].sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
 
@@ -10651,11 +10698,11 @@
 
             listEl.innerHTML = sorted.map(req => {
                 const m = assigneeMap[req.memberId];
-                const canAct = req.status === 'pending' && isManager && canApproveVacation(req);
+                const canAct = false;
                 return `
                     <div class="vacation-request-item">
                         <div class="vr-header">
-                            <strong style="font-size:14px;">${isManager ? (m ? m.name : 'Unknown') : (req.requestType === 'vacation' ? 'Vacation' : 'Time off')}</strong>
+                            <strong style="font-size:14px;">${req.requestType === 'vacation' ? 'Vacation' : 'Time off'}</strong>
                             <span class="vr-status ${req.status}">${req.status}</span>
                         </div>
                         <p style="font-size:13px; color:#666; margin:0 0 4px;">
@@ -12770,6 +12817,197 @@
             });
 
             return items.sort((a, b) => (b.approvedAt || '').localeCompare(a.approvedAt || ''));
+        }
+
+        // v-0.82: history items carry the members involved; declined requests can be included.
+        function getSwapHistoryItems(includeDeclined) {
+            const items = getAllApprovedSwaps().map(i => ({ ...i, status: 'approved' }));
+            const byId = (arr, id) => arr.find(r => r.id === id);
+            items.forEach(i => {
+                const r = i.type === 'shift' ? byId(state.swapRequests, i.id)
+                    : i.type === 'dayoff' ? byId(state.dayOffSwapRequests, i.id) : byId(state.rescheduleRequests, i.id);
+                i.members = r ? [r.requesterId, r.targetMemberId, r.memberId].filter(Boolean) : [];
+                i.dateKey = r ? (r.requesterDateKey || r.takeDateKey || r.originalDateKey || '') : '';
+            });
+            if (includeDeclined) {
+                const NO = ['declined', 'rejected'];
+                const name = id => (assigneeMap[id] ? assigneeMap[id].name : id);
+                state.swapRequests.filter(r => NO.includes(r.status)).forEach(r => items.push({
+                    id: r.id, type: 'shift', typeLabel: 'Shift swap', status: 'declined',
+                    who: `${name(r.requesterId)} ↔ ${name(r.targetMemberId)}`,
+                    detail: `Dates: ${[r.requesterDateKey, r.targetDateKey].filter(Boolean).join(' ↔ ')}`,
+                    approvedAt: r.createdAt, members: [r.requesterId, r.targetMemberId], dateKey: r.requesterDateKey || ''
+                }));
+                state.dayOffSwapRequests.filter(r => NO.includes(r.status)).forEach(r => items.push({
+                    id: r.id, type: 'dayoff', typeLabel: 'Day off swap', status: 'declined',
+                    who: `${name(r.requesterId)} ↔ ${name(r.targetMemberId)}`,
+                    detail: `Take ${r.takeDateKey} • Return ${r.returnDateKey}`,
+                    approvedAt: r.createdAt, members: [r.requesterId, r.targetMemberId], dateKey: r.takeDateKey || ''
+                }));
+                state.rescheduleRequests.filter(r => NO.includes(r.status)).forEach(r => items.push({
+                    id: r.id, type: 'reschedule', typeLabel: 'Shift reschedule', status: 'declined',
+                    who: name(r.memberId), detail: `${r.originalDateKey} → ${r.newDateKey}`,
+                    approvedAt: r.createdAt, members: [r.memberId], dateKey: r.originalDateKey || ''
+                }));
+            }
+            return items.sort((a, b) => (b.approvedAt || '').localeCompare(a.approvedAt || ''));
+        }
+
+        function renderSwapHistoryCard(item, canRevert) {
+            const when = item.approvedAt ? new Date(item.approvedAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+            const approved = item.status === 'approved';
+            return `
+                <div class="vacation-request-item">
+                    <div class="vr-header">
+                        <strong style="font-size:14px;">${item.typeLabel}</strong>
+                        <span class="vr-status ${approved ? 'approved' : 'rejected'}">${approved ? 'Approved' : 'Declined'}</span>
+                    </div>
+                    <p style="font-size:13px; color:#333; margin:0 0 4px;">${item.who}</p>
+                    <p style="font-size:12px; color:#666; margin:0 0 4px;">${item.detail}</p>
+                    <p style="font-size:11px; color:#999; margin:0 0 4px;">${when}${item.approvedBy ? ' • approved by ' + item.approvedBy : ''}</p>
+                    ${approved && canRevert ? `
+                        <div class="card-actions">
+                            <button class="btn btn-danger" onclick="deleteSwapFromHistory('${item.type}','${item.id}')">
+                                <i class="fas fa-rotate-left"></i> Revert &amp; delete
+                            </button>
+                        </div>` : ''}
+                </div>`;
+        }
+
+        // ===== VACATION MANAGEMENT (v-0.82) =====
+        function canManageRequests() {
+            const role = getUserRole();
+            return role.name === 'Admin' || role.name === 'Lead' || (role.modules || []).includes('swapHistory');
+        }
+
+        function vmFillFilters() {
+            const memberSel = document.getElementById('vmMember');
+            const yearSel = document.getElementById('vmYear');
+            if (!memberSel || !yearSel) return;
+            const keepM = memberSel.value;
+            const members = state.team.slice().sort((a, b) => a.name.localeCompare(b.name));
+            memberSel.innerHTML = `<option value="">All employees</option>` +
+                members.map(m => `<option value="${m.id}">${escapeHtml(m.name)}</option>`).join('');
+            memberSel.value = members.some(m => m.id === keepM) ? keepM : '';
+            if (!yearSel.dataset.initialized) {
+                const y = new Date().getFullYear();
+                yearSel.innerHTML = [y - 1, y, y + 1].map(v => `<option value="${v}">${v}</option>`).join('');
+                yearSel.value = String(y);
+                yearSel.dataset.initialized = 'true';
+            }
+        }
+
+        function vmSelectMember(id, tab) {
+            const sel = document.getElementById('vmMember');
+            if (sel) sel.value = id;
+            renderVacationMgmt();
+            const box = document.getElementById('vacationMgmt');
+            if (box && tab) showSectionTab(box, tab);
+        }
+
+        function renderVacationMgmt() {
+            const sumEl = document.getElementById('vmSummary');
+            const vacEl = document.getElementById('vmVacations');
+            const swapEl = document.getElementById('vmSwaps');
+            if (!sumEl || !vacEl || !swapEl) return;
+            vmFillFilters();
+            const memberId = document.getElementById('vmMember').value;
+            const year = document.getElementById('vmYear').value;
+            const inYear = key => (key || '').slice(0, 4) === year;
+            const members = state.team.slice().sort((a, b) => a.name.localeCompare(b.name))
+                .filter(m => !memberId || m.id === memberId);
+            const swapItems = getSwapHistoryItems(false);
+
+            // --- Summary ---
+            let tTotal = 0, tTaken = 0, tLeft = 0, tAwait = 0, tSwaps = 0;
+            const rows = members.map(m => {
+                const reqs = state.vacationRequests.filter(r => r.memberId === m.id && inYear(r.startKey));
+                const awaiting = reqs.filter(r => r.status === 'pending').reduce((s2, r) => s2 + (r.workingDaysCounted || 0), 0);
+                const awaitingCount = reqs.filter(r => r.status === 'pending').length;
+                const swaps = swapItems.filter(i => i.members.includes(m.id) && inYear(i.dateKey || i.approvedAt)).length;
+                tSwaps += swaps;
+                if (isEligibleForVacation(m)) {
+                    const total = m.vacationDaysAllotted ?? 25;
+                    const taken = getApprovedVacationDaysUsed(m.id, year);
+                    const left = total - taken;
+                    tTotal += total; tTaken += taken; tLeft += left; tAwait += awaiting;
+                    return `<tr class="vm-row" onclick="vmSelectMember('${m.id}', 'Vacations')">
+                        <th>${escapeHtml(m.name)}</th><td>${total}</td><td>${taken}</td>
+                        <td class="rs-strong ${left < 0 ? 'vm-neg' : ''}">${left}</td>
+                        <td>${awaiting ? `<span class="vm-await">${awaiting}</span>` : '<span class="rs-muted">0</span>'}</td>
+                        <td>${swaps}</td></tr>`;
+                }
+                const timeOff = reqs.filter(r => r.status === 'approved').length;
+                return `<tr class="vm-row" onclick="vmSelectMember('${m.id}', 'Vacations')">
+                    <th>${escapeHtml(m.name)} <span class="vm-tag">Hourly</span></th>
+                    <td class="rs-muted">—</td><td title="Approved time-off requests">${timeOff} req.</td><td class="rs-muted">—</td>
+                    <td>${awaitingCount ? `<span class="vm-await">${awaitingCount} req.</span>` : '<span class="rs-muted">0</span>'}</td>
+                    <td>${swaps}</td></tr>`;
+            }).join('');
+            sumEl.innerHTML = `
+                <div class="rs-card">
+                    <div class="rs-head"><i class="fas fa-umbrella-beach"></i> Vacation balance <span>${year}</span></div>
+                    <div class="rs-scroll">
+                        <table class="rs-table rs-wide">
+                            <thead><tr><th>Employee</th><th>Total</th><th>Taken</th><th>Pending</th><th>To approve</th><th>Swaps</th></tr></thead>
+                            <tbody>${rows || '<tr><td colspan="6" class="rs-muted" style="text-align:center;">No employees.</td></tr>'}</tbody>
+                            ${members.length > 1 ? `<tfoot><tr class="rs-total"><th>Total</th><td>${tTotal}</td><td>${tTaken}</td><td>${tLeft}</td><td>${tAwait}</td><td>${tSwaps}</td></tr></tfoot>` : ''}
+                        </table>
+                    </div>
+                    <p class="rs-note">Days per year. Pending = days still to take (total − taken). To approve = days in requests waiting for approval. Tap an employee to see their requests.</p>
+                </div>`;
+
+            // --- Vacations ---
+            const vacs = state.vacationRequests
+                .filter(r => (!memberId || r.memberId === memberId) && inYear(r.startKey))
+                .sort((a, b) => ((a.status === 'pending') ? 0 : 1) - ((b.status === 'pending') ? 0 : 1) || (b.startKey || '').localeCompare(a.startKey || ''));
+            vacEl.innerHTML = vacs.length === 0
+                ? `<div class="empty-state"><i class="fas fa-umbrella-beach"></i><p>No vacation requests.</p></div>`
+                : vacs.map(req => {
+                    const m = assigneeMap[req.memberId];
+                    const canAct = req.status === 'pending' && canApproveVacation(req);
+                    return `
+                        <div class="vacation-request-item">
+                            <div class="vr-header">
+                                <strong style="font-size:14px;">${m ? escapeHtml(m.name) : 'Unknown'}</strong>
+                                <span class="vr-status ${req.status}">${req.status}</span>
+                            </div>
+                            <p style="font-size:13px; color:#666; margin:0 0 4px;">
+                                ${req.startKey} → ${req.endKey}
+                                ${req.requestType === 'vacation' ? ` • ${req.workingDaysCounted} day(s)` : ' • Time off'}
+                            </p>
+                            ${req.note ? `<p style="font-size:12px; color:#999; margin:0 0 4px;">"${escapeHtml(req.note)}"</p>` : ''}
+                            ${canAct ? `
+                                <div class="card-actions">
+                                    <button class="btn btn-success" onclick="respondVacationRequest('${req.id}', true)"><i class="fas fa-check"></i> Approve</button>
+                                    <button class="btn btn-danger" onclick="respondVacationRequest('${req.id}', false)"><i class="fas fa-times"></i> Reject</button>
+                                </div>` : ''}
+                        </div>`;
+                }).join('');
+
+            // --- Swaps: waiting for action, then history ---
+            const involves = r => !memberId || [r.requesterId, r.targetMemberId, r.memberId].includes(memberId);
+            const pendingHtml = buildPendingSwapCards(
+                state.swapRequests.filter(r => (r.status === 'pending_recipient' || r.status === 'pending_approval') && involves(r)),
+                state.dayOffSwapRequests.filter(r => r.status === 'pending' && involves(r)),
+                state.rescheduleRequests.filter(r => r.status === 'pending' && involves(r)));
+            const hist = getSwapHistoryItems(true)
+                .filter(i => (!memberId || i.members.includes(memberId)) && inYear(i.dateKey || i.approvedAt));
+            swapEl.innerHTML =
+                `<div class="section-title"><i class="fas fa-hourglass-half"></i> Waiting</div>` +
+                (pendingHtml || `<div class="empty-state"><i class="fas fa-right-left"></i><p>Nothing waiting.</p></div>`) +
+                `<div class="section-title" style="margin-top:14px;"><i class="fas fa-clock-rotate-left"></i> History</div>` +
+                (hist.length ? hist.map(i => renderSwapHistoryCard(i, true)).join('')
+                    : `<div class="empty-state"><i class="fas fa-clock-rotate-left"></i><p>No swaps in ${year}.</p></div>`);
+
+            // Tab labels show what needs attention.
+            const box = document.getElementById('vacationMgmt');
+            const pendVac = vacs.filter(r => r.status === 'pending' && canApproveVacation(r)).length;
+            const pendSwap = (pendingHtml.match(/onclick="respond/g) || []).length / 2;
+            box.querySelectorAll(':scope > .stab-bar button').forEach(b => {
+                const n = b.dataset.label === 'Vacations' ? pendVac : b.dataset.label === 'Swaps' ? pendSwap : 0;
+                b.innerHTML = b.dataset.label + (n ? ` <span class="unread-badge">${n}</span>` : '');
+            });
         }
 
         function renderSwapHistory() {
