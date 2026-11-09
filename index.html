@@ -2227,6 +2227,227 @@
             color: #999;
         }
 
+        /* ===== ADMIN. ACTIVITIES — calendar (v-0.77) ===== */
+        .actcal-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
+        }
+
+        .actcal-nav {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .actcal-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #1e293b;
+            min-width: 150px;
+            text-align: center;
+        }
+
+        .actcal-tools {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .actcal-tools select {
+            padding: 9px 10px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            background: white;
+            max-width: 170px;
+        }
+
+        .actcal {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 14px;
+            overflow: hidden;
+            margin-bottom: 16px;
+        }
+
+        .actcal-weekdays,
+        .actcal-grid {
+            display: grid;
+            grid-template-columns: repeat(7, minmax(0, 1fr));
+        }
+
+        .actcal-weekdays div {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: #64748b;
+            text-align: center;
+            padding: 8px 0;
+            background: #f8fafc;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .actcal-cell {
+            min-height: 104px;
+            border: none;
+            border-right: 1px solid #f1f5f9;
+            border-bottom: 1px solid #f1f5f9;
+            background: white;
+            padding: 6px;
+            text-align: left;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            font: inherit;
+            min-width: 0;
+        }
+
+        .actcal-cell:nth-child(7n) { border-right: none; }
+        .actcal-cell:hover { background: #f8fafc; }
+        .actcal-cell.out { background: #fbfcfd; }
+        .actcal-cell.out .actcal-daynum span:first-child { color: #cbd5e1; }
+
+        .actcal-cell.selected {
+            background: #eff6ff;
+            box-shadow: inset 0 0 0 2px #2563eb;
+        }
+
+        .actcal-daynum {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 4px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #334155;
+        }
+
+        .actcal-cell.today .actcal-daynum span:first-child {
+            background: #2563eb;
+            color: white;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .actcal-count {
+            font-size: 10px;
+            font-weight: 700;
+            color: #64748b;
+            background: #f1f5f9;
+            border-radius: 8px;
+            padding: 1px 6px;
+        }
+
+        .actcal-count.good { color: #15803d; background: #dcfce7; }
+        .actcal-count.bad { color: #b91c1c; background: #fee2e2; }
+
+        .actcal-chips {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            min-width: 0;
+        }
+
+        .actcal-chip {
+            font-size: 11px;
+            line-height: 1.3;
+            padding: 2px 6px;
+            border-radius: 5px;
+            border-left: 3px solid var(--c);
+            background: color-mix(in srgb, var(--c) 12%, white);
+            color: #1e293b;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .actcal-chip i { font-size: 9px; margin-right: 3px; color: #15803d; }
+        .actcal-chip.st-done { opacity: 0.55; text-decoration: line-through; }
+        .actcal-chip.st-missed { background: #fee2e2; border-left-color: #dc2626; color: #991b1b; }
+        .actcal-chip.st-paused { background: #fef3c7; }
+
+        .actcal-more {
+            font-size: 10.5px;
+            color: #64748b;
+            font-weight: 600;
+            padding-left: 2px;
+        }
+
+        .actcal-dots {
+            display: none;
+            flex-wrap: wrap;
+            gap: 3px;
+            margin-top: auto;
+        }
+
+        .actcal-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            border: 2px solid var(--c);
+            background: white;
+            box-sizing: border-box;
+            vertical-align: middle;
+        }
+
+        .actcal-dot.st-done { background: var(--c); }
+        .actcal-dot.st-missed { border-color: #dc2626; background: #dc2626; border-radius: 2px; }
+        .actcal-dot.st-paused { border-style: dotted; }
+
+        .actcal-legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 14px;
+            padding: 9px 12px;
+            font-size: 11.5px;
+            color: #64748b;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .actcal-dayhead {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 17px;
+            font-weight: 700;
+            color: #1e293b;
+            margin: 4px 0 12px;
+            scroll-margin-top: 12px;
+        }
+
+        .actcal-dayhead i { color: #2563eb; }
+
+        .actcal-todaytag {
+            font-size: 11px;
+            font-weight: 700;
+            color: #2563eb;
+            background: #dbeafe;
+            border-radius: 10px;
+            padding: 2px 9px;
+        }
+
+        /* Phones: dots instead of names */
+        @media (max-width: 700px) {
+            .actcal-title { font-size: 16px; min-width: 130px; }
+            .actcal-cell { min-height: 58px; padding: 5px 4px; }
+            .actcal-chips { display: none; }
+            .actcal-dots { display: flex; }
+            .actcal-daynum { flex-direction: column; align-items: flex-start; }
+            .actcal-count { padding: 0 4px; font-size: 9.5px; }
+            .actcal-tools { width: 100%; }
+            .actcal-tools select { flex: 1; max-width: none; }
+        }
+
         /* ===== ADMIN. ACTIVITIES ===== */
         .act-toolbar {
             display: flex;
@@ -2767,28 +2988,23 @@
 
         <!-- TAB ADMIN. ACTIVITIES (replaces Tasks + Projects) -->
         <div id="tasks" class="content">
-            <div class="act-toolbar">
-                <button class="act-nav-btn" onclick="shiftActivitiesDate(-1)" title="Previous day"><i class="fas fa-chevron-left"></i></button>
-                <input type="date" id="actViewDate" onchange="setActivitiesDate(this.value)">
-                <button class="act-nav-btn" onclick="shiftActivitiesDate(1)" title="Next day"><i class="fas fa-chevron-right"></i></button>
-                <button class="act-today-btn" onclick="setActivitiesDate('')">Today</button>
-            </div>
-            <div class="act-filters" id="actFilters">
-                <button class="act-filter active" data-filter="all" onclick="setActivitiesFilter('all')">All</button>
-                <button class="act-filter" data-filter="pending" onclick="setActivitiesFilter('pending')">Pending</button>
-                <button class="act-filter" data-filter="paused" onclick="setActivitiesFilter('paused')">Paused</button>
-                <button class="act-filter" data-filter="done" onclick="setActivitiesFilter('done')">Completed</button>
-            </div>
-            <div class="act-viewbar">
-                <div class="act-seg" id="actGroupSeg">
-                    <button data-group="category" onclick="setActivitiesGroupBy('category')">By category</button>
-                    <button data-group="frequency" onclick="setActivitiesGroupBy('frequency')">By frequency</button>
+            <!-- v-0.77: activities shown on a month calendar; tap a day to see and work on its activities -->
+            <div class="actcal-head">
+                <div class="actcal-nav">
+                    <button class="act-nav-btn" onclick="shiftActivitiesMonth(-1)" title="Previous month"><i class="fas fa-chevron-left"></i></button>
+                    <div class="actcal-title" id="actCalTitle"></div>
+                    <button class="act-nav-btn" onclick="shiftActivitiesMonth(1)" title="Next month"><i class="fas fa-chevron-right"></i></button>
                 </div>
-                <select id="actCategoryFilter" onchange="setActivitiesCategoryFilter(this.value)"></select>
-                <button class="act-nav-btn app-hidden" id="actManageCatsBtn" onclick="openCategoriesModal()" title="Manage categories">
-                    <i class="fas fa-tags"></i>
-                </button>
+                <div class="actcal-tools">
+                    <button class="act-today-btn" onclick="setActivitiesDate('')">Today</button>
+                    <select id="actCategoryFilter" onchange="setActivitiesCategoryFilter(this.value)"></select>
+                    <button class="act-nav-btn app-hidden" id="actManageCatsBtn" onclick="openCategoriesModal()" title="Manage categories">
+                        <i class="fas fa-tags"></i>
+                    </button>
+                </div>
             </div>
+            <div id="actCalendar"></div>
+            <div id="actDayHead"></div>
             <div id="actSummary"></div>
             <div id="activityList"></div>
         </div>
@@ -3389,7 +3605,7 @@
 
             <div class="section-title" style="margin-top:24px;">
                 <i class="fas fa-list"></i>
-                Upcoming shifts
+                <span id="myUpcomingTitle">Upcoming shifts this week</span>
             </div>
             <div id="myUpcomingShifts"></div>
 
@@ -4642,7 +4858,7 @@
             <div id="auditLogList"></div>
         </div>
 
-        <div class="app-version">GEDK v-0.76</div>
+        <div class="app-version">GEDK v-0.77</div>
     </div>
 
 
@@ -5545,8 +5761,8 @@
         let actViewDateKey = '';          // '' = today
         let actFilter = 'all';
         let actCategoryFilter = '';       // '' = all, '__none' = uncategorized, else category id
-        let actGroupBy = 'category';
-        try { actGroupBy = localStorage.getItem('gebllActGroupBy') || 'category'; } catch (e) {}
+        let actGroupBy = 'category';      // v-0.77: the day list is always grouped by category
+        let actCalMonthKey = '';          // 'YYYY-MM' shown in the calendar; '' = month of the selected day
         const ACT_CAT_COLORS = ['#2563eb', '#0ca678', '#f59f00', '#e8590c', '#e03131', '#c2255c', '#7048e8', '#1098ad', '#5c940d', '#868e96'];
         let newCategoryColor = ACT_CAT_COLORS[0];
         const actExpanded = new Set();
@@ -5687,6 +5903,133 @@
             return { text: `Due ${dueTxt}`, overdue: false };
         }
 
+        // ---------- Calendar (v-0.77) ----------
+
+        // Where an activity sits on the calendar: every scheduled day for daily / weekly /
+        // every-2-weeks; monthly ones only on their day (or deadline) of the month.
+        // Activities only exist from the day they were created (otherwise every old day shows "not done").
+        function actExistsOn(act, date) {
+            if (!act.createdAt) return true;
+            const created = new Date(act.createdAt);
+            if (isNaN(created)) return true;
+            const key = toDateKey(date);
+            if (act.frequency === 'monthly') return key.slice(0, 7) >= toDateKey(created).slice(0, 7);
+            return key >= toDateKey(created);
+        }
+
+        function actOnCalendarDay(act, date) {
+            if (!actExistsOn(act, date)) return false;
+            if (act.frequency === 'monthly') {
+                return toDateKey(actPeriod(act, date).due) === toDateKey(date);
+            }
+            return actOccursOn(act, date);
+        }
+
+        function actCalMonthDate() {
+            if (actCalMonthKey) {
+                const [y, m] = actCalMonthKey.split('-').map(Number);
+                return new Date(y, m - 1, 1);
+            }
+            const d = actViewDate();
+            return new Date(d.getFullYear(), d.getMonth(), 1);
+        }
+
+        function shiftActivitiesMonth(dir) {
+            const d = actCalMonthDate();
+            d.setMonth(d.getMonth() + dir);
+            actCalMonthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+            renderActivities();
+        }
+
+        function selectActivitiesDay(key) {
+            actCalMonthKey = '';
+            setActivitiesDate(key);
+            const head = document.getElementById('actDayHead');
+            if (head && window.innerWidth < 700) head.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        function renderActivityCalendar() {
+            const el = document.getElementById('actCalendar');
+            if (!el) return;
+            const month = actCalMonthDate();
+            document.getElementById('actCalTitle').textContent =
+                month.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+
+            const runs = new Map((state.activityRuns || []).map(r => [r.id, r]));
+            const acts = state.activities.filter(actMatchesCategoryFilter);
+            const todayKey = actTodayKey();
+            const selectedKey = toDateKey(actViewDate());
+
+            // Grid starts on the Monday on or before the 1st and ends on the Sunday after the last day.
+            const first = new Date(month);
+            const start = new Date(first);
+            start.setDate(first.getDate() - ((first.getDay() + 6) % 7));
+            const last = new Date(month.getFullYear(), month.getMonth() + 1, 0);
+            const end = new Date(last);
+            end.setDate(last.getDate() + (7 - ((last.getDay() + 6) % 7)) % 7);
+
+            let cells = '';
+            for (const d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+                const key = toDateKey(d);
+                const inMonth = d.getMonth() === month.getMonth();
+                const items = acts.filter(a => actOnCalendarDay(a, d)).map(a => {
+                    const period = actPeriod(a, d);
+                    const run = runs.get(actRunId(a, period)) || null;
+                    let st = actStatus(run);
+                    if (st !== 'done' && st !== 'paused' && key < todayKey) st = 'missed';
+                    const cat = actCategoryById(a.categoryId);
+                    return { a, st, color: cat ? cat.color : '#adb5bd' };
+                }).sort((x, y) => {
+                    const r = { missed: 0, pending: 1, paused: 2, done: 3 };
+                    return r[x.st] - r[y.st] || x.a.name.localeCompare(y.a.name);
+                });
+                const done = items.filter(i => i.st === 'done').length;
+                const missed = items.filter(i => i.st === 'missed').length;
+
+                const chips = items.slice(0, 3).map(i => `
+                    <div class="actcal-chip st-${i.st}" style="--c:${actEsc(i.color)}">
+                        ${i.st === 'done' ? '<i class="fas fa-check"></i>' : ''}${actEsc(i.a.name)}
+                    </div>`).join('');
+                const more = items.length > 3 ? `<div class="actcal-more">+${items.length - 3} more</div>` : '';
+                const dots = items.slice(0, 6).map(i => `<span class="actcal-dot st-${i.st}" style="--c:${actEsc(i.color)}"></span>`).join('');
+                const count = items.length
+                    ? `<span class="actcal-count ${missed ? 'bad' : (done === items.length ? 'good' : '')}">${done}/${items.length}</span>`
+                    : '';
+
+                cells += `
+                    <button class="actcal-cell ${inMonth ? '' : 'out'} ${key === todayKey ? 'today' : ''} ${key === selectedKey ? 'selected' : ''}"
+                        onclick="selectActivitiesDay('${key}')">
+                        <div class="actcal-daynum"><span>${d.getDate()}</span>${count}</div>
+                        <div class="actcal-chips">${chips}${more}</div>
+                        <div class="actcal-dots">${dots}</div>
+                    </button>`;
+            }
+
+            el.innerHTML = `
+                <div class="actcal">
+                    <div class="actcal-weekdays">${['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(w => `<div>${w}</div>`).join('')}</div>
+                    <div class="actcal-grid">${cells}</div>
+                    <div class="actcal-legend">
+                        <span><span class="actcal-dot st-done" style="--c:#2563eb"></span> Completed</span>
+                        <span><span class="actcal-dot st-pending" style="--c:#2563eb"></span> To do</span>
+                        <span><span class="actcal-dot st-paused" style="--c:#2563eb"></span> Paused</span>
+                        <span><span class="actcal-dot st-missed" style="--c:#2563eb"></span> Not done</span>
+                    </div>
+                </div>`;
+
+            const viewDate = actViewDate();
+            const dayHead = document.getElementById('actDayHead');
+            if (dayHead) {
+                const isToday = toDateKey(viewDate) === todayKey;
+                dayHead.innerHTML = `
+                    <div class="actcal-dayhead">
+                        <i class="fas fa-calendar-day"></i>
+                        ${viewDate.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}
+                        ${isToday ? '<span class="actcal-todaytag">Today</span>' : ''}
+                    </div>`;
+            }
+        }
+
         // ---------- Rendering ----------
 
         function renderActivities() {
@@ -5709,8 +6052,9 @@
             const manager = canManageActivities();
 
             renderActivityCategoryControls();
+            renderActivityCalendar();
             const inCategory = state.activities.filter(actMatchesCategoryFilter);
-            const scheduled = inCategory.filter(act => actOccursOn(act, viewDate));
+            const scheduled = inCategory.filter(act => actExistsOn(act, viewDate) && actOccursOn(act, viewDate));
             const offDayCount = inCategory.length - scheduled.length;
 
             const items = scheduled.map(act => {
@@ -5900,6 +6244,7 @@
 
         function setActivitiesDate(key) {
             actViewDateKey = (key && key !== actTodayKey()) ? key : '';
+            actCalMonthKey = '';
             renderActivities();
         }
 
@@ -8778,16 +9123,23 @@
                     </div>
                 `;
 
-                const rest = upcoming.slice(1);
+                // v-0.77: only the rest of the current week (Monday–Sunday).
+                const weekStart = startOfWeek(now);
+                const weekEnd = new Date(weekStart);
+                weekEnd.setDate(weekStart.getDate() + 6);
+                const weekEndKey = toDateKey(weekEnd);
+                const rest = upcoming.slice(1).filter(a => a.dateKey <= weekEndKey);
+                const titleEl = document.getElementById('myUpcomingTitle');
+                if (titleEl) titleEl.textContent = `Upcoming shifts this week (${weekStart.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} – ${weekEnd.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })})`;
                 listEl.innerHTML = rest.length === 0
-                    ? `<p style="color:#999; font-size:13px;">No other upcoming shifts.</p>`
+                    ? `<p style="color:#999; font-size:13px;">No other shifts this week.</p>`
                     : rest.map(a => `
                         <div class="upcoming-shift-item">
                             <div>
                                 <div class="sg-shift-time">${a.shift.start} - ${a.shift.end}</div>
                                 <div style="color:#666; font-size:12px;">${escapeHtml(describeAssignmentPlace(a, a.loc))}</div>
                             </div>
-                            <div style="color:#333; font-weight:600; font-size:13px;">${a.dateKey}</div>
+                            <div style="color:#333; font-weight:600; font-size:13px; text-align:right;">${dateKeyToDate(a.dateKey).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}</div>
                         </div>
                     `).join('');
             }
