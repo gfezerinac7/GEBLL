@@ -2227,207 +2227,35 @@
             color: #999;
         }
 
-        /* ===== ADMIN. ACTIVITIES — calendar (v-0.77) ===== */
-        .actcal-head {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 10px;
-            flex-wrap: wrap;
-            margin-bottom: 12px;
-        }
-
-        .actcal-nav {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .actcal-title {
-            font-size: 18px;
-            font-weight: 700;
-            color: #1e293b;
-            min-width: 150px;
-            text-align: center;
-        }
-
-        .actcal-tools {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .actcal-tools select {
+        /* ===== ADMIN. ACTIVITIES — Kanban board (v-0.78) ===== */
+        .kb-cat-select {
             padding: 9px 10px;
             border: 1px solid #e0e0e0;
             border-radius: 8px;
             font-size: 14px;
             background: white;
-            max-width: 170px;
+            max-width: 180px;
         }
 
-        .actcal {
-            background: white;
-            border: 1px solid #e2e8f0;
-            border-radius: 14px;
-            overflow: hidden;
-            margin-bottom: 16px;
-        }
-
-        .actcal-weekdays,
-        .actcal-grid {
-            display: grid;
-            grid-template-columns: repeat(7, minmax(0, 1fr));
-        }
-
-        .actcal-weekdays div {
-            font-size: 11px;
-            font-weight: 700;
-            text-transform: uppercase;
-            color: #64748b;
-            text-align: center;
-            padding: 8px 0;
-            background: #f8fafc;
-            border-bottom: 1px solid #e2e8f0;
-        }
-
-        .actcal-cell {
-            min-height: 104px;
-            border: none;
-            border-right: 1px solid #f1f5f9;
-            border-bottom: 1px solid #f1f5f9;
-            background: white;
-            padding: 6px;
-            text-align: left;
-            cursor: pointer;
-            display: flex;
-            flex-direction: column;
-            gap: 3px;
-            font: inherit;
-            min-width: 0;
-        }
-
-        .actcal-cell:nth-child(7n) { border-right: none; }
-        .actcal-cell:hover { background: #f8fafc; }
-        .actcal-cell.out { background: #fbfcfd; }
-        .actcal-cell.out .actcal-daynum span:first-child { color: #cbd5e1; }
-
-        .actcal-cell.selected {
-            background: #eff6ff;
-            box-shadow: inset 0 0 0 2px #2563eb;
-        }
-
-        .actcal-daynum {
+        .kb-dayline {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            gap: 4px;
-            font-size: 13px;
-            font-weight: 600;
-            color: #334155;
-        }
-
-        .actcal-cell.today .actcal-daynum span:first-child {
-            background: #2563eb;
-            color: white;
-            border-radius: 50%;
-            width: 24px;
-            height: 24px;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .actcal-count {
-            font-size: 10px;
-            font-weight: 700;
-            color: #64748b;
-            background: #f1f5f9;
-            border-radius: 8px;
-            padding: 1px 6px;
-        }
-
-        .actcal-count.good { color: #15803d; background: #dcfce7; }
-        .actcal-count.bad { color: #b91c1c; background: #fee2e2; }
-
-        .actcal-chips {
-            display: flex;
-            flex-direction: column;
-            gap: 2px;
-            min-width: 0;
-        }
-
-        .actcal-chip {
-            font-size: 11px;
-            line-height: 1.3;
-            padding: 2px 6px;
-            border-radius: 5px;
-            border-left: 3px solid var(--c);
-            background: color-mix(in srgb, var(--c) 12%, white);
-            color: #1e293b;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .actcal-chip i { font-size: 9px; margin-right: 3px; color: #15803d; }
-        .actcal-chip.st-done { opacity: 0.55; text-decoration: line-through; }
-        .actcal-chip.st-missed { background: #fee2e2; border-left-color: #dc2626; color: #991b1b; }
-        .actcal-chip.st-paused { background: #fef3c7; }
-
-        .actcal-more {
-            font-size: 10.5px;
-            color: #64748b;
-            font-weight: 600;
-            padding-left: 2px;
-        }
-
-        .actcal-dots {
-            display: none;
+            gap: 12px;
             flex-wrap: wrap;
-            gap: 3px;
-            margin-top: auto;
+            margin: 4px 0 10px;
         }
 
-        .actcal-dot {
-            display: inline-block;
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            border: 2px solid var(--c);
-            background: white;
-            box-sizing: border-box;
-            vertical-align: middle;
-        }
-
-        .actcal-dot.st-done { background: var(--c); }
-        .actcal-dot.st-missed { border-color: #dc2626; background: #dc2626; border-radius: 2px; }
-        .actcal-dot.st-paused { border-style: dotted; }
-
-        .actcal-legend {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 14px;
-            padding: 9px 12px;
-            font-size: 11.5px;
-            color: #64748b;
-            border-top: 1px solid #e2e8f0;
-        }
-
-        .actcal-dayhead {
-            display: flex;
-            align-items: center;
-            gap: 8px;
+        .kb-day {
             font-size: 17px;
             font-weight: 700;
             color: #1e293b;
-            margin: 4px 0 12px;
-            scroll-margin-top: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
-        .actcal-dayhead i { color: #2563eb; }
-
-        .actcal-todaytag {
+        .kb-todaytag {
             font-size: 11px;
             font-weight: 700;
             color: #2563eb;
@@ -2436,16 +2264,291 @@
             padding: 2px 9px;
         }
 
-        /* Phones: dots instead of names */
-        @media (max-width: 700px) {
-            .actcal-title { font-size: 16px; min-width: 130px; }
-            .actcal-cell { min-height: 58px; padding: 5px 4px; }
-            .actcal-chips { display: none; }
-            .actcal-dots { display: flex; }
-            .actcal-daynum { flex-direction: column; align-items: flex-start; }
-            .actcal-count { padding: 0 4px; font-size: 9.5px; }
-            .actcal-tools { width: 100%; }
-            .actcal-tools select { flex: 1; max-width: none; }
+        .kb-overall {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #475569;
+        }
+
+        .kb-overall-bar {
+            width: 140px;
+            height: 8px;
+            background: #e2e8f0;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .kb-overall-bar div { height: 100%; background: #16a34a; border-radius: 4px; }
+
+        /* Column colours */
+        .kb-c-todo { --k: #64748b; --kb: #f1f5f9; }
+        .kb-c-progress { --k: #2563eb; --kb: #eff6ff; }
+        .kb-c-paused { --k: #d97706; --kb: #fffbeb; }
+        .kb-c-done { --k: #16a34a; --kb: #f0fdf4; }
+
+        .kb-jump {
+            display: none;
+            gap: 6px;
+            margin-bottom: 10px;
+        }
+
+        .kb-jump-btn {
+            flex: 1;
+            border: 1px solid #e2e8f0;
+            background: var(--kb);
+            border-radius: 10px;
+            padding: 6px 4px;
+            font: inherit;
+            font-size: 11px;
+            color: var(--k);
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            line-height: 1.2;
+        }
+
+        .kb-jump-btn b { font-size: 16px; }
+
+        .kb-board {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 12px;
+            align-items: start;
+        }
+
+        .kb-col {
+            background: var(--kb);
+            border-radius: 14px;
+            padding: 10px;
+            min-height: 160px;
+            border: 2px solid transparent;
+            transition: border-color 0.15s, background 0.15s;
+        }
+
+        .kb-col.drop {
+            border-color: var(--k);
+            border-style: dashed;
+        }
+
+        .kb-col-head {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--k);
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            padding: 2px 4px 10px;
+        }
+
+        .kb-col-head span {
+            margin-left: auto;
+            background: white;
+            color: var(--k);
+            border-radius: 10px;
+            padding: 1px 9px;
+            font-size: 12px;
+        }
+
+        .kb-col-body {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .kb-empty {
+            font-size: 12.5px;
+            color: #94a3b8;
+            text-align: center;
+            padding: 18px 0;
+            border: 1px dashed #cbd5e1;
+            border-radius: 10px;
+        }
+
+        .kb-card {
+            background: white;
+            border-radius: 10px;
+            border-left: 4px solid var(--c);
+            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+            padding: 10px 10px 9px 11px;
+            cursor: pointer;
+            transition: box-shadow 0.15s, transform 0.15s;
+        }
+
+        .kb-card:hover { box-shadow: 0 4px 12px rgba(15, 23, 42, 0.12); }
+        .kb-card.dragging { opacity: 0.45; transform: rotate(1.5deg); }
+        .kb-card.overdue { box-shadow: 0 0 0 1.5px #fca5a5, 0 1px 3px rgba(15, 23, 42, 0.08); }
+        .kb-card.st-done .kb-card-name { text-decoration: line-through; color: #64748b; }
+
+        .kb-card-top {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+        }
+
+        .kb-card-name {
+            flex: 1;
+            font-size: 14px;
+            font-weight: 600;
+            color: #1e293b;
+            line-height: 1.3;
+        }
+
+        .kb-check {
+            width: 26px;
+            height: 26px;
+            flex: 0 0 26px;
+            border-radius: 50%;
+            border: 2px solid #cbd5e1;
+            background: white;
+            color: transparent;
+            font-size: 11px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .kb-check:hover { border-color: #16a34a; color: #16a34a; }
+        .kb-check.done { background: #16a34a; border-color: #16a34a; color: white; }
+
+        .kb-card-meta {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 6px;
+            margin-top: 6px;
+            font-size: 11px;
+            color: #64748b;
+        }
+
+        .kb-cat {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-weight: 600;
+            color: #475569;
+        }
+
+        .kb-freq {
+            background: #f1f5f9;
+            border-radius: 6px;
+            padding: 1px 6px;
+        }
+
+        .kb-due { color: #b45309; font-weight: 600; }
+
+        .kb-prog {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 8px;
+            font-size: 11px;
+            color: #475569;
+            font-weight: 600;
+        }
+
+        .kb-prog-bar {
+            flex: 1;
+            height: 5px;
+            background: #e2e8f0;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .kb-prog-bar div { height: 100%; background: #2563eb; }
+
+        .kb-card-foot {
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+            margin-top: 8px;
+            padding-top: 7px;
+            border-top: 1px solid #f1f5f9;
+            font-size: 11px;
+            color: #64748b;
+        }
+
+        .kb-card-foot span:first-child {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .kb-detail-box { max-width: 520px; }
+
+        .kb-detail-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #1e293b;
+            line-height: 1.3;
+        }
+
+        .kb-move {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 6px;
+            margin-bottom: 12px;
+        }
+
+        .kb-move button {
+            border: 1.5px solid #e2e8f0;
+            background: white;
+            border-radius: 9px;
+            padding: 8px 2px;
+            font: inherit;
+            font-size: 12px;
+            font-weight: 600;
+            color: #475569;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 3px;
+        }
+
+        .kb-move button i { color: var(--k); }
+        .kb-move button.active { background: var(--k); border-color: var(--k); color: white; }
+        .kb-move button.active i { color: white; }
+
+        .act-by.kb-started { color: #1d4ed8; }
+
+        .kb-comments {
+            max-height: 26vh;
+            overflow-y: auto;
+        }
+
+        /* Tablets: 2 × 2 */
+        @media (max-width: 1000px) {
+            .kb-board { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+
+        /* Phones: swipe between columns */
+        @media (max-width: 640px) {
+            .kb-jump { display: flex; }
+            .kb-board {
+                display: flex;
+                overflow-x: auto;
+                scroll-snap-type: x mandatory;
+                -webkit-overflow-scrolling: touch;
+                gap: 10px;
+                margin: 0 -16px;
+                padding: 0 16px 6px;
+                scroll-padding: 0 16px;
+            }
+            .kb-col {
+                flex: 0 0 84%;
+                scroll-snap-align: start;
+            }
+            .kb-overall-bar { width: 90px; }
+            .kb-cat-select { flex: 1; max-width: none; }
         }
 
         /* ===== ADMIN. ACTIVITIES ===== */
@@ -2988,25 +3091,25 @@
 
         <!-- TAB ADMIN. ACTIVITIES (replaces Tasks + Projects) -->
         <div id="tasks" class="content">
-            <!-- v-0.77: activities shown on a month calendar; tap a day to see and work on its activities -->
-            <div class="actcal-head">
-                <div class="actcal-nav">
-                    <button class="act-nav-btn" onclick="shiftActivitiesMonth(-1)" title="Previous month"><i class="fas fa-chevron-left"></i></button>
-                    <div class="actcal-title" id="actCalTitle"></div>
-                    <button class="act-nav-btn" onclick="shiftActivitiesMonth(1)" title="Next month"><i class="fas fa-chevron-right"></i></button>
-                </div>
-                <div class="actcal-tools">
-                    <button class="act-today-btn" onclick="setActivitiesDate('')">Today</button>
-                    <select id="actCategoryFilter" onchange="setActivitiesCategoryFilter(this.value)"></select>
-                    <button class="act-nav-btn app-hidden" id="actManageCatsBtn" onclick="openCategoriesModal()" title="Manage categories">
-                        <i class="fas fa-tags"></i>
-                    </button>
-                </div>
+            <!-- v-0.78: Kanban board — To do / In progress / Paused / Done for the selected day -->
+            <div class="act-toolbar">
+                <button class="act-nav-btn" onclick="shiftActivitiesDate(-1)" title="Previous day"><i class="fas fa-chevron-left"></i></button>
+                <input type="date" id="actViewDate" onchange="setActivitiesDate(this.value)">
+                <button class="act-nav-btn" onclick="shiftActivitiesDate(1)" title="Next day"><i class="fas fa-chevron-right"></i></button>
+                <button class="act-today-btn" onclick="setActivitiesDate('')">Today</button>
+                <select id="actCategoryFilter" class="kb-cat-select" onchange="setActivitiesCategoryFilter(this.value)"></select>
+                <button class="act-nav-btn app-hidden" id="actManageCatsBtn" onclick="openCategoriesModal()" title="Manage categories">
+                    <i class="fas fa-tags"></i>
+                </button>
             </div>
-            <div id="actCalendar"></div>
-            <div id="actDayHead"></div>
             <div id="actSummary"></div>
             <div id="activityList"></div>
+        </div>
+
+        <div id="actDetailModalOverlay" class="modal-overlay" onclick="if(event.target.id==='actDetailModalOverlay')closeActivityDetail()">
+            <div class="modal-box kb-detail-box">
+                <div id="actDetailBody"></div>
+            </div>
         </div>
 
         <div id="categoriesModalOverlay" class="modal-overlay" onclick="if(event.target.id==='categoriesModalOverlay')closeCategoriesModal()">
@@ -4858,7 +4961,7 @@
             <div id="auditLogList"></div>
         </div>
 
-        <div class="app-version">GEDK v-0.77</div>
+        <div class="app-version">GEDK v-0.78</div>
     </div>
 
 
@@ -5762,7 +5865,6 @@
         let actFilter = 'all';
         let actCategoryFilter = '';       // '' = all, '__none' = uncategorized, else category id
         let actGroupBy = 'category';      // v-0.77: the day list is always grouped by category
-        let actCalMonthKey = '';          // 'YYYY-MM' shown in the calendar; '' = month of the selected day
         const ACT_CAT_COLORS = ['#2563eb', '#0ca678', '#f59f00', '#e8590c', '#e03131', '#c2255c', '#7048e8', '#1098ad', '#5c940d', '#868e96'];
         let newCategoryColor = ACT_CAT_COLORS[0];
         const actExpanded = new Set();
@@ -5903,11 +6005,7 @@
             return { text: `Due ${dueTxt}`, overdue: false };
         }
 
-        // ---------- Calendar (v-0.77) ----------
-
-        // Where an activity sits on the calendar: every scheduled day for daily / weekly /
-        // every-2-weeks; monthly ones only on their day (or deadline) of the month.
-        // Activities only exist from the day they were created (otherwise every old day shows "not done").
+        // Activities only exist from the day they were created (so older days don't show them as missed).
         function actExistsOn(act, date) {
             if (!act.createdAt) return true;
             const created = new Date(act.createdAt);
@@ -5917,324 +6015,273 @@
             return key >= toDateKey(created);
         }
 
-        function actOnCalendarDay(act, date) {
-            if (!actExistsOn(act, date)) return false;
-            if (act.frequency === 'monthly') {
-                return toDateKey(actPeriod(act, date).due) === toDateKey(date);
-            }
-            return actOccursOn(act, date);
+        // ---------- Kanban board (v-0.78) ----------
+        // Columns come from the run status of the selected day:
+        //   pending → To do · inprogress → In progress · paused → Paused · done → Done
+        const KB_COLUMNS = [
+            { key: 'todo', title: 'To do', icon: 'fa-circle', status: 'pending' },
+            { key: 'progress', title: 'In progress', icon: 'fa-spinner', status: 'inprogress' },
+            { key: 'paused', title: 'Paused', icon: 'fa-pause', status: 'paused' },
+            { key: 'done', title: 'Done', icon: 'fa-check', status: 'done' }
+        ];
+        let kbDetailId = null;
+        let kbDragId = null;
+
+        function kbColumnOf(status) {
+            if (status === 'done') return 'done';
+            if (status === 'paused') return 'paused';
+            if (status === 'inprogress') return 'progress';
+            return 'todo';
         }
 
-        function actCalMonthDate() {
-            if (actCalMonthKey) {
-                const [y, m] = actCalMonthKey.split('-').map(Number);
-                return new Date(y, m - 1, 1);
-            }
-            const d = actViewDate();
-            return new Date(d.getFullYear(), d.getMonth(), 1);
-        }
-
-        function shiftActivitiesMonth(dir) {
-            const d = actCalMonthDate();
-            d.setMonth(d.getMonth() + dir);
-            actCalMonthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-            renderActivities();
-        }
-
-        function selectActivitiesDay(key) {
-            actCalMonthKey = '';
-            setActivitiesDate(key);
-            const head = document.getElementById('actDayHead');
-            if (head && window.innerWidth < 700) head.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-
-        function renderActivityCalendar() {
-            const el = document.getElementById('actCalendar');
-            if (!el) return;
-            const month = actCalMonthDate();
-            document.getElementById('actCalTitle').textContent =
-                month.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
-
-            const runs = new Map((state.activityRuns || []).map(r => [r.id, r]));
-            const acts = state.activities.filter(actMatchesCategoryFilter);
-            const todayKey = actTodayKey();
-            const selectedKey = toDateKey(actViewDate());
-
-            // Grid starts on the Monday on or before the 1st and ends on the Sunday after the last day.
-            const first = new Date(month);
-            const start = new Date(first);
-            start.setDate(first.getDate() - ((first.getDay() + 6) % 7));
-            const last = new Date(month.getFullYear(), month.getMonth() + 1, 0);
-            const end = new Date(last);
-            end.setDate(last.getDate() + (7 - ((last.getDay() + 6) % 7)) % 7);
-
-            let cells = '';
-            for (const d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-                const key = toDateKey(d);
-                const inMonth = d.getMonth() === month.getMonth();
-                const items = acts.filter(a => actOnCalendarDay(a, d)).map(a => {
-                    const period = actPeriod(a, d);
-                    const run = runs.get(actRunId(a, period)) || null;
-                    let st = actStatus(run);
-                    if (st !== 'done' && st !== 'paused' && key < todayKey) st = 'missed';
-                    const cat = actCategoryById(a.categoryId);
-                    return { a, st, color: cat ? cat.color : '#adb5bd' };
-                }).sort((x, y) => {
-                    const r = { missed: 0, pending: 1, paused: 2, done: 3 };
-                    return r[x.st] - r[y.st] || x.a.name.localeCompare(y.a.name);
-                });
-                const done = items.filter(i => i.st === 'done').length;
-                const missed = items.filter(i => i.st === 'missed').length;
-
-                const chips = items.slice(0, 3).map(i => `
-                    <div class="actcal-chip st-${i.st}" style="--c:${actEsc(i.color)}">
-                        ${i.st === 'done' ? '<i class="fas fa-check"></i>' : ''}${actEsc(i.a.name)}
-                    </div>`).join('');
-                const more = items.length > 3 ? `<div class="actcal-more">+${items.length - 3} more</div>` : '';
-                const dots = items.slice(0, 6).map(i => `<span class="actcal-dot st-${i.st}" style="--c:${actEsc(i.color)}"></span>`).join('');
-                const count = items.length
-                    ? `<span class="actcal-count ${missed ? 'bad' : (done === items.length ? 'good' : '')}">${done}/${items.length}</span>`
-                    : '';
-
-                cells += `
-                    <button class="actcal-cell ${inMonth ? '' : 'out'} ${key === todayKey ? 'today' : ''} ${key === selectedKey ? 'selected' : ''}"
-                        onclick="selectActivitiesDay('${key}')">
-                        <div class="actcal-daynum"><span>${d.getDate()}</span>${count}</div>
-                        <div class="actcal-chips">${chips}${more}</div>
-                        <div class="actcal-dots">${dots}</div>
-                    </button>`;
-            }
-
-            el.innerHTML = `
-                <div class="actcal">
-                    <div class="actcal-weekdays">${['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(w => `<div>${w}</div>`).join('')}</div>
-                    <div class="actcal-grid">${cells}</div>
-                    <div class="actcal-legend">
-                        <span><span class="actcal-dot st-done" style="--c:#2563eb"></span> Completed</span>
-                        <span><span class="actcal-dot st-pending" style="--c:#2563eb"></span> To do</span>
-                        <span><span class="actcal-dot st-paused" style="--c:#2563eb"></span> Paused</span>
-                        <span><span class="actcal-dot st-missed" style="--c:#2563eb"></span> Not done</span>
-                    </div>
-                </div>`;
-
+        function kbItems() {
             const viewDate = actViewDate();
-            const dayHead = document.getElementById('actDayHead');
-            if (dayHead) {
-                const isToday = toDateKey(viewDate) === todayKey;
-                dayHead.innerHTML = `
-                    <div class="actcal-dayhead">
-                        <i class="fas fa-calendar-day"></i>
-                        ${viewDate.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}
-                        ${isToday ? '<span class="actcal-todaytag">Today</span>' : ''}
-                    </div>`;
-            }
+            return state.activities
+                .filter(actMatchesCategoryFilter)
+                .filter(act => actExistsOn(act, viewDate) && actOccursOn(act, viewDate))
+                .map(act => {
+                    const period = actPeriod(act, viewDate);
+                    const run = actGetRun(act, period);
+                    const status = actStatus(run);
+                    return { act, period, run, status, due: actDueInfo(act, period, status), col: kbColumnOf(status) };
+                });
         }
-
-        // ---------- Rendering ----------
 
         function renderActivities() {
-            const list = document.getElementById('activityList');
-            if (!list) return;
-
+            const board = document.getElementById('activityList');
+            if (!board) return;
             const dateInput = document.getElementById('actViewDate');
             if (dateInput) dateInput.value = toDateKey(actViewDate());
-
-            document.querySelectorAll('#actFilters .act-filter').forEach(b =>
-                b.classList.toggle('active', b.getAttribute('data-filter') === actFilter));
-
-            // Keep half-typed comments and focus across live re-renders.
-            const drafts = {};
-            document.querySelectorAll('.act-comment-input').forEach(i => { if (i.value) drafts[i.id] = i.value; });
-            const focusedId = document.activeElement && document.activeElement.classList.contains('act-comment-input')
-                ? document.activeElement.id : null;
-
-            const viewDate = actViewDate();
-            const manager = canManageActivities();
-
             renderActivityCategoryControls();
-            renderActivityCalendar();
-            const inCategory = state.activities.filter(actMatchesCategoryFilter);
-            const scheduled = inCategory.filter(act => actExistsOn(act, viewDate) && actOccursOn(act, viewDate));
-            const offDayCount = inCategory.length - scheduled.length;
 
-            const items = scheduled.map(act => {
-                const period = actPeriod(act, viewDate);
-                const run = actGetRun(act, period);
-                const status = actStatus(run);
-                const due = actDueInfo(act, period, status);
-                return { act, period, run, status, due };
-            });
+            const manager = canManageActivities();
+            const items = kbItems();
+            const viewDate = actViewDate();
+            const isToday = toDateKey(viewDate) === actTodayKey();
+            const doneCount = items.filter(i => i.col === 'done').length;
+            const pct = items.length ? Math.round(doneCount / items.length * 100) : 0;
 
-            const counts = { all: items.length, pending: 0, paused: 0, done: 0 };
-            items.forEach(i => counts[i.status]++);
+            document.getElementById('actSummary').innerHTML = `
+                <div class="kb-dayline">
+                    <div class="kb-day">${viewDate.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}${isToday ? '<span class="kb-todaytag">Today</span>' : ''}</div>
+                    ${items.length ? `<div class="kb-overall"><div class="kb-overall-bar"><div style="width:${pct}%"></div></div><span>${doneCount}/${items.length} done</span></div>` : ''}
+                </div>
+                <div class="kb-jump">${KB_COLUMNS.map(c => {
+                    const n = items.filter(i => i.col === c.key).length;
+                    return `<button class="kb-jump-btn kb-c-${c.key}" onclick="kbScrollTo('${c.key}')"><span>${c.title}</span><b>${n}</b></button>`;
+                }).join('')}</div>`;
 
-            document.getElementById('actSummary').innerHTML = items.length === 0 ? '' : `
-                <div class="act-summary">
-                    <div class="act-summary-item"><div class="num">${counts.done}/${counts.all}</div><div class="lbl">Completed</div></div>
-                    <div class="act-summary-item"><div class="num">${counts.pending}</div><div class="lbl">Pending</div></div>
-                    <div class="act-summary-item"><div class="num">${counts.paused}</div><div class="lbl">Paused</div></div>
-                </div>`;
-
-            if (items.length === 0) {
-                list.innerHTML = `
-                    <div class="empty-state">
-                        <i class="fas fa-list-check"></i>
-                        <p>${inCategory.length
-                            ? 'Nothing scheduled for this day.'
-                            : state.activities.length ? 'No activities in this category.'
-                            : (manager ? 'No activities yet. Tap + to create the first one.' : 'No activities yet.')}</p>
-                    </div>`;
+            if (state.activities.length === 0) {
+                board.innerHTML = `<div class="empty-state"><i class="fas fa-list-check"></i><p>${manager ? 'No activities yet. Tap + to create the first one.' : 'No activities yet.'}</p></div>`;
+                renderActivityDetail();
                 return;
             }
 
-            const filtered = items.filter(i => actFilter === 'all' || i.status === actFilter);
-            const rank = i => i.status === 'done' ? 3 : i.status === 'paused' ? 2 : i.due.overdue ? 0 : 1;
-            let groups;
-            if (actGroupBy === 'category') {
-                groups = actSortedCategories().map(c => ({
-                    match: i => i.act.categoryId === c.id,
-                    head: `<span class="act-dot" style="background:${actEsc(c.color)}"></span> ${actEsc(c.name)}`
-                }));
-                groups.push({
-                    match: i => !actCategoryById(i.act.categoryId),
-                    head: `<span class="act-dot" style="background:#ced4da"></span> Uncategorized`
-                });
-            } else {
-                groups = [
-                    { key: 'daily', title: 'Daily', icon: 'fa-repeat' },
-                    { key: 'weekly', title: 'Weekly', icon: 'fa-calendar-week' },
-                    { key: 'biweekly', title: 'Every 2 weeks', icon: 'fa-calendar-week' },
-                    { key: 'monthly', title: 'Monthly', icon: 'fa-calendar-days' }
-                ].map(g => ({
-                    match: i => (i.act.frequency || 'daily') === g.key,
-                    head: `<i class="fas ${g.icon}"></i> ${g.title}`
-                }));
-            }
+            const rank = i => (i.due.overdue ? 0 : 1);
+            const catOrder = new Map(actSortedCategories().map((c, idx) => [c.id, idx]));
+            board.innerHTML = `<div class="kb-board">${KB_COLUMNS.map(c => {
+                const cards = items.filter(i => i.col === c.key).sort((a, b) =>
+                    rank(a) - rank(b) ||
+                    (catOrder.get(a.act.categoryId) ?? 99) - (catOrder.get(b.act.categoryId) ?? 99) ||
+                    a.act.name.localeCompare(b.act.name));
+                return `
+                    <section class="kb-col kb-c-${c.key}" id="kbCol_${c.key}" data-col="${c.key}"
+                        ondragover="kbDragOver(event)" ondragleave="kbDragLeave(event)" ondrop="kbDrop(event, '${c.key}')">
+                        <div class="kb-col-head"><i class="fas ${c.icon}"></i> ${c.title}<span>${cards.length}</span></div>
+                        <div class="kb-col-body">
+                            ${cards.map(renderKanbanCard).join('') || `<div class="kb-empty">${c.key === 'todo' && items.length ? 'All started 🎉' : 'Nothing here'}</div>`}
+                        </div>
+                    </section>`;
+            }).join('')}</div>
+            ${items.length === 0 ? `<div class="act-offday-note">Nothing scheduled for this day.</div>` : ''}`;
 
-            let html = '';
-            groups.forEach(g => {
-                const rows = filtered.filter(g.match)
-                    .sort((a, b) => rank(a) - rank(b) || a.period.due - b.period.due || a.act.name.localeCompare(b.act.name));
-                if (rows.length === 0) return;
-                const done = items.filter(i => g.match(i) && i.status === 'done').length;
-                const total = items.filter(g.match).length;
-                html += `<div class="act-group-title">${g.head} <span style="font-weight:600;">· ${done}/${total}</span></div>`;
-                html += rows.map(i => renderActivityCard(i, manager)).join('');
-            });
-
-            if (!html) html = `<div class="empty-state"><i class="fas fa-filter"></i><p>Nothing in this filter.</p></div>`;
-            if (offDayCount > 0) {
-                html += `<div class="act-offday-note">${offDayCount} other ${offDayCount === 1 ? 'activity is' : 'activities are'} not scheduled for this day.</div>`;
-            }
-            list.innerHTML = html;
-
-            Object.entries(drafts).forEach(([id, val]) => { const el = document.getElementById(id); if (el) el.value = val; });
-            if (focusedId) { const el = document.getElementById(focusedId); if (el) el.focus(); }
+            renderActivityDetail();
         }
 
-        function renderActivityCard(item, manager) {
-            const { act, period, run, status, due } = item;
-            const expanded = actExpanded.has(act.id);
-            const prog = actStepProgress(act, run);
-            const freqBadgeClass = `badge badge-${act.frequency || 'daily'}`;
-
-            let statusLine = '';
-            if (status === 'done' && run) {
-                statusLine = `<div class="act-by"><i class="fas fa-circle-check"></i> Completed by <strong>${actEsc(run.completedByName)}</strong> · ${actFormatStamp(run.completedAt)}</div>`;
-            } else if (status === 'paused' && run) {
-                statusLine = `<div class="act-by paused"><i class="fas fa-circle-pause"></i> Paused by <strong>${actEsc(run.pausedByName)}</strong> · ${actFormatStamp(run.pausedAt)}</div>`;
-            }
-
-            const comments = (run && run.comments) || [];
-            const metaBits = [];
+        function renderKanbanCard(item) {
+            const { act, run, status, due, period } = item;
             const cat = actCategoryById(act.categoryId);
-            if (cat && actGroupBy !== 'category') {
-                metaBits.push(`<span class="act-cat-chip"><span class="act-dot" style="background:${actEsc(cat.color)}"></span>${actEsc(cat.name)}</span>`);
-            }
-            metaBits.push(`<span class="${freqBadgeClass}">${actEsc(period.label)}</span>`);
-            if (status === 'paused') metaBits.push(`<span class="badge act-badge-paused">Paused</span>`);
-            if (due.overdue) metaBits.push(`<span class="badge act-badge-overdue">${act.frequency !== 'monthly' ? 'Not done' : 'Overdue'}</span>`);
-            if (due.text && !due.overdue) metaBits.push(`<span>${actEsc(due.text)}</span>`);
-            if (due.text && due.overdue && act.frequency === 'monthly') metaBits.push(`<span>${actEsc(due.text.replace('Overdue · ', ''))}</span>`);
-            if (comments.length) metaBits.push(`<span><i class="fas fa-comment"></i> ${comments.length}</span>`);
-
-            const progressHtml = prog ? `
-                <div class="act-progress">
-                    <div class="progress-bar"><div class="progress-fill" style="width:${prog.pct}%"></div></div>
-                    <span>${prog.pct}% · ${prog.done}/${prog.total} steps</span>
-                </div>` : '';
-
-            let detailsHtml = '';
-            if (expanded) {
-                const checks = (run && run.steps) || {};
-                const stepsHtml = (act.steps || []).map((s, idx) => {
-                    const c = checks[s.id];
-                    return `
-                        <label class="act-step ${c ? 'done' : ''}">
-                            <input type="checkbox" ${c ? 'checked' : ''} onchange="toggleActivityStep('${act.id}','${s.id}', this.checked)">
-                            <span class="txt"><span class="lbl">${idx + 1}. ${actEsc(s.text)}</span>
-                                ${c ? `<span class="who">${actEsc(c.byName)} · ${actFormatStamp(c.at)}</span>` : ''}
-                            </span>
-                        </label>`;
-                }).join('');
-
-                const commentsHtml = comments
-                    .slice()
-                    .sort((a, b) => (a.at || '').localeCompare(b.at || ''))
-                    .map(c => `
-                        <div class="act-comment">
-                            <div class="who">${actEsc(c.byName)} · ${actFormatStamp(c.at)}</div>
-                            <div class="txt">${actEsc(c.text)}</div>
-                        </div>`).join('');
-
-                detailsHtml = `
-                    <div class="act-details">
-                        ${act.desc ? `<div class="act-desc">${actEsc(act.desc)}</div>` : ''}
-                        ${(act.steps || []).length ? `<div class="act-sub-title">Steps</div>${stepsHtml}` : ''}
-                        <div class="act-sub-title">Comments</div>
-                        ${commentsHtml || '<div style="font-size:13px; color:#999; margin-bottom:6px;">No comments yet.</div>'}
-                        <div class="act-comment-form">
-                            <input type="text" class="act-comment-input" id="actComment_${act.id}" placeholder="Add a comment..."
-                                onkeydown="if(event.key==='Enter'){addActivityComment('${act.id}');}">
-                            <button class="btn" style="padding:8px 12px;" onclick="addActivityComment('${act.id}')"><i class="fas fa-paper-plane"></i></button>
-                        </div>
-                        <div class="act-actions">
-                            ${status !== 'done' ? `
-                                <button class="btn ${status === 'paused' ? 'btn-secondary' : 'btn-warning'}" onclick="toggleActivityPause('${act.id}')">
-                                    <i class="fas ${status === 'paused' ? 'fa-play' : 'fa-pause'}"></i> ${status === 'paused' ? 'Resume' : 'Pause'}
-                                </button>` : ''}
-                            ${manager ? `
-                                <button class="btn btn-secondary" onclick="openActivityModal('${act.id}')"><i class="fas fa-pen"></i> Edit</button>
-                                <button class="btn btn-danger" style="padding:7px 12px; font-size:13px;" onclick="deleteActivity('${act.id}')"><i class="fas fa-trash"></i> Delete</button>
-                            ` : ''}
-                        </div>
-                    </div>`;
-            }
+            const prog = actStepProgress(act, run);
+            const comments = (run && run.comments) || [];
+            let who = '';
+            if (status === 'done' && run) who = `<i class="fas fa-circle-check"></i> ${actEsc(run.completedByName)} · ${actFormatStamp(run.completedAt)}`;
+            else if (status === 'paused' && run) who = `<i class="fas fa-circle-pause"></i> ${actEsc(run.pausedByName)} · ${actFormatStamp(run.pausedAt)}`;
+            else if (status === 'inprogress' && run && run.startedByName) who = `<i class="fas fa-user"></i> ${actEsc(run.startedByName)} · ${actFormatStamp(run.startedAt)}`;
 
             return `
-                <div class="act-card status-${status} ${due.overdue ? 'overdue' : ''}">
-                    <div class="act-head">
-                        <button class="act-check ${status === 'done' ? 'done' : ''}" onclick="toggleActivityComplete('${act.id}')"
-                            title="${status === 'done' ? 'Mark as not completed' : 'Mark as completed'}">
-                            <i class="fas fa-check"></i>
-                        </button>
-                        <div class="act-main" onclick="toggleActivityExpand('${act.id}')">
-                            <div class="act-name">${actEsc(act.name)}</div>
-                            <div class="act-meta">${metaBits.join('')}</div>
-                        </div>
-                        <button class="act-expand" onclick="toggleActivityExpand('${act.id}')">
-                            <i class="fas ${expanded ? 'fa-chevron-up' : 'fa-chevron-down'}"></i>
-                        </button>
+                <article class="kb-card ${due.overdue ? 'overdue' : ''} st-${status}" draggable="true"
+                    style="--c:${actEsc(cat ? cat.color : '#ced4da')}"
+                    ondragstart="kbDragStart(event, '${act.id}')" ondragend="kbDragEnd(event)"
+                    onclick="openActivityDetail('${act.id}')">
+                    <div class="kb-card-top">
+                        <div class="kb-card-name">${actEsc(act.name)}</div>
+                        <button class="kb-check ${status === 'done' ? 'done' : ''}" title="${status === 'done' ? 'Mark as not completed' : 'Mark as completed'}"
+                            onclick="event.stopPropagation(); toggleActivityComplete('${act.id}')"><i class="fas fa-check"></i></button>
                     </div>
-                    ${progressHtml}
-                    ${statusLine}
-                    ${detailsHtml}
-                </div>`;
+                    <div class="kb-card-meta">
+                        ${cat ? `<span class="kb-cat"><span class="act-dot" style="background:${actEsc(cat.color)}"></span>${actEsc(cat.name)}</span>` : ''}
+                        <span class="kb-freq">${actEsc(period.label)}</span>
+                        ${due.overdue ? `<span class="badge act-badge-overdue">${act.frequency !== 'monthly' ? 'Not done' : 'Overdue'}</span>` : ''}
+                        ${due.text && !due.overdue ? `<span class="kb-due">${actEsc(due.text)}</span>` : ''}
+                    </div>
+                    ${prog ? `<div class="kb-prog"><div class="kb-prog-bar"><div style="width:${prog.pct}%"></div></div><span>${prog.done}/${prog.total}</span></div>` : ''}
+                    ${(who || comments.length) ? `<div class="kb-card-foot"><span>${who}</span>${comments.length ? `<span><i class="fas fa-comment"></i> ${comments.length}</span>` : ''}</div>` : ''}
+                </article>`;
+        }
+
+        function kbScrollTo(col) {
+            const el = document.getElementById('kbCol_' + col);
+            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' });
+        }
+
+        // Drag and drop (computer). On phones a card is moved from its detail pop-up.
+        function kbDragStart(e, id) {
+            kbDragId = id;
+            e.dataTransfer.effectAllowed = 'move';
+            try { e.dataTransfer.setData('text/plain', id); } catch (err) {}
+            e.currentTarget.classList.add('dragging');
+        }
+        function kbDragEnd(e) {
+            e.currentTarget.classList.remove('dragging');
+            document.querySelectorAll('.kb-col.drop').forEach(c => c.classList.remove('drop'));
+        }
+        function kbDragOver(e) {
+            if (!kbDragId) return;
+            e.preventDefault();
+            e.currentTarget.classList.add('drop');
+        }
+        function kbDragLeave(e) {
+            if (!e.currentTarget.contains(e.relatedTarget)) e.currentTarget.classList.remove('drop');
+        }
+        function kbDrop(e, col) {
+            e.preventDefault();
+            e.currentTarget.classList.remove('drop');
+            const id = kbDragId;
+            kbDragId = null;
+            if (id) moveActivity(id, col);
+        }
+
+        // Moves a card to a column and records who did it.
+        async function moveActivity(id, col) {
+            const act = state.activities.find(a => a.id === id);
+            if (!act) return;
+            const period = actPeriod(act, actViewDate());
+            const status = actStatus(actGetRun(act, period));
+            if (kbColumnOf(status) === col) return;
+            const me = actActor();
+            const now = new Date().toISOString();
+            const clearDone = { completedById: null, completedByName: null, completedAt: null };
+            try {
+                if (col === 'paused') return toggleActivityPause(id);
+                if (col === 'done') {
+                    await actWriteRun(act, { status: 'done', completedById: me.id, completedByName: me.name, completedAt: now });
+                    logAction('Activity completed', `${act.name} (${period.key})`);
+                } else if (col === 'progress') {
+                    await actWriteRun(act, { status: 'inprogress', startedById: me.id, startedByName: me.name, startedAt: now, ...clearDone });
+                    logAction('Activity started', `${act.name} (${period.key})`);
+                } else {
+                    await actWriteRun(act, { status: 'pending', ...clearDone });
+                    logAction('Activity moved to To do', `${act.name} (${period.key})`);
+                }
+            } catch (err) {
+                alert('Could not move activity: ' + (err.message || err));
+            }
+        }
+
+        // ---------- Card detail pop-up ----------
+
+        function openActivityDetail(id) {
+            kbDetailId = id;
+            renderActivityDetail();
+            document.getElementById('actDetailModalOverlay').classList.add('active');
+        }
+
+        function closeActivityDetail() {
+            kbDetailId = null;
+            document.getElementById('actDetailModalOverlay').classList.remove('active');
+        }
+
+        function renderActivityDetail() {
+            const body = document.getElementById('actDetailBody');
+            if (!body || !kbDetailId) return;
+            const item = kbItems().find(i => i.act.id === kbDetailId)
+                || (() => { // the card may be hidden by the category filter
+                    const act = state.activities.find(a => a.id === kbDetailId);
+                    if (!act) return null;
+                    const period = actPeriod(act, actViewDate());
+                    const run = actGetRun(act, period);
+                    const status = actStatus(run);
+                    return { act, period, run, status, due: actDueInfo(act, period, status), col: kbColumnOf(status) };
+                })();
+            if (!item) { closeActivityDetail(); return; }
+
+            // Keep a half-typed comment across live updates.
+            const prevInput = document.getElementById('actComment_' + item.act.id);
+            const draft = prevInput ? prevInput.value : '';
+            const hadFocus = prevInput && document.activeElement === prevInput;
+
+            const { act, run, status, due, period } = item;
+            const manager = canManageActivities();
+            const cat = actCategoryById(act.categoryId);
+            const checks = (run && run.steps) || {};
+            const comments = ((run && run.comments) || []).slice().sort((a, b) => (a.at || '').localeCompare(b.at || ''));
+            const prog = actStepProgress(act, run);
+
+            let statusLine = '';
+            if (status === 'done' && run) statusLine = `<div class="act-by"><i class="fas fa-circle-check"></i> Completed by <strong>${actEsc(run.completedByName)}</strong> · ${actFormatStamp(run.completedAt)}</div>`;
+            else if (status === 'paused' && run) statusLine = `<div class="act-by paused"><i class="fas fa-circle-pause"></i> Paused by <strong>${actEsc(run.pausedByName)}</strong> · ${actFormatStamp(run.pausedAt)}</div>`;
+            else if (status === 'inprogress' && run && run.startedByName) statusLine = `<div class="act-by kb-started"><i class="fas fa-user"></i> Started by <strong>${actEsc(run.startedByName)}</strong> · ${actFormatStamp(run.startedAt)}</div>`;
+
+            body.innerHTML = `
+                <div class="modal-header">
+                    <div style="min-width:0;">
+                        <div class="kb-detail-title">${actEsc(act.name)}</div>
+                        <div class="kb-card-meta" style="margin-top:4px;">
+                            ${cat ? `<span class="kb-cat"><span class="act-dot" style="background:${actEsc(cat.color)}"></span>${actEsc(cat.name)}</span>` : ''}
+                            <span class="kb-freq">${actEsc(period.label)}</span>
+                            ${due.text ? `<span class="kb-due">${actEsc(due.text)}</span>` : ''}
+                        </div>
+                    </div>
+                    <button class="modal-close" onclick="closeActivityDetail()"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="kb-move">
+                    ${KB_COLUMNS.map(c => `<button class="kb-c-${c.key} ${item.col === c.key ? 'active' : ''}" onclick="moveActivity('${act.id}', '${c.key}')"><i class="fas ${c.icon}"></i> ${c.title}</button>`).join('')}
+                </div>
+                ${statusLine}
+                ${act.desc ? `<div class="act-desc">${actEsc(act.desc)}</div>` : ''}
+                ${(act.steps || []).length ? `
+                    <div class="act-sub-title">Steps${prog ? ` · ${prog.done}/${prog.total}` : ''}</div>
+                    ${(act.steps || []).map((st, idx) => {
+                        const c = checks[st.id];
+                        return `<label class="act-step ${c ? 'done' : ''}">
+                            <input type="checkbox" ${c ? 'checked' : ''} onchange="toggleActivityStep('${act.id}','${st.id}', this.checked)">
+                            <span class="txt"><span class="lbl">${idx + 1}. ${actEsc(st.text)}</span>
+                                ${c ? `<span class="who">${actEsc(c.byName)} · ${actFormatStamp(c.at)}</span>` : ''}</span>
+                        </label>`;
+                    }).join('')}` : ''}
+                <div class="act-sub-title">Comments</div>
+                <div class="kb-comments">
+                    ${comments.map(c => `<div class="act-comment"><div class="who">${actEsc(c.byName)} · ${actFormatStamp(c.at)}</div><div class="txt">${actEsc(c.text)}</div></div>`).join('')
+                        || '<div style="font-size:13px; color:#999; margin-bottom:6px;">No comments yet.</div>'}
+                </div>
+                <div class="act-comment-form">
+                    <input type="text" class="act-comment-input" id="actComment_${act.id}" placeholder="Add a comment..."
+                        onkeydown="if(event.key==='Enter'){addActivityComment('${act.id}');}">
+                    <button class="btn" style="padding:8px 12px;" onclick="addActivityComment('${act.id}')"><i class="fas fa-paper-plane"></i></button>
+                </div>
+                ${manager ? `
+                    <div class="act-actions">
+                        <button class="btn btn-secondary" onclick="closeActivityDetail(); openActivityModal('${act.id}')"><i class="fas fa-pen"></i> Edit</button>
+                        <button class="btn btn-danger" style="padding:7px 12px; font-size:13px;" onclick="closeActivityDetail(); deleteActivity('${act.id}')"><i class="fas fa-trash"></i> Delete</button>
+                    </div>` : ''}`;
+
+            const input = document.getElementById('actComment_' + act.id);
+            if (input && draft) input.value = draft;
+            if (input && hadFocus) input.focus();
         }
 
         function toggleActivityExpand(id) {
-            if (actExpanded.has(id)) actExpanded.delete(id); else actExpanded.add(id);
-            renderActivities();
+            openActivityDetail(id);
         }
 
         function setActivitiesFilter(f) {
@@ -6244,7 +6291,6 @@
 
         function setActivitiesDate(key) {
             actViewDateKey = (key && key !== actTodayKey()) ? key : '';
-            actCalMonthKey = '';
             renderActivities();
         }
 
@@ -6337,8 +6383,14 @@
             const act = state.activities.find(a => a.id === id);
             if (!act) return;
             const me = actActor();
+            const status = actStatus(actGetRun(act, actPeriod(act, actViewDate())));
+            // Ticking a step on a "To do" card moves it to In progress (v-0.78).
+            const start = checked && status === 'pending'
+                ? { status: 'inprogress', startedById: me.id, startedByName: me.name, startedAt: new Date().toISOString() }
+                : {};
             try {
                 await actWriteRun(act, {
+                    ...start,
                     steps: { [stepId]: checked ? { byId: me.id, byName: me.name, at: new Date().toISOString() } : null }
                 });
             } catch (err) {
