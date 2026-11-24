@@ -2512,6 +2512,42 @@
             justify-content: center;
         }
 
+        /* Automatic Coverage (v-0.88) */
+        .ac-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+        .ac-chip {
+            border: 1px solid #cbd5e1; background: #f8fafc; color: #334155;
+            border-radius: 16px; padding: 5px 10px; font-size: 12px; cursor: pointer; line-height: 1.3;
+        }
+        .ac-chip small { opacity: .75; margin-left: 4px; }
+        .ac-chip.active { background: #2563eb; border-color: #2563eb; color: #fff; }
+        .ac-summary {
+            font-size: 12px; color: #1e3a8a; background: #eff6ff; border-radius: 8px;
+            padding: 6px 10px; margin-top: 8px; line-height: 1.5;
+        }
+        .ac-summary .ac-note { color: #64748b; font-size: 11px; }
+        #assignModalOverlay.assign-tpl-on #assignTimesRow,
+        #assignModalOverlay.assign-tpl-on #assignDurationInfo,
+        #assignModalOverlay.assign-tpl-on #assignCounterWrap,
+        #assignModalOverlay.assign-tpl-on #assignCoverageWrap { display: none !important; }
+        .ac-seg { border: 1px solid #e2e8f0; border-radius: 10px; padding: 8px; margin-bottom: 8px; }
+        .ac-seg-head { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+        .ac-seg-head b {
+            flex: 0 0 22px; height: 22px; border-radius: 50%; background: #2563eb; color: #fff;
+            font-size: 11px; display: flex; align-items: center; justify-content: center;
+        }
+        .ac-seg-head select { flex: 1; min-width: 0; }
+        .ac-seg-del {
+            flex: 0 0 32px; height: 32px; border: none; border-radius: 8px;
+            background: #fee2e2; color: #dc2626; cursor: pointer;
+        }
+        .ac-seg-times { display: flex; gap: 6px; }
+        .ac-seg-times > div { flex: 1; min-width: 0; }
+        .ac-seg-times label { display: block; font-size: 11px; color: #64748b; margin-bottom: 2px; }
+        .ac-seg-times input, .ac-seg-times select { width: 100%; min-width: 0; padding: 7px 6px; font-size: 13px; }
+        #coverageSegList { max-height: 42vh; overflow-y: auto; }
+        .ac-line { font-size: 12px; color: #475569; line-height: 1.45; }
+        .ac-line.bad { color: #dc2626; }
+
         .hr-member-checks {
             max-height: 30vh;
             overflow-y: auto;
@@ -4099,6 +4135,56 @@
             </p>
         </div>
 
+        <!-- AUTOMATIC COVERAGE (v-0.88) -->
+        <div id="autoCoverage" class="content">
+            <div class="form-section">
+                <div class="hr-head">
+                    <div class="section-title" style="margin-bottom:0;">
+                        <i class="fas fa-wand-magic-sparkles"></i>
+                        Automatic Coverage
+                    </div>
+                    <button class="hr-add-btn" onclick="openCoverageTemplateModal()" title="New template" aria-label="New template">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </div>
+                <p style="font-size:12px; color:#999; margin:8px 0 12px;">
+                    Shifts that are almost always the same, with one or more parts (e.g. 04:00–08:30 in one office, then 08:30–12:25 in another).
+                    In Edit Rotas, tap <strong>+</strong> on a day, pick the template and the member: every part is created as a draft at once.
+                </p>
+                <div id="coverageTemplateList" data-fill></div>
+            </div>
+        </div>
+
+        <div id="coverageTemplateModalOverlay" class="modal-overlay" onclick="if (event.target.id === 'coverageTemplateModalOverlay') closeCoverageTemplateModal()">
+            <div class="modal-box">
+                <div class="modal-header">
+                    <div class="section-title" style="margin-bottom:0;">
+                        <i class="fas fa-wand-magic-sparkles"></i>
+                        <span id="coverageTemplateModalTitle">New template</span>
+                    </div>
+                    <button class="modal-close" onclick="closeCoverageTemplateModal()"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="form-group">
+                    <label>Template name</label>
+                    <input type="text" id="coverageTemplateName" placeholder="e.g. Early split A + B" maxlength="40">
+                </div>
+                <div id="coverageSegList"></div>
+                <button class="btn btn-secondary" style="width:100%; justify-content:center; margin-bottom:8px;" onclick="addCoverageSegment()">
+                    <i class="fas fa-plus"></i> Add part
+                </button>
+                <p id="coverageTemplateTotal" class="ac-line" style="margin-bottom:8px;"></p>
+                <div class="login-error" id="coverageTemplateError" style="display:none;"></div>
+                <div style="display:flex; gap:8px;">
+                    <button class="btn btn-danger app-hidden" id="coverageTemplateDeleteBtn" style="flex:1; justify-content:center;" onclick="deleteCoverageTemplate()">
+                        <i class="fas fa-trash"></i> Delete
+                    </button>
+                    <button class="btn" id="coverageTemplateSaveBtn" style="flex:2; justify-content:center;" onclick="saveCoverageTemplate()">
+                        <i class="fas fa-check"></i> Save template
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <div id="publishUserModalOverlay" class="modal-overlay" onclick="closePublishByUserModalOutside(event)">
             <div class="modal-box">
                 <div class="modal-header">
@@ -4133,7 +4219,12 @@
                     <button class="modal-close" onclick="closeAssignModal()"><i class="fas fa-times"></i></button>
                 </div>
                 <p id="assignModalSubtitle" style="color:#666; font-size:13px; margin-bottom:14px;"></p>
-                <div class="as-row">
+                <div class="form-group" id="assignTemplateWrap" style="display:none;">
+                    <label>Automatic Coverage</label>
+                    <div id="assignTemplateChips" class="ac-chips"></div>
+                    <div id="assignTemplateSummary" class="ac-summary" style="display:none;"></div>
+                </div>
+                <div class="as-row" id="assignTimesRow">
                     <div class="form-group">
                         <label>Start</label>
                         <input type="time" id="assignStart" oninput="onAssignTimeChange('start')">
@@ -5519,7 +5610,7 @@
             <div id="auditLogList" data-fill></div>
         </div>
 
-        <div class="app-version">GEDK v-0.87</div>
+        <div class="app-version">GEDK v-0.88</div>
     </div>
 
 
@@ -5565,7 +5656,8 @@
             appConfig: null,
             bonusConfigs: [],
             longTermLeaves: [],
-            employeeExpenses: []
+            employeeExpenses: [],
+            coverageTemplates: []
         };
 
         // ===== WORKPLACES (v-0.68) =====
@@ -5577,7 +5669,7 @@
         // vacations and long-term leaves are shared (vacations/leaves are shown for the
         // members who have access to the active workplace).
         const DEFAULT_WP = 'default';
-        const WP_TAGGED = new Set(['locations', 'resultLines', 'resultValidations', 'bonusConfigs', 'auditLog', 'swapRequests', 'dayOffSwapRequests', 'rescheduleRequests', 'currencies', 'discountCodes', 'employeeExpenses']);
+        const WP_TAGGED = new Set(['locations', 'resultLines', 'resultValidations', 'bonusConfigs', 'auditLog', 'swapRequests', 'dayOffSwapRequests', 'rescheduleRequests', 'currencies', 'discountCodes', 'employeeExpenses', 'coverageTemplates']);
         const raw = {};
         let wpConfigDocs = {};
         let currentWp = DEFAULT_WP;
@@ -6197,7 +6289,15 @@
                 renderHrExpenses();
             }, (err) => console.error('employeeExpenses', err));
 
-            unsubscribers = [unsubActivities, unsubActivityRuns, unsubActivityCategories, unsubTeam, unsubRoles, unsubLocations, unsubShifts, unsubAssignments, unsubSwapRequests, unsubNotifications, unsubVacationRequests, unsubDayOffSwapRequests, unsubResultLines, unsubResultValidations, unsubRescheduleRequests, unsubAuditLog, unsubCurrencies, unsubDiscountCodes, unsubAppConfig, unsubBonusConfigs, unsubLongTermLeaves, unsubEmployeeExpenses];
+            // Automatic Coverage templates (v-0.88), one list per workplace.
+            const coverageTemplatesCol = fns.collection(db, 'coverageTemplates');
+            const unsubCoverageTemplates = fns.onSnapshot(coverageTemplatesCol, (snapshot) => {
+                raw.coverageTemplates = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                applyWorkplaceFilter();
+                renderCoverageTemplates();
+            }, (err) => console.error('coverageTemplates', err));
+
+            unsubscribers = [unsubActivities, unsubActivityRuns, unsubActivityCategories, unsubTeam, unsubRoles, unsubLocations, unsubShifts, unsubAssignments, unsubSwapRequests, unsubNotifications, unsubVacationRequests, unsubDayOffSwapRequests, unsubResultLines, unsubResultValidations, unsubRescheduleRequests, unsubAuditLog, unsubCurrencies, unsubDiscountCodes, unsubAppConfig, unsubBonusConfigs, unsubLongTermLeaves, unsubEmployeeExpenses, unsubCoverageTemplates];
         }
 
         // Creates Admin / Lead / Member when they don't exist yet.
@@ -6382,7 +6482,8 @@
         const NAV_MENU = [
             { group: 'rotas', label: 'Rotas', icon: 'fa-calendar-week', items: [
                 { view: 'rotas', label: 'My Rota', icon: 'fa-calendar-week' },
-                { view: 'schedule', label: 'Edit Rotas', icon: 'fa-calendar-alt' }
+                { view: 'schedule', label: 'Edit Rotas', icon: 'fa-calendar-alt' },
+                { view: 'autoCoverage', label: 'Automatic Coverage', icon: 'fa-wand-magic-sparkles' }
             ] },
             { group: 'results', label: 'Results', icon: 'fa-chart-line', items: [
                 { view: 'results', label: 'My Results', icon: 'fa-chart-line' },
@@ -6420,6 +6521,7 @@
             if (view === 'tasks') return mods.includes('tasks') || mods.includes('projects');
             if (view === 'swaps') return mods.includes('inbox') || mods.includes('rotas');
             if (view === 'vacationMgmt') return canManageRequests();
+            if (view === 'autoCoverage') return mods.includes('schedule');
             return mods.includes(view);
         }
 
@@ -6561,6 +6663,7 @@
             if (tab === 'rotas') { rotasScrollToTodayPending = true; renderRotas(); }
             if (tab === 'inbox') { renderInbox(); markUnreadNotificationsAsRead(); }
             if (tab === 'schedule') renderSchedule();
+            if (tab === 'autoCoverage') renderCoverageTemplates();
             if (tab === 'vacation') renderVacation();
             if (tab === 'results') renderResults();
             if (tab === 'management') initManagement();
@@ -6614,6 +6717,7 @@
             if (tab === 'rotas') { rotasScrollToTodayPending = true; renderRotas(); }
             if (tab === 'inbox') { renderInbox(); markUnreadNotificationsAsRead(); }
             if (tab === 'schedule') renderSchedule();
+            if (tab === 'autoCoverage') renderCoverageTemplates();
             if (tab === 'vacation') renderVacation();
             if (tab === 'results') renderResults();
             if (tab === 'management') initManagement();
@@ -9409,6 +9513,7 @@
 
             renderAssignCounterSelect(locId, existing ? existing.counterId : '');
             renderAssignCoverage(locId, existing ? existing.extraCoverage : []);
+            renderAssignTemplates(locId, !!existing);
             assignClashAcknowledged = null;
 
             document.getElementById('assignWarning').style.display = 'none';
@@ -9544,7 +9649,9 @@
         }
 
         function closeAssignModal() {
-            document.getElementById('assignModalOverlay').classList.remove('active');
+            const overlay = document.getElementById('assignModalOverlay');
+            overlay.classList.remove('active');
+            overlay.classList.remove('assign-tpl-on');
             pendingAssign = null;
         }
 
@@ -9568,6 +9675,7 @@
 
         async function confirmAssign() {
             if (!pendingAssign || assignSaveInProgress) return;
+            if (pendingAssign.templateId) return confirmTemplateAssign();
             const warningEl = document.getElementById('assignWarning');
             const showWarning = (text) => {
                 warningEl.textContent = text;
@@ -9680,6 +9788,333 @@
                 closeAssignModal();
             } catch (err) {
                 showWarning('The shift could not be saved: ' + (err.message || err));
+            } finally {
+                assignSaveInProgress = false;
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = saveBtnHtml;
+            }
+        }
+
+        // ===== AUTOMATIC COVERAGE (v-0.88) =====
+        // A template is a list of parts (location + start + end + optional counter).
+        // Applying it in Edit Rotas creates one normal draft assignment per part, so
+        // hours, targets, swaps and reports treat them like any other shift.
+        let coverageDraft = [];
+
+        function coverageSegments(t) {
+            return Array.isArray(t && t.segments) ? t.segments.filter(x => x && x.locationId && x.start && x.end) : [];
+        }
+
+        function coverageTotalMinutes(segs) {
+            return segs.reduce((sum, x) => sum + calcGrossMinutes(x.start, x.end), 0);
+        }
+
+        function coverageRangeLabel(segs) {
+            return segs.length ? `${segs[0].start}–${segs[segs.length - 1].end}` : '';
+        }
+
+        function coverageLocName(id) {
+            const loc = state.locations.find(l => l.id === id);
+            return loc ? loc.name : null;
+        }
+
+        function coverageSegLabel(x) {
+            const name = coverageLocName(x.locationId);
+            const counter = x.counterId ? getCounterName(x.locationId, x.counterId) : '';
+            return `${x.start}–${x.end} · ${name ? escapeHtml(name) : '<span style="color:#dc2626;">location removed</span>'}${counter ? ' (' + escapeHtml(counter) + ')' : ''}`;
+        }
+
+        function coverageHoursLine(segs) {
+            const gross = coverageTotalMinutes(segs);
+            const net = Math.max(gross - 30, 0);
+            return { gross, net, over: net > 475, text: `${formatMinutes(gross)} gross • ${formatMinutes(net)} net` };
+        }
+
+        function renderCoverageTemplates() {
+            const list = document.getElementById('coverageTemplateList');
+            if (!list) return;
+            const items = (state.coverageTemplates || []).slice().sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+            if (items.length === 0) {
+                list.innerHTML = `<div class="empty-state"><i class="fas fa-wand-magic-sparkles"></i><p>No templates yet. Tap + to create one.</p></div>`;
+                return;
+            }
+            list.innerHTML = items.map(t => {
+                const segs = coverageSegments(t);
+                const h = coverageHoursLine(segs);
+                return `
+                <div class="team-member" style="cursor:pointer; align-items:flex-start;" onclick="openCoverageTemplateModal('${t.id}')">
+                    <div class="team-avatar"><i class="fas fa-wand-magic-sparkles"></i></div>
+                    <div class="team-info">
+                        <div class="team-name">${escapeHtml(t.name || '')}</div>
+                        ${segs.map(x => `<div class="ac-line">${coverageSegLabel(x)}</div>`).join('')}
+                        <div class="ac-line ${h.over ? 'bad' : ''}">${h.text}${h.over ? ' — over the 7h55 limit' : ''}</div>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        function openCoverageTemplateModal(id) {
+            const t = id ? (state.coverageTemplates || []).find(x => x.id === id) : null;
+            const overlay = document.getElementById('coverageTemplateModalOverlay');
+            overlay.dataset.templateId = t ? t.id : '';
+            document.getElementById('coverageTemplateModalTitle').textContent = t ? 'Edit template' : 'New template';
+            document.getElementById('coverageTemplateName').value = t ? (t.name || '') : '';
+            document.getElementById('coverageTemplateDeleteBtn').classList.toggle('app-hidden', !t);
+            document.getElementById('coverageTemplateError').style.display = 'none';
+            coverageDraft = t ? coverageSegments(t).map(x => ({ ...x })) : [];
+            if (coverageDraft.length === 0) coverageDraft.push(newCoverageSegment());
+            renderCoverageSegmentRows();
+            overlay.classList.add('active');
+        }
+
+        function closeCoverageTemplateModal() {
+            document.getElementById('coverageTemplateModalOverlay').classList.remove('active');
+        }
+
+        // A new part starts where the previous one ends, in the next location.
+        function newCoverageSegment() {
+            const locs = getOrderedLocations();
+            const prev = coverageDraft[coverageDraft.length - 1];
+            if (!prev) return { locationId: locs[0] ? locs[0].id : '', start: '', end: '', counterId: '' };
+            const idx = locs.findIndex(l => l.id === prev.locationId);
+            const next = locs.length > 1 ? locs[(idx + 1) % locs.length] : locs[0];
+            return { locationId: next ? next.id : '', start: prev.end || '', end: '', counterId: '' };
+        }
+
+        function addCoverageSegment() {
+            coverageDraft.push(newCoverageSegment());
+            renderCoverageSegmentRows();
+            const box = document.getElementById('coverageSegList');
+            box.scrollTop = box.scrollHeight;
+        }
+
+        function removeCoverageSegment(i) {
+            coverageDraft.splice(i, 1);
+            if (coverageDraft.length === 0) coverageDraft.push(newCoverageSegment());
+            renderCoverageSegmentRows();
+        }
+
+        function onCoverageSegChange(i, field, value) {
+            if (!coverageDraft[i]) return;
+            coverageDraft[i][field] = value;
+            if (field === 'locationId') {
+                coverageDraft[i].counterId = '';
+                renderCoverageSegmentRows();
+            } else {
+                updateCoverageTemplateTotal();
+            }
+        }
+
+        function renderCoverageSegmentRows() {
+            const box = document.getElementById('coverageSegList');
+            const locs = getOrderedLocations();
+            box.innerHTML = coverageDraft.map((x, i) => {
+                const counters = x.locationId ? getLocationCounters(x.locationId) : [];
+                return `
+                <div class="ac-seg">
+                    <div class="ac-seg-head">
+                        <b>${i + 1}</b>
+                        <select onchange="onCoverageSegChange(${i}, 'locationId', this.value)">
+                            <option value="">Location…</option>
+                            ${locs.map(l => `<option value="${l.id}" ${l.id === x.locationId ? 'selected' : ''}>${escapeHtml(l.name)}</option>`).join('')}
+                        </select>
+                        <button class="ac-seg-del" onclick="removeCoverageSegment(${i})" title="Remove part" aria-label="Remove part"><i class="fas fa-trash"></i></button>
+                    </div>
+                    <div class="ac-seg-times">
+                        <div><label>Start</label><input type="time" value="${x.start || ''}" onchange="onCoverageSegChange(${i}, 'start', this.value)"></div>
+                        <div><label>End</label><input type="time" value="${x.end || ''}" onchange="onCoverageSegChange(${i}, 'end', this.value)"></div>
+                        ${counters.length ? `<div><label>Counter</label><select onchange="onCoverageSegChange(${i}, 'counterId', this.value)">
+                            <option value="">No counter</option>
+                            ${counters.map(c => `<option value="${c.id}" ${c.id === x.counterId ? 'selected' : ''}>${escapeHtml(c.name)}</option>`).join('')}
+                        </select></div>` : ''}
+                    </div>
+                </div>`;
+            }).join('');
+            updateCoverageTemplateTotal();
+        }
+
+        function updateCoverageTemplateTotal() {
+            const el = document.getElementById('coverageTemplateTotal');
+            const segs = coverageDraft.filter(x => x.start && x.end);
+            if (segs.length === 0) { el.textContent = ''; el.classList.remove('bad'); return; }
+            const h = coverageHoursLine(segs);
+            el.textContent = `Total: ${h.text}${h.over ? ' — over the 7h55 daily limit' : ''}`;
+            el.classList.toggle('bad', h.over);
+        }
+
+        // Clock minutes as a span; a part that ends "before" it starts runs past midnight.
+        function coverageSpan(x) {
+            const s = timeToMinutes(x.start);
+            let e = timeToMinutes(x.end);
+            if (e <= s) e += 24 * 60;
+            return [s, e];
+        }
+
+        async function saveCoverageTemplate() {
+            const errEl = document.getElementById('coverageTemplateError');
+            const fail = (msg) => { errEl.textContent = msg; errEl.style.display = 'block'; };
+            errEl.style.display = 'none';
+
+            const name = document.getElementById('coverageTemplateName').value.trim();
+            if (!name) return fail('Give the template a name.');
+            const segs = coverageDraft.map(x => ({ locationId: x.locationId || '', start: x.start || '', end: x.end || '', counterId: x.counterId || '' }));
+            for (let i = 0; i < segs.length; i++) {
+                const x = segs[i];
+                if (!x.locationId || !x.start || !x.end) return fail(`Part ${i + 1}: choose a location, start and end.`);
+                if (x.start === x.end) return fail(`Part ${i + 1}: end must be different from start.`);
+            }
+            for (let i = 0; i < segs.length; i++) {
+                for (let j = i + 1; j < segs.length; j++) {
+                    const [a1, a2] = coverageSpan(segs[i]);
+                    const [b1, b2] = coverageSpan(segs[j]);
+                    if (a1 < b2 && b1 < a2) return fail(`Parts ${i + 1} and ${j + 1} overlap. For one person in two places at once, use "Also covering" on a normal shift.`);
+                }
+            }
+            if (coverageHoursLine(segs).over) return fail('The parts add up to more than the 7h55 net daily limit.');
+            segs.sort((a, b) => coverageSpan(a)[0] - coverageSpan(b)[0]);
+
+            const id = document.getElementById('coverageTemplateModalOverlay').dataset.templateId;
+            const btn = document.getElementById('coverageTemplateSaveBtn');
+            btn.disabled = true;
+            try {
+                const summary = `${name}: ${segs.map(x => `${x.start}-${x.end} ${coverageLocName(x.locationId) || ''}`).join(', ')}`;
+                if (id) {
+                    await fns.updateDoc(fns.doc(db, 'coverageTemplates', id), { name, segments: segs });
+                    logAction('Coverage template updated', summary);
+                } else {
+                    await fns.addDoc(fns.collection(db, 'coverageTemplates'), { name, segments: segs, createdAt: new Date().toISOString() });
+                    logAction('Coverage template created', summary);
+                }
+                closeCoverageTemplateModal();
+            } catch (err) {
+                fail('Could not save: ' + (err.message || err));
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        async function deleteCoverageTemplate() {
+            const id = document.getElementById('coverageTemplateModalOverlay').dataset.templateId;
+            const t = (state.coverageTemplates || []).find(x => x.id === id);
+            if (!t || !confirm(`Delete the template "${t.name}"? Shifts already created from it are kept.`)) return;
+            try {
+                await fns.deleteDoc(fns.doc(db, 'coverageTemplates', id));
+                logAction('Coverage template deleted', t.name || id);
+                closeCoverageTemplateModal();
+            } catch (err) {
+                const errEl = document.getElementById('coverageTemplateError');
+                errEl.textContent = 'Could not delete: ' + (err.message || err);
+                errEl.style.display = 'block';
+            }
+        }
+
+        // --- In the New shift pop-up (Edit Rotas) ---
+        function renderAssignTemplates(locationId, isEdit) {
+            const wrap = document.getElementById('assignTemplateWrap');
+            const chips = document.getElementById('assignTemplateChips');
+            const overlay = document.getElementById('assignModalOverlay');
+            if (pendingAssign) pendingAssign.templateId = null;
+            overlay.classList.remove('assign-tpl-on');
+            document.getElementById('assignTemplateSummary').style.display = 'none';
+            document.getElementById('assignSaveBtn').innerHTML = '<i class="fas fa-check"></i> Save shift';
+
+            const usable = isEdit ? [] : (state.coverageTemplates || []).filter(t => {
+                const segs = coverageSegments(t);
+                return segs.length && segs.every(x => coverageLocName(x.locationId) !== null);
+            });
+            if (usable.length === 0) { wrap.style.display = 'none'; chips.innerHTML = ''; return; }
+
+            // Templates that use the tapped location come first.
+            const usesHere = t => coverageSegments(t).some(x => x.locationId === locationId) ? 0 : 1;
+            usable.sort((a, b) => usesHere(a) - usesHere(b) || (a.name || '').localeCompare(b.name || ''));
+            chips.innerHTML = usable.map(t => `<button type="button" class="ac-chip" data-tpl="${t.id}" onclick="selectAssignTemplate('${t.id}')">${escapeHtml(t.name || '')}<small>${coverageRangeLabel(coverageSegments(t))}</small></button>`).join('');
+            wrap.style.display = 'block';
+        }
+
+        function selectAssignTemplate(id) {
+            if (!pendingAssign) return;
+            pendingAssign.templateId = pendingAssign.templateId === id ? null : id;
+            const t = (state.coverageTemplates || []).find(x => x.id === pendingAssign.templateId);
+            document.querySelectorAll('#assignTemplateChips .ac-chip').forEach(c => c.classList.toggle('active', c.dataset.tpl === pendingAssign.templateId));
+            document.getElementById('assignModalOverlay').classList.toggle('assign-tpl-on', !!t);
+            document.getElementById('assignWarning').style.display = 'none';
+            assignClashAcknowledged = null;
+
+            const summary = document.getElementById('assignTemplateSummary');
+            const saveBtn = document.getElementById('assignSaveBtn');
+            if (!t) {
+                summary.style.display = 'none';
+                saveBtn.innerHTML = '<i class="fas fa-check"></i> Save shift';
+                return;
+            }
+            const segs = coverageSegments(t);
+            summary.innerHTML = segs.map(x => `<div>${coverageSegLabel(x)}</div>`).join('') +
+                `<div class="ac-note">${coverageHoursLine(segs).text} • created as drafts, each part editable afterwards</div>`;
+            summary.style.display = 'block';
+            saveBtn.innerHTML = `<i class="fas fa-check"></i> Save ${segs.length} shift${segs.length === 1 ? '' : 's'}`;
+        }
+
+        async function confirmTemplateAssign() {
+            const warningEl = document.getElementById('assignWarning');
+            const showWarning = (text) => { warningEl.textContent = text; warningEl.style.display = 'block'; };
+            const t = (state.coverageTemplates || []).find(x => x.id === pendingAssign.templateId);
+            if (!t) return showWarning('This template no longer exists.');
+            const segs = coverageSegments(t);
+            if (segs.some(x => coverageLocName(x.locationId) === null)) return showWarning('A location in this template was removed. Edit the template in Automatic Coverage.');
+
+            const memberId = document.getElementById('assignMemberSelect').value;
+            const dateKey = pendingAssign.dateKey;
+            if (!memberId) return showWarning('Select a team member.');
+            const m = assigneeMap[memberId];
+            const who = m ? m.name : 'This member';
+            const activeLeave = getLongTermLeaveForDate(memberId, dateKey);
+            if (activeLeave) return showWarning(`${who} is on ${LEAVE_TYPE_LABELS[activeLeave.type] || 'leave'} on ${dateKey} and cannot be assigned a shift.`);
+            if (isOnApprovedVacation(memberId, dateKey)) return showWarning(`${who} is on approved holidays on ${dateKey} and cannot be assigned a shift.`);
+
+            const netMinutes = getMemberDayMinutes(memberId, dateKey) + coverageTotalMinutes(segs) - 30;
+            if (netMinutes > 475) return showWarning(`${who} would have ${formatMinutes(netMinutes)} net on ${dateKey}, exceeding the 7h55 daily limit.`);
+
+            // Counter clashes only warn; pressing Save again keeps them.
+            const clashes = [];
+            segs.forEach(x => {
+                const clash = findCounterClash(x.locationId, x.counterId, dateKey, x.start, x.end, null);
+                if (clash) clashes.push(`${clash.name} is already on ${getCounterName(x.locationId, x.counterId)} (${coverageLocName(x.locationId)}) at ${clash.times}.`);
+            });
+            const signature = `tpl|${t.id}|${dateKey}|${memberId}`;
+            if (clashes.length && assignClashAcknowledged !== signature) {
+                assignClashAcknowledged = signature;
+                return showWarning(clashes.join(' ') + ' Press Save again to keep both.');
+            }
+            assignClashAcknowledged = null;
+
+            const training = document.getElementById('assignTraining').checked;
+            const saveBtn = document.getElementById('assignSaveBtn');
+            const saveBtnHtml = saveBtn.innerHTML;
+            assignSaveInProgress = true;
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving…';
+            let done = 0;
+            try {
+                for (const x of segs) {
+                    const slot = await findOrCreateShiftSlot(x.start, x.end, x.locationId);
+                    await fns.addDoc(fns.collection(db, 'assignments'), {
+                        shiftId: slot.id,
+                        dateKey,
+                        memberId,
+                        sickLeave: false,
+                        training,
+                        counterId: x.counterId || '',
+                        extraCoverage: [],
+                        published: false,
+                        coverageTemplateId: t.id
+                    });
+                    done++;
+                    // Drafts: the member is told when the rota is published.
+                    await logAction('Shift assigned', `${dateKey} ${slot.start}-${slot.end} (${coverageLocName(x.locationId)})${describeAssignExtras(x.locationId, x.counterId || '', [])} to ${who}${training ? ' — Training' : ''} — Automatic Coverage "${t.name}"`);
+                }
+                closeAssignModal();
+            } catch (err) {
+                showWarning(`Only ${done} of ${segs.length} parts were saved: ` + (err.message || err));
             } finally {
                 assignSaveInProgress = false;
                 saveBtn.disabled = false;
