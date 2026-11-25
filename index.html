@@ -11169,10 +11169,30 @@
             return member && getPayType(member) === 'hourly';
         }
 
+        // v-0.89: a request can run across New Year (e.g. 28/12 → 03/01). It stores
+        // daysByYear, so each day is taken from the balance of the year it falls in.
+        // Older requests have no daysByYear: all their days count in the start year.
+        function requestDaysInYear(r, year) {
+            const y = String(year);
+            if (r.daysByYear && typeof r.daysByYear === 'object') return Number(r.daysByYear[y]) || 0;
+            return (r.startKey || '').slice(0, 4) === y ? (r.workingDaysCounted || 0) : 0;
+        }
+
+        function requestTouchesYear(r, year) {
+            const y = String(year);
+            return (r.startKey || '').slice(0, 4) <= y && (r.endKey || r.startKey || '').slice(0, 4) >= y;
+        }
+
+        function vacationDaysLabel(req) {
+            const by = req.daysByYear && typeof req.daysByYear === 'object' ? Object.keys(req.daysByYear).sort() : [];
+            const split = by.length > 1 ? ` (${by.map(y => `${y}: ${req.daysByYear[y]}`).join(' • ')})` : '';
+            return ` • ${req.workingDaysCounted || 0} day(s)${split}`;
+        }
+
         function getApprovedVacationDaysUsed(memberId, year) {
             return state.vacationRequests
-                .filter(r => r.memberId === memberId && r.status === 'approved' && r.startKey.slice(0, 4) === String(year))
-                .reduce((sum, r) => sum + (r.workingDaysCounted || 0), 0);
+                .filter(r => r.memberId === memberId && r.status === 'approved')
+                .reduce((sum, r) => sum + requestDaysInYear(r, year), 0);
         }
 
         function renderVacationBalanceCard() {
@@ -11248,32 +11268,36 @@
             }
 
             const requestType = isVacationEligible ? 'vacation' : 'timeoff';
-            const workingDaysCounted = isVacationEligible
-                ? countRotationWorkingDays(currentMember, startKey, endKey)
-                : 0;
 
-            // v-0.89: requests can be made for this year and next year. Each request stays
-            // inside one calendar year, because the balance is counted per year.
+            // v-0.89: requests can be made for this year and next year, also across
+            // New Year. Days are counted per calendar year, each against its own balance.
             const thisYear = new Date().getFullYear();
-            const requestYear = Number(startKey.slice(0, 4));
-            if (requestYear !== thisYear && requestYear !== thisYear + 1) {
-                alert(`Requests can only be made for ${thisYear} or ${thisYear + 1}.`);
+            const startYear = Number(startKey.slice(0, 4));
+            const endYear = Number(endKey.slice(0, 4));
+            if (startYear < thisYear || endYear > thisYear + 1) {
+                alert(`Requests can only be made for ${thisYear} and ${thisYear + 1}.`);
                 return;
             }
-            if (endKey.slice(0, 4) !== startKey.slice(0, 4)) {
-                alert(`A request can't cross from ${requestYear} into ${requestYear + 1}. Split it into two requests: one until 31 December and one from 1 January.`);
-                return;
-            }
-            const currentYear = requestYear;
 
+            const daysByYear = {};
+            let workingDaysCounted = 0;
             if (isVacationEligible) {
+                for (let y = startYear; y <= endYear; y++) {
+                    const from = startKey > `${y}-01-01` ? startKey : `${y}-01-01`;
+                    const to = endKey < `${y}-12-31` ? endKey : `${y}-12-31`;
+                    daysByYear[y] = countRotationWorkingDays(currentMember, from, to);
+                    workingDaysCounted += daysByYear[y];
+                }
+
                 const allotted = currentMember.vacationDaysAllotted ?? 25;
-                const alreadyUsedOrPending = state.vacationRequests
-                    .filter(r => r.memberId === currentMember.id && r.status !== 'rejected' && r.startKey.slice(0, 4) === String(currentYear))
-                    .reduce((sum, r) => sum + (r.workingDaysCounted || 0), 0);
-                if (alreadyUsedOrPending + workingDaysCounted > allotted) {
-                    alert(`This request would use ${workingDaysCounted} day(s), but only ${allotted - alreadyUsedOrPending} day(s) remain in your balance.`);
-                    return;
+                for (const y of Object.keys(daysByYear)) {
+                    const alreadyUsedOrPending = state.vacationRequests
+                        .filter(r => r.memberId === currentMember.id && r.status !== 'rejected')
+                        .reduce((sum, r) => sum + requestDaysInYear(r, y), 0);
+                    if (alreadyUsedOrPending + daysByYear[y] > allotted) {
+                        alert(`This request would use ${daysByYear[y]} day(s) in ${y}, but only ${allotted - alreadyUsedOrPending} day(s) remain in your ${y} balance.`);
+                        return;
+                    }
                 }
             }
 
@@ -11284,6 +11308,7 @@
                 endKey,
                 note,
                 workingDaysCounted,
+                daysByYear,
                 status: 'pending',
                 createdAt: new Date().toISOString()
             });
@@ -11363,7 +11388,7 @@
                         </div>
                         <p style="font-size:13px; color:#666; margin:0 0 4px;">
                             ${req.startKey} → ${req.endKey}
-                            ${req.requestType === 'vacation' ? ` • ${req.workingDaysCounted} day(s)` : ' • Time off'}
+                            ${req.requestType === 'vacation' ? vacationDaysLabel(req) : ' • Time off'}
                         </p>
                         ${req.note ? `<p style="font-size:12px; color:#999; margin:0 0 8px;">"${req.note}"</p>` : ''}
                         ${canAct ? `
@@ -13607,8 +13632,8 @@
             // --- Summary ---
             let tTotal = 0, tTaken = 0, tLeft = 0, tAwait = 0, tSwaps = 0;
             const rows = members.map(m => {
-                const reqs = state.vacationRequests.filter(r => r.memberId === m.id && inYear(r.startKey));
-                const awaiting = reqs.filter(r => r.status === 'pending').reduce((s2, r) => s2 + (r.workingDaysCounted || 0), 0);
+                const reqs = state.vacationRequests.filter(r => r.memberId === m.id && requestTouchesYear(r, year));
+                const awaiting = reqs.filter(r => r.status === 'pending').reduce((s2, r) => s2 + requestDaysInYear(r, year), 0);
                 const awaitingCount = reqs.filter(r => r.status === 'pending').length;
                 const swaps = swapItems.filter(i => i.members.includes(m.id) && inYear(i.dateKey || i.approvedAt)).length;
                 tSwaps += swaps;
@@ -13645,7 +13670,7 @@
 
             // --- Vacations ---
             const vacs = state.vacationRequests
-                .filter(r => (!memberId || r.memberId === memberId) && inYear(r.startKey))
+                .filter(r => (!memberId || r.memberId === memberId) && requestTouchesYear(r, year))
                 .sort((a, b) => ((a.status === 'pending') ? 0 : 1) - ((b.status === 'pending') ? 0 : 1) || (b.startKey || '').localeCompare(a.startKey || ''));
             vacEl.innerHTML = vacs.length === 0
                 ? `<div class="empty-state"><i class="fas fa-umbrella-beach"></i><p>No vacation requests.</p></div>`
@@ -13660,7 +13685,7 @@
                             </div>
                             <p style="font-size:13px; color:#666; margin:0 0 4px;">
                                 ${req.startKey} → ${req.endKey}
-                                ${req.requestType === 'vacation' ? ` • ${req.workingDaysCounted} day(s)` : ' • Time off'}
+                                ${req.requestType === 'vacation' ? vacationDaysLabel(req) : ' • Time off'}
                             </p>
                             ${req.note ? `<p style="font-size:12px; color:#999; margin:0 0 4px;">"${escapeHtml(req.note)}"</p>` : ''}
                             ${canAct ? `
