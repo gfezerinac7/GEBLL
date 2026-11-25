@@ -5610,7 +5610,7 @@
             <div id="auditLogList" data-fill></div>
         </div>
 
-        <div class="app-version">GEDK v-0.88</div>
+        <div class="app-version">GEDK v-0.89</div>
     </div>
 
 
@@ -11252,11 +11252,19 @@
                 ? countRotationWorkingDays(currentMember, startKey, endKey)
                 : 0;
 
-            const currentYear = new Date().getFullYear();
-            if (startKey.slice(0, 4) !== String(currentYear) || endKey.slice(0, 4) !== String(currentYear)) {
-                alert('Requests can only be made within the current year.');
+            // v-0.89: requests can be made for this year and next year. Each request stays
+            // inside one calendar year, because the balance is counted per year.
+            const thisYear = new Date().getFullYear();
+            const requestYear = Number(startKey.slice(0, 4));
+            if (requestYear !== thisYear && requestYear !== thisYear + 1) {
+                alert(`Requests can only be made for ${thisYear} or ${thisYear + 1}.`);
                 return;
             }
+            if (endKey.slice(0, 4) !== startKey.slice(0, 4)) {
+                alert(`A request can't cross from ${requestYear} into ${requestYear + 1}. Split it into two requests: one until 31 December and one from 1 January.`);
+                return;
+            }
+            const currentYear = requestYear;
 
             if (isVacationEligible) {
                 const allotted = currentMember.vacationDaysAllotted ?? 25;
