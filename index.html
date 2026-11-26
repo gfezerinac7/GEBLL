@@ -4265,10 +4265,15 @@
                     </div>
                     <div class="form-group" id="sickLeaveWrap" style="display:none;">
                         <label class="module-check" style="width:fit-content; margin:0;">
-                            <input type="checkbox" id="assignSickLeave">
+                            <input type="checkbox" id="assignSickLeave" onchange="renderSickReplacement()">
                             Sick Leave
                         </label>
                     </div>
+                </div>
+                <div class="form-group" id="sickReplaceWrap" style="display:none;">
+                    <label>Who takes this shift?</label>
+                    <select id="sickReplaceSelect" onchange="updateSickReplaceInfo()"></select>
+                    <p id="sickReplaceInfo" style="font-size:12px; color:#475569; margin:4px 0 0;"></p>
                 </div>
                 <p id="assignWarning" class="login-error" style="display:none;"></p>
                 <button class="btn" id="assignSaveBtn" style="width:100%; justify-content:center;" onclick="confirmAssign()">
@@ -5610,7 +5615,7 @@
             <div id="auditLogList" data-fill></div>
         </div>
 
-        <div class="app-version">GEDK v-0.89</div>
+        <div class="app-version">GEDK v-0.90</div>
     </div>
 
 
@@ -9508,6 +9513,7 @@
             const sickCheckbox = document.getElementById('assignSickLeave');
             sickWrap.style.display = existing ? 'block' : 'none';
             sickCheckbox.checked = !!(existing && existing.sickLeave);
+            renderSickReplacement();
 
             document.getElementById('assignTraining').checked = !!(existing && existing.training);
 
@@ -9613,6 +9619,7 @@
 
             for (const a of state.assignments) {
                 if (a.dateKey !== dateKey || a.id === excludeAssignmentId) continue;
+                if (a.sickLeave) continue; // the person is off sick, the counter is free
                 const shift = shiftById[a.shiftId];
                 if (!shift) continue;
 
@@ -9708,6 +9715,12 @@
             }
 
             const sickLeave = document.getElementById('assignSickLeave').checked;
+            const sickReplaceWrap = document.getElementById('sickReplaceWrap');
+            const replacementId = sickLeave && pendingAssign.assignmentId && sickReplaceWrap.style.display !== 'none'
+                ? (document.getElementById('sickReplaceSelect').value || '') : '';
+            if (replacementId && replacementId === memberId) {
+                return showWarning('The replacement must be a different person from the one on sick leave.');
+            }
             const training = document.getElementById('assignTraining').checked;
             const counterId = (document.getElementById('assignCounterSelect') || {}).value || '';
             const extraCoverage = collectAssignCoverage(pendingAssign.locationId);
@@ -9768,6 +9781,13 @@
                         }
                         await logAction('Shift updated', `${dateKey} ${timesChanged ? previousTimes + ' → ' : ''}${times} (${locName})${describeAssignExtras(pendingAssign.locationId, counterId, extraCoverage)} for ${m ? m.name : memberId}${sickLeave ? ' — marked Sick Leave' : ''}${training ? ' — marked Training' : ''}`);
                     }
+
+                    if (replacementId) {
+                        await applySickReplacement({
+                            replacementId, sickAssignmentId: pendingAssign.assignmentId, sickName: m ? m.name : 'a colleague',
+                            dateKey, slot, counterId, extraCoverage, published: wasPublished, locName
+                        });
+                    }
                 } else {
                     await fns.addDoc(fns.collection(db, 'assignments'), {
                         shiftId: slot.id,
@@ -9793,6 +9813,115 @@
                 saveBtn.disabled = false;
                 saveBtn.innerHTML = saveBtnHtml;
             }
+        }
+
+        // ===== SICK LEAVE REPLACEMENT (v-0.90) =====
+        // When a shift is marked Sick Leave, someone else can take it. If that person
+        // already works that day, their shift(s) that day are replaced by this one;
+        // if not, the shift is simply added to their day.
+        function getSickCover(sickAssignmentId) {
+            return state.assignments.find(a => a.coversSickAssignmentId === sickAssignmentId) || null;
+        }
+
+        function describeDayShifts(list) {
+            return list.map(a => {
+                const sh = state.shifts.find(s => s.id === a.shiftId);
+                const l = sh ? state.locations.find(x => x.id === sh.locationId) : null;
+                return sh ? `${sh.start}–${sh.end}${l ? ' ' + l.name : ''}` : '';
+            }).filter(Boolean).join(', ');
+        }
+
+        function memberShiftsThatDay(memberId, dateKey, excludeAssignmentId) {
+            return state.assignments.filter(a => a.memberId === memberId && a.dateKey === dateKey && a.id !== excludeAssignmentId);
+        }
+
+        function renderSickReplacement() {
+            const wrap = document.getElementById('sickReplaceWrap');
+            const select = document.getElementById('sickReplaceSelect');
+            const info = document.getElementById('sickReplaceInfo');
+            const checked = document.getElementById('assignSickLeave').checked;
+            if (!pendingAssign || !pendingAssign.assignmentId || !checked) {
+                wrap.style.display = 'none';
+                return;
+            }
+            const sickAssignment = state.assignments.find(a => a.id === pendingAssign.assignmentId);
+            const cover = getSickCover(pendingAssign.assignmentId);
+            if (cover) {
+                const cm = assigneeMap[cover.memberId];
+                select.style.display = 'none';
+                select.innerHTML = '';
+                info.textContent = `Covered by ${cm ? cm.name : 'another member'}. To change it, edit that person's shift.`;
+                wrap.style.display = 'block';
+                return;
+            }
+
+            const dateKey = pendingAssign.dateKey;
+            const dateObj = dateKeyToDate(dateKey);
+            const leaveLabels = Object.values(LEAVE_TYPE_LABELS);
+            const free = [], working = [], dayOff = [];
+            [...state.team].sort((a, b) => a.name.localeCompare(b.name)).forEach(m => {
+                if (sickAssignment && m.id === sickAssignment.memberId) return;
+                const status = getRotationStatusLabel(m, dateObj);
+                if (status === 'Holidays' || leaveLabels.includes(status)) return;
+                if (getLongTermLeaveForDate(m.id, dateKey) || isOnApprovedVacation(m.id, dateKey)) return;
+                const theirs = memberShiftsThatDay(m.id, dateKey, pendingAssign.assignmentId);
+                if (theirs.some(a => a.sickLeave)) return; // sick themselves that day
+                if (theirs.length) working.push(`<option value="${m.id}">${escapeHtml(m.name)} — has ${escapeHtml(describeDayShifts(theirs))}</option>`);
+                else if (status === 'Day off (rotation)') dayOff.push(`<option value="${m.id}">${escapeHtml(m.name)} — day off</option>`);
+                else free.push(`<option value="${m.id}">${escapeHtml(m.name)}</option>`);
+            });
+            let html = `<option value="">No replacement</option>`;
+            if (free.length) html += `<optgroup label="Free this day">${free.join('')}</optgroup>`;
+            if (working.length) html += `<optgroup label="Working this day (their shift is replaced)">${working.join('')}</optgroup>`;
+            if (dayOff.length) html += `<optgroup label="Day off (rotation)">${dayOff.join('')}</optgroup>`;
+            select.innerHTML = html;
+            select.style.display = '';
+            wrap.style.display = 'block';
+            updateSickReplaceInfo();
+        }
+
+        function updateSickReplaceInfo() {
+            const info = document.getElementById('sickReplaceInfo');
+            const id = document.getElementById('sickReplaceSelect').value;
+            if (!pendingAssign || !id) { info.textContent = ''; return; }
+            const m = assigneeMap[id];
+            const theirs = memberShiftsThatDay(id, pendingAssign.dateKey, pendingAssign.assignmentId);
+            info.textContent = theirs.length
+                ? `${m ? m.name : 'They'}'s shift that day (${describeDayShifts(theirs)}) will be removed and replaced by this one.`
+                : `${m ? m.name : 'They'} has no shift that day: this one will be added.`;
+        }
+
+        async function applySickReplacement(o) {
+            const r = assigneeMap[o.replacementId];
+            const rName = r ? r.name : o.replacementId;
+            const times = `${o.slot.start}-${o.slot.end}`;
+            const theirs = memberShiftsThatDay(o.replacementId, o.dateKey, o.sickAssignmentId);
+            const replacedLabel = describeDayShifts(theirs);
+            const theirsWasPublished = theirs.some(a => a.published);
+
+            for (const a of theirs) {
+                await fns.deleteDoc(fns.doc(db, 'assignments', a.id));
+                await logAction('Shift unassigned', `${o.dateKey} ${describeDayShifts([a])} — removed from ${rName} to cover ${o.sickName}'s sick leave`);
+            }
+
+            await fns.addDoc(fns.collection(db, 'assignments'), {
+                shiftId: o.slot.id,
+                dateKey: o.dateKey,
+                memberId: o.replacementId,
+                sickLeave: false,
+                training: false,
+                counterId: o.counterId || '',
+                extraCoverage: o.extraCoverage || [],
+                published: !!o.published,
+                coversSickAssignmentId: o.sickAssignmentId
+            });
+
+            // Same rule as everywhere else: people are told only about published rotas.
+            if (o.published || theirsWasPublished) {
+                const was = replacedLabel ? ` It replaces your shift ${replacedLabel}.` : '';
+                await createNotification(o.replacementId, `You are covering ${o.sickName}'s shift on ${o.dateKey} (${times}, ${o.locName}).${was}`);
+            }
+            await logAction('Sick leave covered', `${o.dateKey} ${times} (${o.locName}): ${rName} covers ${o.sickName}${replacedLabel ? ' — replaces ' + replacedLabel : ' — added to their day'}`);
         }
 
         // ===== AUTOMATIC COVERAGE (v-0.88) =====
