@@ -5615,7 +5615,7 @@
             <div id="auditLogList" data-fill></div>
         </div>
 
-        <div class="app-version">GEDK v-0.90</div>
+        <div class="app-version">GEDK v-0.91</div>
     </div>
 
 
@@ -16609,6 +16609,53 @@
             const sickCells = new Set();
             const trainingCells = new Set();
             const leaveCells = new Set();
+            const conflictCells = new Set();
+            const otherWpCells = new Set();
+
+            // v-0.91: shifts are read across all workplaces, so someone working in the
+            // other workplace that day does not show as Off here.
+            const allShifts = raw.shifts || state.shifts;
+            const allAssignments = raw.assignments || state.assignments;
+            const allLocations = raw.locations || state.locations;
+            const shiftById = {};
+            allShifts.forEach(x => { shiftById[x.id] = x; });
+            const locWp = {};
+            allLocations.forEach(l => { locWp[l.id] = wpOf(l); });
+            const shiftWp = x => locWp[x.locationId] || DEFAULT_WP;
+
+            // Days a member no longer works because of an approved swap or reschedule.
+            // They show as Off even if the rotation says it is a working day.
+            const freedDays = new Set();
+            const pendingSwapBacks = [];
+            (state.swapRequests || []).filter(r => r.status === 'approved').forEach(r => {
+                const keys = r.swappedDateKeys || [r.requesterDateKey, r.targetDateKey].filter(Boolean);
+                keys.forEach(k => {
+                    freedDays.add(`${r.requesterId}|${k}`);
+                    freedDays.add(`${r.targetMemberId}|${k}`);
+                });
+            });
+            (state.dayOffSwapRequests || []).filter(r => r.status === 'approved').forEach(r => {
+                if (r.takeDateKey) freedDays.add(`${r.targetMemberId}|${r.takeDateKey}`);
+                if (r.returnDateKey) freedDays.add(`${r.requesterId}|${r.returnDateKey}`);
+                // The give-back day is only moved in the data when that date arrives.
+                // Until then, show it in the report as already agreed.
+                if (!r.swapBackDone && r.returnDateKey) pendingSwapBacks.push(r);
+            });
+            (state.rescheduleRequests || []).filter(r => r.status === 'approved').forEach(r => {
+                if (r.originalDateKey) freedDays.add(`${r.memberId}|${r.originalDateKey}`);
+            });
+
+            const getDayAssignments = (memberId, dateKey) => {
+                let owner = memberId;
+                const back = pendingSwapBacks.find(r => r.returnDateKey === dateKey &&
+                    (r.requesterId === memberId || r.targetMemberId === memberId));
+                if (back) owner = back.requesterId === memberId ? back.targetMemberId : back.requesterId;
+                return allAssignments.filter(a => a.memberId === owner && a.dateKey === dateKey && shiftById[a.shiftId]);
+            };
+
+            const approvedRequestOn = (memberId, dateKey, type) => state.vacationRequests.some(r =>
+                r.memberId === memberId && r.status === 'approved' && (r.requestType || 'vacation') === type &&
+                dateKey >= r.startKey && dateKey <= (r.endKey || r.startKey));
 
             for (let d = 1; d <= daysInMonth; d++) {
                 const date = new Date(year, month - 1, d);
@@ -16618,16 +16665,29 @@
                 const row = [date.toLocaleDateString('en-US', { weekday: 'short' }), `${dd}/${mm}/${year}`];
 
                 members.forEach((m, colIdx) => {
-                    const dayAssignments = state.assignments.filter(a => a.memberId === m.id && a.dateKey === dateKey);
+                    const cell = `${d - 1}|${colIdx + 2}`;
+                    const dayAssignments = getDayAssignments(m.id, dateKey);
+                    const holiday = approvedRequestOn(m.id, dateKey, 'vacation');
+                    const timeOff = !holiday && approvedRequestOn(m.id, dateKey, 'timeoff');
 
                     if (dayAssignments.length > 0) {
+                        // An approved holiday wins, but a shift still assigned that day is flagged.
+                        if (holiday || timeOff) {
+                            row.push(holiday ? 'Holiday*' : 'Time off*');
+                            conflictCells.add(cell);
+                            return;
+                        }
                         const shifts = dayAssignments
-                            .map(a => state.shifts.find(s => s.id === a.shiftId))
-                            .filter(Boolean)
+                            .map(a => shiftById[a.shiftId])
                             .sort((a, b) => a.start.localeCompare(b.start));
-                        const span = shifts.length > 0 ? `${shifts[0].start}-${shifts[shifts.length - 1].end}` : '';
-                        if (dayAssignments.some(a => a.sickLeave)) sickCells.add(`${d - 1}|${colIdx + 2}`);
-                        else if (dayAssignments.some(a => a.training)) trainingCells.add(`${d - 1}|${colIdx + 2}`);
+                        let span = `${shifts[0].start}-${shifts[shifts.length - 1].end}`;
+                        const otherWps = [...new Set(shifts.map(shiftWp).filter(w => w !== currentWp))];
+                        if (otherWps.length && otherWps.length === new Set(shifts.map(shiftWp)).size) {
+                            span += ` (${getWorkplaceName(otherWps[0])})`;
+                            otherWpCells.add(cell);
+                        }
+                        if (dayAssignments.some(a => a.sickLeave)) sickCells.add(cell);
+                        else if (dayAssignments.some(a => a.training)) trainingCells.add(cell);
                         row.push(span);
                         return;
                     }
@@ -16639,25 +16699,31 @@
                             : leave.type === 'sick' ? 'Sick leave'
                             : leave.type === 'unpaid' ? 'Unpaid'
                             : 'Leave');
-                        leaveCells.add(`${d - 1}|${colIdx + 2}`);
+                        leaveCells.add(cell);
                         return;
                     }
 
-                    if (isOnApprovedVacation(m.id, dateKey)) { row.push('Holiday'); return; }
+                    if (holiday) { row.push('Holiday'); return; }
+                    if (timeOff) { row.push('Time off'); return; }
 
                     const working = isWorkingDayForMember(m, date);
-                    if (working === false) { row.push('Off'); return; }
+                    if (working === false || freedDays.has(`${m.id}|${dateKey}`)) { row.push('Off'); return; }
 
-                    // Hourly staff with no shift: leave the cell blank.
+                    // Working day by rotation with no shift yet, or hourly staff: blank.
                     row.push('');
                 });
 
                 body.push(row);
             }
 
+            const notes = ['Off = day off by rotation, or a day freed by an approved swap or reschedule.'];
+            if (conflictCells.size) notes.push(`* = approved holiday / time off, but a shift is still assigned that day (${conflictCells.size}). Remove it in Edit Rotas.`);
+            if (otherWpCells.size) notes.push('Shifts in another workplace show its name in brackets.');
+
             return {
                 title: 'Global rota',
                 periodLabel,
+                notes,
                 orientation: 'landscape',
                 margin: 8,
                 sections: [{
@@ -16669,12 +16735,14 @@
                     columnStyles: { 0: { fontStyle: 'bold' }, 1: { fontStyle: 'bold' } },
                     cellStyle: (rowIdx, colIdx, raw) => {
                         const key = `${rowIdx}|${colIdx}`;
+                        if (conflictCells.has(key)) return { fill: [254, 243, 199], text: [185, 28, 28], bold: true };
                         if (leaveCells.has(key)) return { fill: [233, 213, 255], text: [107, 33, 168] };
                         if (sickCells.has(key)) return { fill: [254, 202, 202], text: [153, 27, 27] };
                         if (trainingCells.has(key)) return { fill: [224, 231, 255], text: [55, 48, 163] };
                         const text = cellText(raw);
                         if (text === 'Off') return { fill: [220, 252, 231], text: [22, 101, 52] };
-                        if (text === 'Holiday') return { fill: [254, 243, 199], text: [146, 64, 14] };
+                        if (text === 'Holiday' || text === 'Time off') return { fill: [254, 243, 199], text: [146, 64, 14] };
+                        if (otherWpCells.has(key)) return { fill: [241, 245, 249], text: [71, 85, 105] };
                         return null;
                     }
                 }],
